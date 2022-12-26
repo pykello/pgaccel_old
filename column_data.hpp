@@ -9,6 +9,8 @@
 
 #include <vector>
 #include <map>
+#include <execution>
+#include <algorithm>
 #include <set>
 
 /*
@@ -16,10 +18,14 @@
 */
 const int RowGroupSize = 1 << 16;
 
-class ColumnDataBase {};
+struct ColumnDataBase {
+    enum {
+        DICT_COLUMN_DATA = 0,
+    } type;
+};
 
 template<class PhyTy>
-struct ColumnData: public ColumnDataBase {
+struct DictColumnData: public ColumnDataBase {
     // using PhyTy = parquet::ByteArrayType;
     using DictTy = typename pgaccel_type_traits<PhyTy::type_num>::dict_type;
     std::vector<DictTy> dict;
@@ -38,7 +44,6 @@ void
 GenerateColumnData(parquet::ColumnReader &untypedReader,
                    std::vector<ColumnDataP> &result)
 {
-    // using PhyTy = parquet::ByteArrayType;
     using ReaderType = parquet::TypedColumnReader<PhyTy>&;
     using DictTy = typename pgaccel_type_traits<PhyTy::type_num>::dict_type;
     ReaderType& typedReader = static_cast<ReaderType>(untypedReader);
@@ -63,7 +68,8 @@ GenerateColumnData(parquet::ColumnReader &untypedReader,
     for (int offset = 0; offset < convertedValues.size(); offset += RowGroupSize)
     {
         int rowGroupSize = std::min((int) convertedValues.size() - offset, RowGroupSize);
-        auto columnData = std::make_unique<ColumnData<PhyTy>>();
+        auto columnData = std::make_unique<DictColumnData<PhyTy>>();
+        columnData->type = ColumnDataBase::DICT_COLUMN_DATA;
         std::set<DictTy> distinctValues;
         std::map<DictTy, int> dictIndexMap;
 

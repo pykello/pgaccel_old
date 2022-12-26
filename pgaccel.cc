@@ -1,10 +1,13 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <ctime>
+
 using namespace std::chrono;
 
 #include "column_data.hpp"
 #include "ops.hpp"
+#include "util.hpp"
 
 #include <arrow/api.h>
 #include <arrow/filesystem/api.h>
@@ -158,6 +161,22 @@ parseFilter(const std::string& filter, const parquet::SchemaDescriptor &schema)
     }
 }
 
+int32_t
+ParseDate(const std::string &s)
+{
+    auto year = s.substr(0, 4);
+    auto month = s.substr(5, 2);
+    auto day = s.substr(8);
+    std::tm tm{};
+    tm.tm_year = std::stol(year) - 1900;
+    tm.tm_mon = std::stol(month) - 1;
+    tm.tm_mday = std::stol(day);
+    tm.tm_hour = 10;
+    tm.tm_min = 15;
+    std::time_t t = std::mktime(&tm); 
+    return t/(60*60*24);
+}
+
 
 template<typename PhyTy>
 int CountMatches(parquet::ColumnReader &untypedReader,
@@ -200,29 +219,63 @@ void FileDebugInfo(parquet::FileMetaData &fileMetadata)
     }
 }
 
-int exmain() {
-    arrow::fs::LocalFileSystem fs;
-    auto openResult = fs.OpenInputFile(path);
-    if (!openResult.ok()) {
-        std::cout << "open failed" << std::endl;
-        return -1;
-    }
-    auto input = *openResult;
+template<class PhyTy>
+int CountMatchesDict(const ColumnDataP &columnData,
+                     const typename pgaccel_type_traits<PhyTy::type_num>::dict_type &value,
+                     bool useAvx)
+{
+    auto typedColumnData = static_cast<DictColumnData<PhyTy> *>(columnData.get());
+    return CountMatches<PhyTy>(*typedColumnData, value, useAvx);
+}
 
-    auto fileReader = parquet::ParquetFileReader::Open(input, parquet::default_reader_properties());
-    auto fileMetadata = fileReader->metadata();
-
-    for (int rowGroup = 0; rowGroup < fileMetadata->num_row_groups(); rowGroup++) {
-        auto rowGroupReader = fileReader->RowGroup(rowGroup);
-        auto rowGroupMetadata = rowGroupReader->metadata();
-
-        for (int column = 0; column < rowGroupMetadata->num_columns(); column++) {
-            auto columnChunk = rowGroupMetadata->ColumnChunk(column);
-            auto columnReader = rowGroupReader->Column(column);
+int CountMatches(const std::vector<ColumnDataP>& columnDataVec, 
+                 const std::string &valueStr,
+                 const parquet::ColumnDescriptor &desc,
+                 bool useAvx)
+{
+    int count = 0;
+    for (auto &columnData: columnDataVec) {
+        switch (desc.physical_type())
+        {
+            case parquet::ByteArrayType::type_num:
+            {
+                count += CountMatchesDict<parquet::ByteArrayType>(columnData, valueStr, useAvx);
+                break;
+            }
+            case parquet::Int32Type::type_num:
+            {
+                int32_t value;
+                if (desc.logical_type()->is_date()) {
+                    value = ParseDate(valueStr);
+                } else {
+                    value = std::stol(valueStr);
+                }
+                count += CountMatchesDict<parquet::Int32Type>(columnData, value, useAvx);
+                break;
+            }
+            case parquet::Int64Type::type_num:
+            {
+                int64_t value;
+                if (desc.logical_type()->is_decimal()) {
+                    // todo
+                }
+                break;
+            }
         }
     }
+    return count;
+}
 
-    return 0;
+void MeasurePerf(const std::function<void()> &body)
+{
+    auto start = high_resolution_clock::now();
+
+    body();
+
+    auto stop = high_resolution_clock::now();
+    auto duration  = duration_cast<microseconds>(stop - start);
+
+    std::cout << "Duration: " << duration.count() / 1000 << "ms" << std::endl;
 }
 
 int main() {
@@ -237,44 +290,41 @@ int main() {
     auto fileMetadata = fileReader->metadata();
     auto schema = fileMetadata->schema();
 
-    // FileDebugInfo(*fileMetadata);
+    FileDebugInfo(*fileMetadata);
 
-    std::string columnName = "L_SHIPMODE";
-    std::string value = "AIR";
+    // std::string columnName = "L_SHIPMODE";
+    // std::string value = "AIR";
+    std::string columnName = "L_SHIPDATE";
+    std::string value = "1996-02-12";
     int columnIdx = schema->ColumnIndex(columnName);
 
     cout << "columnIdx=" << columnIdx << endl;
 
-    auto columnDataVec = GenerateColumnData<parquet::ByteArrayType>(*fileReader, columnIdx);
+    std::vector<ColumnDataP> columnDataVec;
+    
+    auto phyType = schema->Column(columnIdx)->physical_type();
+    switch (phyType) {
+        case parquet::Type::BYTE_ARRAY:
+            columnDataVec = GenerateColumnData<parquet::ByteArrayType>(*fileReader, columnIdx);
+            break;
+        case parquet::Type::INT32:
+            columnDataVec = GenerateColumnData<parquet::Int32Type>(*fileReader, columnIdx);
+            break;
+        default:
+            cout << "Unsupported type: " << parquet::TypeToString(phyType) << endl;
+    }
 
     cout << "output groups: " << columnDataVec.size() << endl;
 
-    auto start = high_resolution_clock::now();
+    MeasurePerf([&]() {
+        int total = CountMatches(columnDataVec, value, *schema->Column(columnIdx), false);
+        cout << "matches (no avx): " << total << endl;
+    });
 
-    int total = 0;
-    for (auto &columnData: columnDataVec) {
-        using PhyTy = parquet::ByteArrayType;
-        auto typedColumnData = static_cast<ColumnData<PhyTy> *>(columnData.get());
-        total += CountMatches<PhyTy>(*typedColumnData, value);
-    }
-
-    auto stop1 = high_resolution_clock::now();
-
-    int total2 = 0;
-    for (auto &columnData: columnDataVec) {
-        using PhyTy = parquet::ByteArrayType;
-        auto typedColumnData = static_cast<ColumnData<PhyTy> *>(columnData.get());
-        total2 += CountMatchesAVX<PhyTy>(*typedColumnData, value);
-    }
-
-
-    auto stop2 = high_resolution_clock::now();
-
-    auto duration1 = duration_cast<microseconds>(stop1 - start);
-    auto duration2 = duration_cast<microseconds>(stop2 - stop1);
-
-    cout << "matches 1: " << total << " (" << duration1.count() / 1000 << "ms)" << endl;
-    cout << "matches avx: " << total2 << " (" << duration2.count() / 1000 << "ms)" << endl;
+    MeasurePerf([&]() {
+        int total = CountMatches(columnDataVec, value, *schema->Column(columnIdx), true);
+        cout << "matches (avx): " << total << endl;
+    });
 
     return 0;
 }
