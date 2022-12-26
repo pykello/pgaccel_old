@@ -4,13 +4,28 @@
 #include <immintrin.h>
 
 template<class PhyTy>
+int DictIndex(const DictColumnData<PhyTy> &columnData, 
+              typename pgaccel_type_traits<PhyTy::type_num>::dict_type value)
+{
+    int left = 0, right = columnData.dict.size() - 1;
+    while (left <= right) {
+        int mid = (left + right) / 2;
+        if (columnData.dict[mid] == value)
+            return mid;
+        else if (value < columnData.dict[mid]) {
+            right = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+    return -1;
+}
+
+template<class PhyTy>
 int CountMatchesAVX(const DictColumnData<PhyTy> &columnData, 
                     typename pgaccel_type_traits<PhyTy::type_num>::dict_type value)
 {
-    int dictIdx = 0;
-    for (int i = 0; i < columnData.dict.size(); i++)
-        if (columnData.dict[i] == value)
-            dictIdx = i;
+    int dictIdx = DictIndex(columnData, value);
 
     if (columnData.dict.size() < 256) {
         __m512i comparator = _mm512_set1_epi8(dictIdx);
@@ -37,8 +52,8 @@ int CountMatchesAVX(const DictColumnData<PhyTy> &columnData,
         int matches = 0;
 
         for (int i = 0; i < avxCnt; i++) {
-            __mmask64 mask = _mm512_cmp_epi16_mask(values512[i], comparator, _MM_CMPINT_EQ);
-            matches += __builtin_popcountll(mask);
+            __mmask32 mask = _mm512_cmp_epi16_mask(values512[i], comparator, _MM_CMPINT_EQ);
+            matches += __builtin_popcount(mask);
         }
 
         auto values16 = reinterpret_cast<const uint16_t *>(columnData.values);
@@ -58,10 +73,7 @@ int CountMatches(const DictColumnData<PhyTy> &columnData,
     if (useAvx)
         return CountMatchesAVX(columnData, value);
 
-    int dictIdx = 0;
-    for (int i = 0; i < columnData.dict.size(); i++)
-        if (columnData.dict[i] == value)
-            dictIdx = i;
+    int dictIdx = DictIndex(columnData, value);
 
     if (columnData.dict.size() < 256) {
         int matches = 0;
