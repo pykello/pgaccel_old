@@ -3,17 +3,17 @@
 #include "column_data.hpp"
 #include <immintrin.h>
 
-#define Define_CountMatchesAvx(N, TYPE, SET1, CMP) \
+#define Define_CountMatchesAvx(N, TYPE) \
 int CountMatchesRawAVX_##N(const uint8_t *buf, int size, TYPE value) \
 { \
-    __m512i comparator = SET1(value); \
+    __m512i comparator = _mm512_set1_epi ## N(value); \
     auto values512 = reinterpret_cast<const __m512i *>(buf); \
 \
     int avxCnt = size / (512 / N); \
     int matches = 0; \
 \
     for (int i = 0; i < avxCnt; i++) { \
-        __mmask64 mask = CMP(values512[i], comparator, _MM_CMPINT_EQ); \
+        __mmask64 mask = _mm512_cmp_epi ## N ## _mask(values512[i], comparator, _MM_CMPINT_EQ); \
         matches += __builtin_popcountll(mask); \
     } \
 \
@@ -25,10 +25,10 @@ int CountMatchesRawAVX_##N(const uint8_t *buf, int size, TYPE value) \
     return matches; \
 }
 
-Define_CountMatchesAvx(8, uint8_t, _mm512_set1_epi8, _mm512_cmp_epi8_mask)
-Define_CountMatchesAvx(16, uint16_t, _mm512_set1_epi16, _mm512_cmp_epi16_mask)
-Define_CountMatchesAvx(32, uint32_t, _mm512_set1_epi32, _mm512_cmp_epi32_mask)
-Define_CountMatchesAvx(64, uint64_t, _mm512_set1_epi64, _mm512_cmp_epi64_mask)
+Define_CountMatchesAvx(8, uint8_t)
+Define_CountMatchesAvx(16, uint16_t)
+Define_CountMatchesAvx(32, uint32_t)
+Define_CountMatchesAvx(64, uint64_t)
 
 
 template<class PhyTy>
