@@ -46,6 +46,36 @@ static uint64_t pow(uint64_t p, int q) {
 }
 
 
+template<class PhyTy>
+static typename PhyTy::c_type
+ParseDecimal(const parquet::DecimalLogicalType &decimalType,
+             const std::string &valueStr)
+{
+    int scale = decimalType.scale();
+    uint32_t whole, decimal;
+    size_t pos = valueStr.find(".");
+    if (pos == std::string::npos) {
+        whole = std::stoul(valueStr);
+        decimal = 0;
+    } else {
+        std::string wholeStr = valueStr.substr(0, pos);
+        std::string decimalStr = valueStr.substr(pos + 1);
+        // if decimal part has more digits than scale, trim
+        if (decimalStr.length() > scale) {
+            decimalStr = decimalStr.substr(0, scale);
+        }
+
+        // pad decimal part until its length is equal to scale
+        while (decimalStr.length() < scale) {
+            decimalStr += "0";
+        }
+
+        whole = std::stoul(wholeStr);
+        decimal = std::stoul(decimalStr);
+    }
+
+    return whole * pow(10, scale) + decimal;
+}
 
 static Result<EqFilterUP>
 parseFilterDecimal(const parquet::DecimalLogicalType &decimalType,
@@ -225,7 +255,16 @@ int CountMatchesDict(const ColumnDataP &columnData,
                      bool useAvx)
 {
     auto typedColumnData = static_cast<DictColumnData<PhyTy> *>(columnData.get());
-    return CountMatches<PhyTy>(*typedColumnData, value, useAvx);
+    return CountMatchesDict<PhyTy>(*typedColumnData, value, useAvx);
+}
+
+template<class PhyTy>
+int CountMatchesRaw(const ColumnDataP &columnData,
+                     const typename PhyTy::c_type &value,
+                     bool useAvx)
+{
+    auto typedColumnData = static_cast<RawColumnData<PhyTy> *>(columnData.get());
+    return CountMatchesRaw<PhyTy>(*typedColumnData, value, useAvx);
 }
 
 int CountMatches(const std::vector<ColumnDataP>& columnDataVec, 
@@ -257,10 +296,16 @@ int CountMatches(const std::vector<ColumnDataP>& columnDataVec,
             {
                 int64_t value;
                 if (desc.logical_type()->is_decimal()) {
-                    // todo
+                    auto decimalType = static_cast<const parquet::DecimalLogicalType *>(desc.logical_type().get());
+                    value = ParseDecimal<parquet::Int64Type>(*decimalType, valueStr);
+                } else {
+                    value = std::stoll(valueStr);
                 }
+                count += CountMatchesRaw<parquet::Int64Type>(columnData, value, useAvx);
                 break;
             }
+            default:
+                std::cout << "???" << std::endl;
         }
     }
     return count;
@@ -294,8 +339,10 @@ int main() {
 
     // std::string columnName = "L_SHIPMODE";
     // std::string value = "AIR";
-    std::string columnName = "L_SHIPDATE";
-    std::string value = "1996-02-12";
+    // std::string columnName = "L_SHIPDATE";
+    // std::string value = "1996-02-12";
+    std::string columnName = "L_QUANTITY";
+    std::string value = "1";
     int columnIdx = schema->ColumnIndex(columnName);
 
     cout << "columnIdx=" << columnIdx << endl;
@@ -305,10 +352,13 @@ int main() {
     auto phyType = schema->Column(columnIdx)->physical_type();
     switch (phyType) {
         case parquet::Type::BYTE_ARRAY:
-            columnDataVec = GenerateColumnData<parquet::ByteArrayType>(*fileReader, columnIdx);
+            columnDataVec = GenerateDictColumnData<parquet::ByteArrayType>(*fileReader, columnIdx);
             break;
         case parquet::Type::INT32:
-            columnDataVec = GenerateColumnData<parquet::Int32Type>(*fileReader, columnIdx);
+            columnDataVec = GenerateDictColumnData<parquet::Int32Type>(*fileReader, columnIdx);
+            break;
+        case parquet::Type::INT64:
+            columnDataVec = GenerateRawColumnData<parquet::Int64Type>(*fileReader, columnIdx);
             break;
         default:
             cout << "Unsupported type: " << parquet::TypeToString(phyType) << endl;
