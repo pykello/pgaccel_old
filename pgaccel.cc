@@ -286,10 +286,11 @@ int CountMatches(const std::vector<ColumnDataP>& columnDataVec,
                 int32_t value;
                 if (desc.logical_type()->is_date()) {
                     value = ParseDate(valueStr);
+                    count += CountMatchesDict<parquet::Int32Type>(columnData, value, useAvx);
                 } else {
                     value = std::stol(valueStr);
+                    count += CountMatchesRaw<parquet::Int32Type>(columnData, value, useAvx);
                 }
-                count += CountMatchesDict<parquet::Int32Type>(columnData, value, useAvx);
                 break;
             }
             case parquet::Int64Type::type_num:
@@ -341,7 +342,9 @@ int main() {
     // std::string value = "AIR";
     // std::string columnName = "L_SHIPDATE";
     // std::string value = "1996-02-12";
-    std::string columnName = "L_QUANTITY";
+    // std::string columnName = "L_QUANTITY";
+    // std::string value = "1";
+    std::string columnName = "L_ORDERKEY";
     std::string value = "1";
     int columnIdx = schema->ColumnIndex(columnName);
 
@@ -355,7 +358,10 @@ int main() {
             columnDataVec = GenerateDictColumnData<parquet::ByteArrayType>(*fileReader, columnIdx);
             break;
         case parquet::Type::INT32:
-            columnDataVec = GenerateDictColumnData<parquet::Int32Type>(*fileReader, columnIdx);
+            if (schema->Column(columnIdx)->logical_type()->is_date())
+                columnDataVec = GenerateDictColumnData<parquet::Int32Type>(*fileReader, columnIdx);
+            else
+                columnDataVec = GenerateRawColumnData<parquet::Int32Type>(*fileReader, columnIdx);
             break;
         case parquet::Type::INT64:
             columnDataVec = GenerateRawColumnData<parquet::Int64Type>(*fileReader, columnIdx);
