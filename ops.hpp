@@ -3,6 +3,34 @@
 #include "column_data.hpp"
 #include <immintrin.h>
 
+#define Define_CountMatchesAvx(N, TYPE, SET1, CMP) \
+int CountMatchesRawAVX_##N(const uint8_t *buf, int size, TYPE value) \
+{ \
+    __m512i comparator = SET1(value); \
+    auto values512 = reinterpret_cast<const __m512i *>(buf); \
+\
+    int avxCnt = size / (512 / N); \
+    int matches = 0; \
+\
+    for (int i = 0; i < avxCnt; i++) { \
+        __mmask64 mask = CMP(values512[i], comparator, _MM_CMPINT_EQ); \
+        matches += __builtin_popcountll(mask); \
+    } \
+\
+    auto values8 = reinterpret_cast<const TYPE *>(buf); \
+    for (int i = (512 / N) * avxCnt; i < size; i++) \
+        if (values8[i] == value) \
+            matches++; \
+\
+    return matches; \
+}
+
+Define_CountMatchesAvx(8, uint8_t, _mm512_set1_epi8, _mm512_cmp_epi8_mask)
+Define_CountMatchesAvx(16, uint16_t, _mm512_set1_epi16, _mm512_cmp_epi16_mask)
+Define_CountMatchesAvx(32, uint32_t, _mm512_set1_epi32, _mm512_cmp_epi32_mask)
+Define_CountMatchesAvx(64, uint64_t, _mm512_set1_epi64, _mm512_cmp_epi64_mask)
+
+
 template<class PhyTy>
 int DictIndex(const DictColumnData<PhyTy> &columnData, 
               typename pgaccel_type_traits<PhyTy::type_num>::dict_type value)
@@ -28,40 +56,9 @@ int CountMatchesDictAVX(const DictColumnData<PhyTy> &columnData,
     int dictIdx = DictIndex(columnData, value);
 
     if (columnData.dict.size() < 256) {
-        __m512i comparator = _mm512_set1_epi8(dictIdx);
-        auto values512 = reinterpret_cast<const __m512i *>(columnData.values);
-
-        int avxCnt = columnData.size / 64;
-        int matches = 0;
-
-        for (int i = 0; i < avxCnt; i++) {
-            __mmask64 mask = _mm512_cmp_epi8_mask(values512[i], comparator, _MM_CMPINT_EQ);
-            matches += __builtin_popcountll(mask);
-        }
-
-        for (int i = 64 * avxCnt; i < columnData.size; i++)
-            if (columnData.values[i] == dictIdx)
-                matches++;
-
-        return matches;
+        return CountMatchesRawAVX_8(columnData.values, columnData.size, dictIdx);
     } else {
-        __m512i comparator = _mm512_set1_epi16(dictIdx);
-        auto values512 = reinterpret_cast<const __m512i *>(columnData.values);
-
-        int avxCnt = columnData.size / 32;
-        int matches = 0;
-
-        for (int i = 0; i < avxCnt; i++) {
-            __mmask32 mask = _mm512_cmp_epi16_mask(values512[i], comparator, _MM_CMPINT_EQ);
-            matches += __builtin_popcount(mask);
-        }
-
-        auto values16 = reinterpret_cast<const uint16_t *>(columnData.values);
-        for (int i = 32 * avxCnt; i < columnData.size; i++)
-            if (values16[i] == dictIdx)
-                matches++;
-
-        return matches;
+        return CountMatchesRawAVX_16(columnData.values, columnData.size, dictIdx);
     }
 }
 
@@ -104,28 +101,6 @@ int CountMatchesRaw(const RawColumnData<PhyTy> &columnData,
     return count;
 }
 
-template<class PhyTy>
-int CountMatchesRawAVX(const RawColumnData<PhyTy> &columnData,
-                       typename PhyTy::c_type value)
-{
-    __m512i comparator = _mm512_set1_epi16((int16_t) value);
-    auto values512 = reinterpret_cast<const __m512i *>(columnData.values);
-
-    int avxCnt = columnData.size / 32;
-    int matches = 0;
-
-    for (int i = 0; i < avxCnt; i++) {
-        __mmask32 mask = _mm512_cmp_epi16_mask(values512[i], comparator, _MM_CMPINT_EQ);
-        matches += __builtin_popcount(mask);
-    }
-
-    auto values16 = reinterpret_cast<const uint16_t *>(columnData.values);
-    for (int i = 32 * avxCnt; i < columnData.size; i++)
-        if (values16[i] == value)
-            matches++;
-
-    return matches;
-}
 
 template<class PhyTy>
 int CountMatchesRaw(const RawColumnData<PhyTy> &columnData,
@@ -137,16 +112,33 @@ int CountMatchesRaw(const RawColumnData<PhyTy> &columnData,
 
     switch (columnData.bytesPerValue) {
         case 1:
-            return CountMatchesRaw<PhyTy, int8_t>(columnData, value);
+            if (useAvx)
+                return CountMatchesRawAVX_8(columnData.values,
+                                            columnData.size,
+                                            (uint8_t) value);
+            else
+                return CountMatchesRaw<PhyTy, int8_t>(columnData, value);
         case 2:
             if (useAvx)
-                return CountMatchesRawAVX<PhyTy>(columnData, value);
+                return CountMatchesRawAVX_16(columnData.values,
+                                             columnData.size,
+                                             (uint16_t) value);
             else
                 return CountMatchesRaw<PhyTy, int16_t>(columnData, value);
         case 4:
-            return CountMatchesRaw<PhyTy, int32_t>(columnData, value);
+            if (useAvx)
+                return CountMatchesRawAVX_32(columnData.values,
+                                             columnData.size,
+                                             (uint32_t) value);
+            else
+                return CountMatchesRaw<PhyTy, int32_t>(columnData, value);
         case 8:
-            return CountMatchesRaw<PhyTy, int64_t>(columnData, value);
+            if (useAvx)
+                return CountMatchesRawAVX_64(columnData.values,
+                                             columnData.size,
+                                             (uint64_t) value);
+            else
+                return CountMatchesRaw<PhyTy, int64_t>(columnData, value);
     }
 
     return 0;

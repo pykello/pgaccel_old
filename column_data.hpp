@@ -37,7 +37,7 @@ struct DictColumnData: public ColumnDataBase {
 
 template<class PhyTy>
 struct RawColumnData: public ColumnDataBase {
-    alignas(512) typename PhyTy::c_type values[RowGroupSize * 8];
+    alignas(512) uint8_t values[RowGroupSize * 8];
     int size;
     int bytesPerValue;
     typename PhyTy::c_type minValue, maxValue;
