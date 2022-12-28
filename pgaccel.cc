@@ -8,6 +8,7 @@ using namespace std::chrono;
 #include "column_data.hpp"
 #include "ops.hpp"
 #include "types.hpp"
+#include "columnar_table.h"
 
 #include <arrow/api.h>
 #include <arrow/filesystem/api.h>
@@ -17,7 +18,7 @@ using namespace std::chrono;
 #include <parquet/column_reader.h>
 #include <parquet/file_reader.h>
 
-const std::string path = "/home/hadi/data/tpch/16/parquet/lineitem.parquet";
+const std::string path = "/home/hadi/data/tpch/1/parquet/lineitem.parquet";
 
 using namespace std;
 using arrow::Result;
@@ -46,12 +47,9 @@ static uint64_t pow(uint64_t p, int q) {
 }
 
 
-template<class ParquetTy>
-static typename ParquetTy::c_type
-ParseDecimal(const parquet::DecimalLogicalType &decimalType,
-             const std::string &valueStr)
+static int64_t
+ParseDecimal(int scale, const std::string &valueStr)
 {
-    int scale = decimalType.scale();
     uint32_t whole, decimal;
     size_t pos = valueStr.find(".");
     if (pos == std::string::npos) {
@@ -239,41 +237,41 @@ int CountMatchesRaw(const ColumnDataP &columnData,
 
 int CountMatches(const std::vector<ColumnDataP>& columnDataVec, 
                  const std::string &valueStr,
-                 const parquet::ColumnDescriptor &desc,
+                 const pgaccel::AccelType *type,
                  bool useAvx)
 {
     int count = 0;
     for (auto &columnData: columnDataVec) {
-        switch (desc.physical_type())
+        switch (type->type_num())
         {
-            case parquet::ByteArrayType::type_num:
+            case pgaccel::STRING_TYPE:
             {
                 count += CountMatchesDict<pgaccel::StringType>(columnData, valueStr, useAvx);
                 break;
             }
-            case parquet::Int32Type::type_num:
+            case pgaccel::DATE_TYPE:
             {
-                int32_t value;
-                if (desc.logical_type()->is_date()) {
-                    value = ParseDate(valueStr);
-                    count += CountMatchesDict<pgaccel::DateType>(columnData, value, useAvx);
-                } else {
-                    value = std::stol(valueStr);
-                    count += CountMatchesRaw<pgaccel::Int32Type>(columnData, value, useAvx);
-                }
+                int32_t value = ParseDate(valueStr);
+                count += CountMatchesDict<pgaccel::DateType>(columnData, value, useAvx);
                 break;
             }
-            case parquet::Int64Type::type_num:
+            case pgaccel::INT32_TYPE:
             {
-                int64_t value;
-                if (desc.logical_type()->is_decimal()) {
-                    auto decimalType = static_cast<const parquet::DecimalLogicalType *>(desc.logical_type().get());
-                    value = ParseDecimal<parquet::Int64Type>(*decimalType, valueStr);
-                    count += CountMatchesRaw<pgaccel::DecimalType>(columnData, value, useAvx);
-                } else {
-                    value = std::stoll(valueStr);
-                    count += CountMatchesRaw<pgaccel::Int64Type>(columnData, value, useAvx);
-                }
+                int32_t value = std::stol(valueStr);
+                count += CountMatchesRaw<pgaccel::Int32Type>(columnData, value, useAvx);
+                break;
+            }
+            case pgaccel::INT64_TYPE:
+            {
+                int64_t value = std::stoll(valueStr);
+                count += CountMatchesRaw<pgaccel::Int64Type>(columnData, value, useAvx);
+                break;
+            }
+            case pgaccel::DECIMAL_TYPE:
+            {
+                auto decimalType = static_cast<const pgaccel::DecimalType *>(type);
+                int64_t value = ParseDecimal(decimalType->scale, valueStr);
+                count += CountMatchesRaw<pgaccel::DecimalType>(columnData, value, useAvx);
                 break;
             }
             default:
@@ -296,62 +294,47 @@ void MeasurePerf(const std::function<void()> &body)
 }
 
 int main() {
-    arrow::fs::LocalFileSystem fs;
-    auto openResult = fs.OpenInputFile(path);
-    if (!openResult.ok()) {
-        std::cout << "open failed" << std::endl;
-        return -1;
-    }
-    auto input = *openResult;
-    auto fileReader = parquet::ParquetFileReader::Open(input, parquet::default_reader_properties());
-    auto fileMetadata = fileReader->metadata();
-    auto schema = fileMetadata->schema();
+    std::vector<std::pair<std::string, std::string>> queries = {
+        {"L_SHIPMODE", "AIR"},          // 858104
+        {"L_SHIPDATE", "1996-02-12"},   // 2441
+        {"L_QUANTITY", "1"},            // 120401
+        {"L_ORDERKEY", "1"},            // 6
+    };
 
-    FileDebugInfo(*fileMetadata);
-
-    // std::string columnName = "L_SHIPMODE";
-    // std::string value = "AIR";
-    // std::string columnName = "L_SHIPDATE";
-    // std::string value = "1996-02-12";
-    // std::string columnName = "L_QUANTITY";
-    // std::string value = "1";
-    std::string columnName = "L_ORDERKEY";
-    std::string value = "1";
-    int columnIdx = schema->ColumnIndex(columnName);
-
-    cout << "columnIdx=" << columnIdx << endl;
-
-    std::vector<ColumnDataP> columnDataVec;
+    std::set<std::string> fieldsToLoad;
+    for (auto q: queries)
+        fieldsToLoad.insert(q.first);
     
-    auto phyType = schema->Column(columnIdx)->physical_type();
-    switch (phyType) {
-        case parquet::Type::BYTE_ARRAY:
-            columnDataVec = GenerateDictColumnData<parquet::ByteArrayType, pgaccel::StringType>(*fileReader, columnIdx);
-            break;
-        case parquet::Type::INT32:
-            if (schema->Column(columnIdx)->logical_type()->is_date())
-                columnDataVec = GenerateDictColumnData<parquet::Int32Type, pgaccel::DateType>(*fileReader, columnIdx);
-            else
-                columnDataVec = GenerateRawColumnData<parquet::Int32Type, pgaccel::Int32Type>(*fileReader, columnIdx);
-            break;
-        case parquet::Type::INT64:
-            columnDataVec = GenerateRawColumnData<parquet::Int64Type, pgaccel::Int64Type>(*fileReader, columnIdx);
-            break;
-        default:
-            cout << "Unsupported type: " << parquet::TypeToString(phyType) << endl;
+    auto columnarTable = pgaccel::ColumnarTable::ImportParquet(path, fieldsToLoad);
+    if (!columnarTable.has_value()) {
+        std::cout << "Failed to load parquet file" << std::endl;
+        exit(-1);
     }
 
-    cout << "output groups: " << columnDataVec.size() << endl;
+    for (auto q: queries) {
+        std::string columnName = q.first;
+        std::string value = q.second;
 
-    MeasurePerf([&]() {
-        int total = CountMatches(columnDataVec, value, *schema->Column(columnIdx), false);
-        cout << "matches (no avx): " << total << endl;
-    });
+        auto maybeColumnIdx = columnarTable->ColumnIndex(columnName);
+        if (!maybeColumnIdx.has_value()) {
+            std::cout << "Column not found" << std::endl;
+            exit(-1);
+        }
 
-    MeasurePerf([&]() {
-        int total = CountMatches(columnDataVec, value, *schema->Column(columnIdx), true);
-        cout << "matches (avx): " << total << endl;
-    });
+        int columnIdx = *maybeColumnIdx;
+        const auto &columnDataVec = columnarTable->ColumnData(columnIdx);
+        const auto &columnDesc = columnarTable->Schema()[columnIdx];
+
+        MeasurePerf([&]() {
+            int total = CountMatches(columnDataVec, value, columnDesc.type.get(), false);
+            cout << "matches (no avx): " << total << endl;
+        });
+
+        MeasurePerf([&]() {
+            int total = CountMatches(columnDataVec, value, columnDesc.type.get(), true);
+            cout << "matches (avx): " << total << endl;
+        });
+    }
 
     return 0;
 }

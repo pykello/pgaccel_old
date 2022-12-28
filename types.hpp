@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 #include <string>
 #include <parquet/types.h>
@@ -9,51 +11,73 @@ enum TypeNum {
     INT32_TYPE,
     INT64_TYPE,
     DECIMAL_TYPE,
-    DATE_TYPE
+    DATE_TYPE,
+    INVALID_TYPE
 };
 
-struct StringType {
+struct AccelType {
+    virtual TypeNum type_num() const {
+        return INVALID_TYPE;
+    }
+};
+
+struct StringType: public AccelType {
     using c_type = std::string;
-    static const TypeNum type_num = STRING_TYPE;
+
+    virtual TypeNum type_num() const {
+        return STRING_TYPE;
+    }
 
     static c_type FromParquet(const parquet::ByteArray &value) {
         return std::string((char *) value.ptr, value.len);
     }
 };
 
-struct Int32Type {
+struct Int32Type: public AccelType {
     using c_type = int32_t;
-    static const TypeNum type_num = INT32_TYPE;
+
+    virtual TypeNum type_num() const {
+        return INT32_TYPE;
+    }
 
     static c_type FromParquet(int32_t value) {
         return value;
     }
 };
 
-struct Int64Type {
+struct Int64Type: public AccelType {
     using c_type = int64_t;
-    static const TypeNum type_num = INT64_TYPE;
+
+    virtual TypeNum type_num() const {
+        return INT64_TYPE;
+    }
 
     static c_type FromParquet(int64_t value) {
         return value;
     }
 };
 
-struct DecimalType {
+struct DecimalType: public AccelType {
     using c_type = int64_t;
-    static const TypeNum type_num = DECIMAL_TYPE;
+
+    virtual TypeNum type_num() const {
+        return DECIMAL_TYPE;
+    }
 
     static c_type FromParquet(int64_t value) {
         return value;
     }
     
-    // non-static
+    // fields
     int scale;
 };
 
-struct DateType {
+struct DateType: public AccelType {
     using c_type = int32_t;
-    static const TypeNum type_num = DATE_TYPE;
+
+    TypeNum type_num() const {
+        return DATE_TYPE;
+    }
 
     static c_type FromParquet(int32_t value) {
         return value;
