@@ -1,7 +1,10 @@
-#pragma once
-
 #include "column_data.hpp"
+#include "types.hpp"
+#include "executor.h"
 #include <immintrin.h>
+
+namespace pgaccel
+{
 
 #define Define_CountMatchesAvx(REGW, N, TYPE) \
 int CountMatchesRawAVX ## REGW ## _ ## N(const uint8_t *buf, int size, TYPE value) \
@@ -144,3 +147,70 @@ int CountMatchesRaw(const RawColumnData<AccelTy> &columnData,
 
     return 0;
 }
+
+
+template<class AccelTy>
+int CountMatchesDict(const ColumnDataP &columnData,
+                     const typename AccelTy::c_type &value,
+                     bool useAvx)
+{
+    auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData.get());
+    return CountMatchesDict<AccelTy>(*typedColumnData, value, useAvx);
+}
+
+template<class AccelTy>
+int CountMatchesRaw(const ColumnDataP &columnData,
+                     const typename AccelTy::c_type &value,
+                     bool useAvx)
+{
+    auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData.get());
+    return CountMatchesRaw<AccelTy>(*typedColumnData, value, useAvx);
+}
+
+int CountMatches(const std::vector<ColumnDataP>& columnDataVec, 
+                 const std::string &valueStr,
+                 const pgaccel::AccelType *type,
+                 bool useAvx)
+{
+    int count = 0;
+    for (auto &columnData: columnDataVec) {
+        switch (type->type_num())
+        {
+            case pgaccel::STRING_TYPE:
+            {
+                count += CountMatchesDict<pgaccel::StringType>(columnData, valueStr, useAvx);
+                break;
+            }
+            case pgaccel::DATE_TYPE:
+            {
+                int32_t value = pgaccel::ParseDate(valueStr);
+                count += CountMatchesDict<pgaccel::DateType>(columnData, value, useAvx);
+                break;
+            }
+            case pgaccel::INT32_TYPE:
+            {
+                int32_t value = std::stol(valueStr);
+                count += CountMatchesRaw<pgaccel::Int32Type>(columnData, value, useAvx);
+                break;
+            }
+            case pgaccel::INT64_TYPE:
+            {
+                int64_t value = std::stoll(valueStr);
+                count += CountMatchesRaw<pgaccel::Int64Type>(columnData, value, useAvx);
+                break;
+            }
+            case pgaccel::DECIMAL_TYPE:
+            {
+                auto decimalType = static_cast<const pgaccel::DecimalType *>(type);
+                int64_t value = pgaccel::ParseDecimal(decimalType->scale, valueStr);
+                count += CountMatchesRaw<pgaccel::DecimalType>(columnData, value, useAvx);
+                break;
+            }
+            default:
+                std::cout << "???" << std::endl;
+        }
+    }
+    return count;
+}
+
+};
