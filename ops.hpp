@@ -32,9 +32,9 @@ Define_CountMatchesAvx(512, 32, uint32_t)
 Define_CountMatchesAvx(512, 64, uint64_t)
 
 
-template<class PhyTy>
-int DictIndex(const DictColumnData<PhyTy> &columnData, 
-              typename pgaccel_type_traits<PhyTy::type_num>::dict_type value)
+template<class AccelTy>
+int DictIndex(const DictColumnData<AccelTy> &columnData, 
+              typename AccelTy::c_type value)
 {
     int left = 0, right = columnData.dict.size() - 1;
     while (left <= right) {
@@ -50,9 +50,9 @@ int DictIndex(const DictColumnData<PhyTy> &columnData,
     return -1;
 }
 
-template<class PhyTy>
-int CountMatchesDictAVX(const DictColumnData<PhyTy> &columnData, 
-                        typename pgaccel_type_traits<PhyTy::type_num>::dict_type value)
+template<class AccelTy>
+int CountMatchesDictAVX(const DictColumnData<AccelTy> &columnData, 
+                        typename AccelTy::c_type value)
 {
     int dictIdx = DictIndex(columnData, value);
 
@@ -63,9 +63,9 @@ int CountMatchesDictAVX(const DictColumnData<PhyTy> &columnData,
     }
 }
 
-template<class PhyTy>
-int CountMatchesDict(const DictColumnData<PhyTy> &columnData, 
-                     typename pgaccel_type_traits<PhyTy::type_num>::dict_type value,
+template<class AccelTy>
+int CountMatchesDict(const DictColumnData<AccelTy> &columnData, 
+                     typename AccelTy::c_type value,
                      bool useAvx)
 {
     if (useAvx)
@@ -89,12 +89,12 @@ int CountMatchesDict(const DictColumnData<PhyTy> &columnData,
     }
 }
 
-template<class PhyTy, class storageTy>
-int CountMatchesRaw(const RawColumnData<PhyTy> &columnData,
-                    typename PhyTy::c_type value)
+template<class AccelTy, class storageType>
+int CountMatchesRaw(const RawColumnData<AccelTy> &columnData,
+                    storageType value)
 {
     int count = 0;
-    auto values = reinterpret_cast<const storageTy *>(columnData.values);
+    auto values = reinterpret_cast<const storageType *>(columnData.values);
     for (int i = 0; i < columnData.size; i++) {
         if (values[i] == value)
             count++;
@@ -103,9 +103,9 @@ int CountMatchesRaw(const RawColumnData<PhyTy> &columnData,
 }
 
 
-template<class PhyTy>
-int CountMatchesRaw(const RawColumnData<PhyTy> &columnData,
-                    typename PhyTy::c_type value,
+template<class AccelTy>
+int CountMatchesRaw(const RawColumnData<AccelTy> &columnData,
+                    typename AccelTy::c_type value,
                     bool useAvx)
 {
     if(value < columnData.minValue || value > columnData.maxValue)
@@ -118,28 +118,28 @@ int CountMatchesRaw(const RawColumnData<PhyTy> &columnData,
                                                columnData.size,
                                                (uint8_t) value);
             else
-                return CountMatchesRaw<PhyTy, int8_t>(columnData, value);
+                return CountMatchesRaw<AccelTy, int8_t>(columnData, value);
         case 2:
             if (useAvx)
                 return CountMatchesRawAVX512_16(columnData.values,
                                                 columnData.size,
                                                 (uint16_t) value);
             else
-                return CountMatchesRaw<PhyTy, int16_t>(columnData, value);
+                return CountMatchesRaw<AccelTy, int16_t>(columnData, value);
         case 4:
             if (useAvx)
                 return CountMatchesRawAVX512_32(columnData.values,
                                                 columnData.size,
                                                 (uint32_t) value);
             else
-                return CountMatchesRaw<PhyTy, int32_t>(columnData, value);
+                return CountMatchesRaw<AccelTy, int32_t>(columnData, value);
         case 8:
             if (useAvx)
                 return CountMatchesRawAVX512_64(columnData.values,
                                                 columnData.size,
                                                 (uint64_t) value);
             else
-                return CountMatchesRaw<PhyTy, int64_t>(columnData, value);
+                return CountMatchesRaw<AccelTy, int64_t>(columnData, value);
     }
 
     return 0;

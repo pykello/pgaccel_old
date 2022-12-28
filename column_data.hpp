@@ -5,8 +5,6 @@
 #include <parquet/file_reader.h>
 #include <arrow/api.h>
 
-#include "util.hpp"
-
 #include <vector>
 #include <map>
 #include <execution>
@@ -26,21 +24,20 @@ struct ColumnDataBase {
     } type;
 };
 
-template<class PhyTy>
+template<class Ty>
 struct DictColumnData: public ColumnDataBase {
-    // using PhyTy = parquet::ByteArrayType;
-    using DictTy = typename pgaccel_type_traits<PhyTy::type_num>::dict_type;
+    using DictTy = typename Ty::c_type;
     std::vector<DictTy> dict;
     alignas(512) uint8_t values[RowGroupSize * 2];
     int size;
 };
 
-template<class PhyTy>
+template<class Ty>
 struct RawColumnData: public ColumnDataBase {
     alignas(512) uint8_t values[RowGroupSize * 8];
     int size;
     int bytesPerValue;
-    typename PhyTy::c_type minValue, maxValue;
+    typename Ty::c_type minValue, maxValue;
 };
 
 typedef std::unique_ptr<ColumnDataBase> ColumnDataP;
@@ -49,43 +46,43 @@ typedef std::unique_ptr<ColumnDataBase> ColumnDataP;
  * Functions
 */
 
-template<class PhyTy>
+template<class ParquetTy, class AccelTy>
 void
 GenerateRawColumnData(parquet::ColumnReader &untypedReader,
                       std::vector<ColumnDataP> &result)
 {
-    // using PhyTy = parquet::Int64Type;
-    using ReaderType = parquet::TypedColumnReader<PhyTy>&;
+    using ReaderType = parquet::TypedColumnReader<ParquetTy>&;
     ReaderType& typedReader = static_cast<ReaderType>(untypedReader);
 
     const int N = RowGroupSize;
 
-    std::vector<typename PhyTy::c_type> allValues;
+    std::vector<typename AccelTy::c_type> allValues;
     while (true) {
         int16_t rep_levels[N];
         int16_t def_levels[N];
-        typename PhyTy::c_type values[N];
+        typename ParquetTy::c_type values[N];
         int64_t valuesRead = 0;
         typedReader.ReadBatch(N, def_levels, rep_levels, values, &valuesRead);
         if (valuesRead == 0)
             break;
 
         for (int i = 0; i < valuesRead; i++) {
-            allValues.push_back(pgaccel_type_traits<PhyTy::type_num>::convert(values[i]));
+            allValues.push_back(AccelTy::FromParquet(values[i]));
         }
     }
 
     for (int offset = 0; offset < allValues.size(); offset += RowGroupSize)
     {
         int rowGroupSize = std::min((int) allValues.size() - offset, RowGroupSize);
-        auto columnData = std::make_unique<RawColumnData<PhyTy>>();
+        auto columnData = std::make_unique<RawColumnData<AccelTy>>();
         columnData->type = ColumnDataBase::RAW_COLUMN_DATA;
 
-        typename PhyTy::c_type maxValue = allValues[offset], minValue = allValues[offset];
+        typename AccelTy::c_type maxValue = allValues[offset], minValue = allValues[offset];
         for (int i = 0; i < rowGroupSize; i++) {
             minValue = std::min(minValue, allValues[i + offset]);
             maxValue = std::max(maxValue, allValues[i + offset]);
         }
+
 #define FILL_RAW_DATA(type) \
         { \
         auto valuesTyped = reinterpret_cast<type *>(columnData->values); \
@@ -115,13 +112,13 @@ GenerateRawColumnData(parquet::ColumnReader &untypedReader,
     }
 }
 
-template<class PhyTy>
+template<class ParquetTy, class AccelTy>
 void
 GenerateDictColumnData(parquet::ColumnReader &untypedReader,
                        std::vector<ColumnDataP> &result)
 {
-    using ReaderType = parquet::TypedColumnReader<PhyTy>&;
-    using DictTy = typename pgaccel_type_traits<PhyTy::type_num>::dict_type;
+    using ReaderType = parquet::TypedColumnReader<ParquetTy>&;
+    using DictTy = typename AccelTy::c_type;
     ReaderType& typedReader = static_cast<ReaderType>(untypedReader);
 
     const int N = RowGroupSize;
@@ -130,21 +127,21 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader,
     while (true) {
         int16_t rep_levels[N];
         int16_t def_levels[N];
-        typename PhyTy::c_type values[N];
+        typename ParquetTy::c_type values[N];
         int64_t valuesRead = 0;
         typedReader.ReadBatch(N, def_levels, rep_levels, values, &valuesRead);
         if (valuesRead == 0)
             break;
 
         for (int i = 0; i < valuesRead; i++) {
-            convertedValues.push_back(pgaccel_type_traits<PhyTy::type_num>::convert(values[i]));
+            convertedValues.push_back(AccelTy::FromParquet(values[i]));
         }
     }
 
     for (int offset = 0; offset < convertedValues.size(); offset += RowGroupSize)
     {
         int rowGroupSize = std::min((int) convertedValues.size() - offset, RowGroupSize);
-        auto columnData = std::make_unique<DictColumnData<PhyTy>>();
+        auto columnData = std::make_unique<DictColumnData<AccelTy>>();
         columnData->type = ColumnDataBase::DICT_COLUMN_DATA;
         std::set<DictTy> distinctValues;
         std::map<DictTy, int> dictIndexMap;
@@ -176,34 +173,32 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader,
     }
 }
 
-template<class PhyTy>
+template<class ParquetTy, class AccelTy>
 std::vector<ColumnDataP>
 GenerateDictColumnData(parquet::ParquetFileReader &fileReader, int column)
 {
-    // using PhyTy = parquet::ByteArrayType;
     std::vector<ColumnDataP> result;
     auto fileMetadata = fileReader.metadata();
     for (int rowGroup = 0; rowGroup < fileMetadata->num_row_groups(); rowGroup++) {
         std::cout << "Row group: " << rowGroup << std::endl;
         auto rowGroupReader = fileReader.RowGroup(rowGroup);
         auto columnReader = rowGroupReader->Column(column);
-        GenerateDictColumnData<PhyTy>(*columnReader, result);
+        GenerateDictColumnData<ParquetTy, AccelTy>(*columnReader, result);
     }
     return result;
 }
 
-template<class PhyTy>
+template<class ParquetTy, class AccelTy>
 std::vector<ColumnDataP>
 GenerateRawColumnData(parquet::ParquetFileReader &fileReader, int column)
 {
-    // using PhyTy = parquet::ByteArrayType;
     std::vector<ColumnDataP> result;
     auto fileMetadata = fileReader.metadata();
     for (int rowGroup = 0; rowGroup < fileMetadata->num_row_groups(); rowGroup++) {
         std::cout << "Row group: " << rowGroup << std::endl;
         auto rowGroupReader = fileReader.RowGroup(rowGroup);
         auto columnReader = rowGroupReader->Column(column);
-        GenerateRawColumnData<PhyTy>(*columnReader, result);
+        GenerateRawColumnData<ParquetTy, AccelTy>(*columnReader, result);
     }
     return result;
 }
