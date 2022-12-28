@@ -27,7 +27,7 @@ public:
 
     std::optional<int> ColumnIndex(const std::string& name) const;
 
-    static std::optional<ColumnarTable> ImportParquet(
+    static std::unique_ptr<ColumnarTable> ImportParquet(
         const std::string &path,
         std::optional<std::set<std::string>> fields = {});
 

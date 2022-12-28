@@ -1,7 +1,6 @@
 #include <iostream>
 #include <string>
 #include <map>
-#include <chrono>
 #include <setjmp.h>
 #include <signal.h>
 #include <unistd.h>
@@ -16,7 +15,6 @@
 
 using namespace pgaccel;
 using namespace std;
-using namespace std::chrono;
 
 using arrow::Result;
 using arrow::Status;
@@ -43,7 +41,7 @@ using arrow::Status;
 const std::string path = "/home/hadi/data/tpch/1/parquet/lineitem.parquet";
 
 struct ReplState {
-    std::map<std::string, pgaccel::ColumnarTable> tables;
+    std::map<std::string, std::unique_ptr<pgaccel::ColumnarTable>> tables;
     bool done = false;
     bool timingEnabled = true;
     bool useAvx = true;
@@ -184,18 +182,7 @@ ProcessCommand(ReplState &state, const std::string &commandStr)
 static std::vector<std::string>
 TokenizeCommand(const std::string &s)
 {
-    std::vector<std::string> tokens;
-    std::string current;
-    for (int i = 0; i < s.length(); i++) {
-        if (isspace(s[i]) || s[i] == ';') {
-            if (current.length())
-                tokens.push_back(current);
-            current = "";
-        } else {
-            current += s[i];
-        }
-    }
-    return tokens;
+    return Split(s, [](char c) { return isspace(c) || c == ';'; });
 }
 
 static Result<bool>
@@ -214,8 +201,11 @@ ProcessHelp(ReplState &state,
             const std::string &commandName,
             const vector<std::string> &args)
 {
-    // todo
-    REQUIRED_ARGS(0, 0);
+    REQUIRED_ARGS(0, 1);
+    std::cout << "Available Commands: " << std::endl;
+    for (auto cmd: commands) {
+        std::cout << "  - " << cmd.name << std::endl;
+    }
     return true;
 }
 
@@ -224,7 +214,6 @@ ProcessTiming(ReplState &state,
               const std::string &commandName,
               const vector<std::string> &args)
 {
-    // todo
     REQUIRED_ARGS(0, 1);
     if (args.size() == 1)
         ASSIGN_OR_RAISE(state.timingEnabled, ParseBool(args[0]));
@@ -237,8 +226,30 @@ ProcessLoadParquet(ReplState &state,
                    const std::string &commandName,
                    const vector<std::string> &args)
 {
-    // todo
     REQUIRED_ARGS(2, 3);
+
+    std::string tableName = ToLower(args[0]);
+    std::string path = args[1];
+    std::optional<std::set<std::string>> fields;
+    if (args.size() == 3) {
+        auto fieldsVec = Split(args[2], [](char c) { return c == ','; });
+        fields = std::set<std::string>(fieldsVec.begin(), fieldsVec.end());
+    }
+
+    std::unique_ptr<ColumnarTable> table;
+
+    auto durationMs = MeasureDurationMs([&]() {
+        table = ColumnarTable::ImportParquet(path, fields);
+    });
+
+    if (!table)
+        return Status::Invalid("Failed to load a parquet file from ", path);
+
+    if (state.timingEnabled)
+        std::cout << "Duration: " << durationMs << "ms" << std::endl;
+    
+    state.tables[tableName] = std::move(table);
+
     return true;
 }
 
@@ -256,7 +267,6 @@ ProcessQuit(ReplState &state,
             const std::string &commandName,
             const vector<std::string> &args)
 {
-    // todo
     REQUIRED_ARGS(0, 0);
     state.done = true;
     return true;
@@ -267,8 +277,19 @@ ProcessSchema(ReplState &state,
               const std::string &commandName,
               const vector<std::string> &args)
 {
-    // todo
     REQUIRED_ARGS(1, 1);
+    std::string tableName = ToLower(args[0]);
+
+    if (state.tables.count(tableName) == 0)
+        return Status::Invalid("Table not found: ", tableName);
+
+    const auto &schema = state.tables[tableName]->Schema();
+    
+    for (const auto &field: schema)
+    {
+        std::cout << "  " << field.name << ": " << field.type->ToString() << std::endl;
+    }
+
     return true;
 }
 
@@ -285,59 +306,54 @@ void FileDebugInfo(parquet::FileMetaData &fileMetadata)
 
 void MeasurePerf(const std::function<void()> &body)
 {
-    auto start = high_resolution_clock::now();
+    auto durationMs = MeasureDurationMs(body);
 
-    body();
-
-    auto stop = high_resolution_clock::now();
-    auto duration  = duration_cast<microseconds>(stop - start);
-
-    std::cout << "Duration: " << duration.count() / 1000 << "ms" << std::endl;
+    std::cout << "Duration: " << durationMs << "ms" << std::endl;
 }
 
 int main() {
     return repl();
-    std::vector<std::pair<std::string, std::string>> queries = {
-        {"L_SHIPMODE", "AIR"},          // 858104
-        {"L_SHIPDATE", "1996-02-12"},   // 2441
-        {"L_QUANTITY", "1"},            // 120401
-        {"L_ORDERKEY", "1"},            // 6
-    };
+    // std::vector<std::pair<std::string, std::string>> queries = {
+    //     {"L_SHIPMODE", "AIR"},          // 858104
+    //     {"L_SHIPDATE", "1996-02-12"},   // 2441
+    //     {"L_QUANTITY", "1"},            // 120401
+    //     {"L_ORDERKEY", "1"},            // 6
+    // };
 
-    std::set<std::string> fieldsToLoad;
-    for (auto q: queries)
-        fieldsToLoad.insert(q.first);
+    // std::set<std::string> fieldsToLoad;
+    // for (auto q: queries)
+    //     fieldsToLoad.insert(q.first);
     
-    auto columnarTable = pgaccel::ColumnarTable::ImportParquet(path, fieldsToLoad);
-    if (!columnarTable.has_value()) {
-        std::cout << "Failed to load parquet file" << std::endl;
-        exit(-1);
-    }
+    // auto columnarTable = pgaccel::ColumnarTable::ImportParquet(path, fieldsToLoad);
+    // if (!columnarTable.has_value()) {
+    //     std::cout << "Failed to load parquet file" << std::endl;
+    //     exit(-1);
+    // }
 
-    for (auto q: queries) {
-        std::string columnName = q.first;
-        std::string value = q.second;
+    // for (auto q: queries) {
+    //     std::string columnName = q.first;
+    //     std::string value = q.second;
 
-        auto maybeColumnIdx = columnarTable->ColumnIndex(columnName);
-        if (!maybeColumnIdx.has_value()) {
-            std::cout << "Column not found" << std::endl;
-            exit(-1);
-        }
+    //     auto maybeColumnIdx = columnarTable->ColumnIndex(columnName);
+    //     if (!maybeColumnIdx.has_value()) {
+    //         std::cout << "Column not found" << std::endl;
+    //         exit(-1);
+    //     }
 
-        int columnIdx = *maybeColumnIdx;
-        const auto &columnDataVec = columnarTable->ColumnData(columnIdx);
-        const auto &columnDesc = columnarTable->Schema()[columnIdx];
+    //     int columnIdx = *maybeColumnIdx;
+    //     const auto &columnDataVec = columnarTable->ColumnData(columnIdx);
+    //     const auto &columnDesc = columnarTable->Schema()[columnIdx];
 
-        MeasurePerf([&]() {
-            int total = CountMatches(columnDataVec, value, columnDesc.type.get(), false);
-            cout << "matches (no avx): " << total << endl;
-        });
+    //     MeasurePerf([&]() {
+    //         int total = CountMatches(columnDataVec, value, columnDesc.type.get(), false);
+    //         cout << "matches (no avx): " << total << endl;
+    //     });
 
-        MeasurePerf([&]() {
-            int total = CountMatches(columnDataVec, value, columnDesc.type.get(), true);
-            cout << "matches (avx): " << total << endl;
-        });
-    }
+    //     MeasurePerf([&]() {
+    //         int total = CountMatches(columnDataVec, value, columnDesc.type.get(), true);
+    //         cout << "matches (avx): " << total << endl;
+    //     });
+    // }
 
     return 0;
 }

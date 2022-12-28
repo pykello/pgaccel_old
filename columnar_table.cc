@@ -28,7 +28,7 @@ ColumnarTable::ColumnIndex(const std::string& name) const
     return {};
 }
 
-std::optional<ColumnarTable> 
+std::unique_ptr<ColumnarTable> 
 ColumnarTable::ImportParquet(const std::string &path,
                              std::optional<std::set<std::string>> maybeFields)
 {
@@ -56,7 +56,7 @@ ColumnarTable::ImportParquet(const std::string &path,
             fieldsToLoad.insert(ToLower(parquetSchema->Column(colIdx)->name()));
     }
 
-    ColumnarTable result;
+    auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
 
     for (size_t colIdx = 0; colIdx < parquetSchema->num_columns(); colIdx++)
     {
@@ -120,8 +120,8 @@ ColumnarTable::ImportParquet(const std::string &path,
                 return {};
         }
 
-        result.schema_.push_back(std::move(columnDesc));
-        result.column_data_.push_back(std::move(columnDataVec));
+        result->schema_.push_back(std::move(columnDesc));
+        result->column_data_.push_back(std::move(columnDataVec));
     }
 
     return result;
