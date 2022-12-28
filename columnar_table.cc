@@ -1,4 +1,5 @@
 #include "columnar_table.h"
+#include "util.h"
 
 #include <arrow/api.h>
 #include <arrow/filesystem/api.h>
@@ -14,15 +15,6 @@
 
 namespace pgaccel 
 {
-
-std::string
-ToLower(const std::string& s)
-{
-    std::string result;
-    for (auto ch: s)
-        result.push_back(tolower(ch));
-    return result;
-}
 
 std::optional<int>
 ColumnarTable::ColumnIndex(const std::string& name) const

@@ -12,4 +12,6 @@ file(GLOB pgaccel_SRC
 )
 
 add_executable(pgaccel ${pgaccel_SRC})
-target_link_libraries(pgaccel PRIVATE Arrow::arrow_shared Parquet::parquet_shared)
+target_link_libraries(pgaccel PRIVATE
+                      readline
+                      Arrow::arrow_shared Parquet::parquet_shared)
