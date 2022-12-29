@@ -1,6 +1,8 @@
 #pragma once
 
 #include <optional>
+#include <iostream>
+#include <sstream>
 
 namespace pgaccel
 {
@@ -35,13 +37,26 @@ public:
     }
 
     template <typename... Args>
-    static Status FromArgs(StatusCode status, Args&&... args) {
-        return Status();
+    static Status FromArgs(StatusCode code, Args&&... args) {
+        std::ostringstream sstream;
+        ConcatAsString(sstream, std::forward<Args>(args)...);
+        return Status(code, sstream.str());
     }
 
 private:
     StatusCode code;
     std::string msg;
+
+    template <typename Head>
+    static void ConcatAsString(std::ostream &stream, Head&& head) {
+        stream << head;
+    }
+
+    template <typename Head, typename... Tail>
+    static void ConcatAsString(std::ostream &stream, Head&& head, Tail&&... tail) {
+        ConcatAsString(stream, std::forward<Head>(head));
+        ConcatAsString(stream, std::forward<Tail>(tail)...);
+    }
 };
 
 template<typename T>
