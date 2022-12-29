@@ -11,15 +11,17 @@
 
 #include "column_data.hpp"
 #include "executor.h"
+#include "planner.h"
 #include "types.hpp"
 #include "columnar_table.h"
+#include "result_type.hpp"
 #include "util.h"
 
 using namespace pgaccel;
 using namespace std;
 
-using arrow::Result;
-using arrow::Status;
+// using arrow::Result;
+// using arrow::Status;
 
 #define ASSIGN_OR_RAISE(var, result) \
     do {\
@@ -44,7 +46,7 @@ const std::string path = "/home/hadi/data/tpch/1/parquet/lineitem.parquet";
 const char * HISTORY_FILE = ".pgaccel_history";
 
 struct ReplState {
-    std::map<std::string, std::unique_ptr<pgaccel::ColumnarTable>> tables;
+    TableRegistry tables;
     bool done = false;
     bool timingEnabled = true;
     bool useAvx = true;
@@ -145,7 +147,7 @@ repl()
             add_history(line.c_str());
             auto result = ProcessCommand(state, line);
             if (!result.ok()) {
-                std::cout << "ERROR: " << result.status().message() << std::endl;
+                std::cout << "ERROR: " << result.status().Message() << std::endl;
             }
             line = "";
         }
