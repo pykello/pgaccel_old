@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 #include "column_data.hpp"
 #include "executor.h"
@@ -39,6 +41,7 @@ using arrow::Status;
     }
 
 const std::string path = "/home/hadi/data/tpch/1/parquet/lineitem.parquet";
+const char * HISTORY_FILE = ".pgaccel_history";
 
 struct ReplState {
     std::map<std::string, std::unique_ptr<pgaccel::ColumnarTable>> tables;
@@ -60,6 +63,7 @@ static bool CommandTerminated(const std::string &s);
 static Result<bool> ProcessCommand(ReplState &state, const std::string &commandStr);
 static std::vector<std::string> TokenizeCommand(const std::string &s);
 static Result<bool> ParseBool(const std::string& s);
+static std::string HistoryFile();
 
 // commands
 static Result<bool> ProcessHelp(ReplState &state,
@@ -113,6 +117,9 @@ repl()
         return -1;
     }
 
+    std::string historyFile = HistoryFile();
+    read_history(historyFile.c_str());
+
     std::string line;
 
     while (!state.done) {
@@ -146,6 +153,8 @@ repl()
         // readline malloc's a new buffer every time.
         free(buf);
     }
+
+    write_history(historyFile.c_str());
 
     return 0;
 }
@@ -194,6 +203,22 @@ ParseBool(const std::string& s)
     if (lc == "false" || lc == "off")
         return false;
     return Status::Invalid("Invalid boolean: ", lc);
+}
+
+static std::string
+HistoryFile()
+{
+    const char *homedir;
+    if ((homedir = getenv("HOME")) == NULL) {
+        homedir = getpwuid(getuid())->pw_dir;
+    }
+
+    std::string result;
+    result += homedir;
+    result += "/";
+    result += HISTORY_FILE;
+
+    return result;
 }
 
 static Result<bool>
