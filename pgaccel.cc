@@ -11,7 +11,7 @@
 
 #include "column_data.hpp"
 #include "executor.h"
-#include "planner.h"
+#include "parser.h"
 #include "types.hpp"
 #include "columnar_table.h"
 #include "result_type.hpp"
@@ -19,9 +19,6 @@
 
 using namespace pgaccel;
 using namespace std;
-
-// using arrow::Result;
-// using arrow::Status;
 
 #define ASSIGN_OR_RAISE(var, result) \
     do {\
