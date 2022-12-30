@@ -307,6 +307,20 @@ ProcessSelect(ReplState &state,
     ASSIGN_OR_RAISE(queryDesc, ParseSelect(commandText, state.tables));
     std::cout << queryDesc.ToString() << std::endl;
 
+    Result<QueryOutput> queryOutput(Status::Invalid(""));
+
+    auto durationMs = MeasureDurationMs([&]() {
+       queryOutput = ExecuteQuery(queryDesc, state.useAvx);
+    });
+
+    if (!queryOutput.ok())
+        return queryOutput.status();
+
+    std::cout << queryOutput->values[0][0] << std::endl;
+
+    if (state.timingEnabled)
+        std::cout << "Duration: " << durationMs << "ms" << std::endl;
+
     return true;
 }
 
