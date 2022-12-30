@@ -384,40 +384,5 @@ int main() {
     //     {"L_ORDERKEY", "1"},            // 6
     // };
 
-    // std::set<std::string> fieldsToLoad;
-    // for (auto q: queries)
-    //     fieldsToLoad.insert(q.first);
-    
-    // auto columnarTable = pgaccel::ColumnarTable::ImportParquet(path, fieldsToLoad);
-    // if (!columnarTable.has_value()) {
-    //     std::cout << "Failed to load parquet file" << std::endl;
-    //     exit(-1);
-    // }
-
-    // for (auto q: queries) {
-    //     std::string columnName = q.first;
-    //     std::string value = q.second;
-
-    //     auto maybeColumnIdx = columnarTable->ColumnIndex(columnName);
-    //     if (!maybeColumnIdx.has_value()) {
-    //         std::cout << "Column not found" << std::endl;
-    //         exit(-1);
-    //     }
-
-    //     int columnIdx = *maybeColumnIdx;
-    //     const auto &columnDataVec = columnarTable->ColumnData(columnIdx);
-    //     const auto &columnDesc = columnarTable->Schema()[columnIdx];
-
-    //     MeasurePerf([&]() {
-    //         int total = CountMatches(columnDataVec, value, columnDesc.type.get(), false);
-    //         cout << "matches (no avx): " << total << endl;
-    //     });
-
-    //     MeasurePerf([&]() {
-    //         int total = CountMatches(columnDataVec, value, columnDesc.type.get(), true);
-    //         cout << "matches (avx): " << total << endl;
-    //     });
-    // }
-
     return 0;
 }
