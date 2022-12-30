@@ -25,9 +25,15 @@ public:
         return column_data_[idx];
     }
 
+    const std::string Name() const
+    {
+        return name_;
+    }
+
     std::optional<int> ColumnIndex(const std::string& name) const;
 
     static std::unique_ptr<ColumnarTable> ImportParquet(
+        const std::string &tableName,
         const std::string &path,
         std::optional<std::set<std::string>> fields = {});
 
@@ -36,6 +42,7 @@ private:
 
     std::vector<ColumnDesc> schema_;
     std::vector<std::vector<ColumnDataP>> column_data_;
+    std::string name_;
 };
 
 };

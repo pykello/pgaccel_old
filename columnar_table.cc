@@ -29,7 +29,8 @@ ColumnarTable::ColumnIndex(const std::string& name) const
 }
 
 std::unique_ptr<ColumnarTable> 
-ColumnarTable::ImportParquet(const std::string &path,
+ColumnarTable::ImportParquet(const std::string &tableName,
+                             const std::string &path,
                              std::optional<std::set<std::string>> maybeFields)
 {
     arrow::fs::LocalFileSystem fs;
@@ -57,6 +58,7 @@ ColumnarTable::ImportParquet(const std::string &path,
     }
 
     auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
+    result->name_ = tableName;
 
     for (size_t colIdx = 0; colIdx < parquetSchema->num_columns(); colIdx++)
     {

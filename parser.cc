@@ -154,7 +154,7 @@ std::string QueryDesc::ToString() const
     std::ostringstream sout;
     sout << "Tables: " << std::endl;
     for(auto table: tables) {
-        sout << "  - " << "a table" << std::endl;
+        sout << "  - " << table->Name() << std::endl;
     }
 
     sout << "Filter Clauses:" << std::endl;

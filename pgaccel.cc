@@ -265,7 +265,7 @@ ProcessLoadParquet(ReplState &state,
     std::unique_ptr<ColumnarTable> table;
 
     auto durationMs = MeasureDurationMs([&]() {
-        table = ColumnarTable::ImportParquet(path, fields);
+        table = ColumnarTable::ImportParquet(tableName, path, fields);
     });
 
     if (!table)
