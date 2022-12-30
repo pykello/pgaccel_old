@@ -4,8 +4,30 @@
 #include <iostream>
 #include <sstream>
 
+/*
+ * Result<T> type, which either contains a value or an error status.
+ * Similar to apache arrow's result type, but implemented in-house in
+ * case we want to drop dependency on arrow.
+ */
+
 namespace pgaccel
 {
+
+#define ASSIGN_OR_RAISE(var, result) \
+    do {\
+        const auto r = result; \
+        if (r.ok()) \
+            var = std::move(*r); \
+        else \
+            return r.status(); \
+    } while(0);
+
+#define RAISE_IF_FAILS(result) \
+    do {\
+        const auto r = result; \
+        if (!r.ok()) \
+            return r.status(); \
+    } while(0);
 
 enum class StatusCode  {
     OK,

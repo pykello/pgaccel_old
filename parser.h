@@ -14,6 +14,9 @@ namespace pgaccel
 struct ColumnRef {
     int tableIdx;
     int columnIdx;
+    AccelType *type;
+
+    std::string ToString() const;
 };
 
 struct FilterClause {
@@ -27,10 +30,12 @@ struct FilterClause {
         FILTER_BETWEEN_01,
         FILTER_BETWEEN_10,
         FILTER_BETWEEN_11,
-    } type;
+    } op;
 
     ColumnRef columnRef;
     std::string value[2];
+
+    std::string ToString() const;
 };
 
 struct AggregateClause {
@@ -38,11 +43,14 @@ struct AggregateClause {
         AGGREGATE_COUNT,
         AGGREGATE_COUNT_DISTINCT,
         AGGREGATE_SUM,
+        AGGREGATE_AVG,
         AGGREGATE_MIN,
         AGGREGATE_MAX,
     } type;
 
     // todo: expression
+
+    std::string ToString() const;
 };
 
 struct QueryDesc {
@@ -50,11 +58,12 @@ struct QueryDesc {
     std::vector<FilterClause> filterClauses;
     std::vector<ColumnRef> groupBy;
     std::vector<AggregateClause> aggregateClauses;
+
+    std::string ToString() const;
 };
 
 typedef std::unique_ptr<QueryDesc> QueryDescP;
 typedef std::map<std::string, std::unique_ptr<pgaccel::ColumnarTable>> TableRegistry;
 
-Result<QueryDesc> ParseSelect(const std::string &queryStr);
-
+Result<QueryDesc> ParseSelect(const std::string &query, const TableRegistry &registry);
 };

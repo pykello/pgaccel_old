@@ -20,14 +20,6 @@
 using namespace pgaccel;
 using namespace std;
 
-#define ASSIGN_OR_RAISE(var, result) \
-    do {\
-        if (result.ok()) \
-            var = std::move(*result); \
-        else \
-            return result; \
-    } while(0);
-
 #define REQUIRED_ARGS(MIN, MAX) \
     if (args.size() < MIN || args.size() > MAX) \
     {\
@@ -53,7 +45,8 @@ struct ReplCommand {
     std::string name;
     Result<bool> (*func)(ReplState &state,
                          const std::string &commandName,
-                         const vector<std::string> &args);
+                         const vector<std::string> &args,
+                         const std::string &commandText);
 };
 
 // static function forward declarations
@@ -67,22 +60,28 @@ static std::string HistoryFile();
 // commands
 static Result<bool> ProcessHelp(ReplState &state,
                                 const std::string &commandName,
-                                const vector<std::string> &args);
+                                const vector<std::string> &args,
+                                const std::string &commandText);
 static Result<bool> ProcessTiming(ReplState &state,
                                   const std::string &commandName,
-                                  const vector<std::string> &args);
+                                  const vector<std::string> &args,
+                                  const std::string &commandText);
 static Result<bool> ProcessLoadParquet(ReplState &state, 
                                        const std::string &commandName,
-                                       const vector<std::string> &args);
+                                       const vector<std::string> &args,
+                                       const std::string &commandText);
 static Result<bool> ProcessSelect(ReplState &state,
                                   const std::string &commandName,
-                                  const vector<std::string> &args);
+                                  const vector<std::string> &args,
+                                  const std::string &commandText);
 static Result<bool> ProcessQuit(ReplState &state,
                                 const std::string &commandName,
-                                const vector<std::string> &args);
+                                const vector<std::string> &args,
+                                const std::string &commandText);
 static Result<bool> ProcessSchema(ReplState &state,
                                   const std::string &commandName,
-                                  const vector<std::string> &args);
+                                  const vector<std::string> &args,
+                                  const std::string &commandText);
 
 std::vector<ReplCommand> commands = {
     { "help", ProcessHelp },
@@ -180,7 +179,7 @@ ProcessCommand(ReplState &state, const std::string &commandStr)
     for (auto cmd: commands)
     {
         if (commandName == cmd.name) {
-            return cmd.func(state, commandName, args);
+            return cmd.func(state, commandName, args, commandStr);
         }
     }
 
@@ -223,7 +222,8 @@ HistoryFile()
 static Result<bool>
 ProcessHelp(ReplState &state,
             const std::string &commandName,
-            const vector<std::string> &args)
+            const vector<std::string> &args,
+            const std::string &commandText)
 {
     REQUIRED_ARGS(0, 1);
     std::cout << "Available Commands: " << std::endl;
@@ -236,7 +236,8 @@ ProcessHelp(ReplState &state,
 static Result<bool>
 ProcessTiming(ReplState &state,
               const std::string &commandName,
-              const vector<std::string> &args)
+              const vector<std::string> &args,
+              const std::string &commandText)
 {
     REQUIRED_ARGS(0, 1);
     if (args.size() == 1)
@@ -248,7 +249,8 @@ ProcessTiming(ReplState &state,
 static Result<bool>
 ProcessLoadParquet(ReplState &state,
                    const std::string &commandName,
-                   const vector<std::string> &args)
+                   const vector<std::string> &args,
+                   const std::string &commandText)
 {
     REQUIRED_ARGS(2, 3);
 
@@ -280,16 +282,21 @@ ProcessLoadParquet(ReplState &state,
 static Result<bool>
 ProcessSelect(ReplState &state,
               const std::string &commandName,
-              const vector<std::string> &args)
+              const vector<std::string> &args,
+              const std::string &commandText)
 {
-    // todo
+    QueryDesc queryDesc;
+    ASSIGN_OR_RAISE(queryDesc, ParseSelect(commandText, state.tables));
+    std::cout << queryDesc.ToString() << std::endl;
+
     return true;
 }
 
 static Result<bool>
 ProcessQuit(ReplState &state,
             const std::string &commandName,
-            const vector<std::string> &args)
+            const vector<std::string> &args,
+            const std::string &commandText)
 {
     REQUIRED_ARGS(0, 0);
     state.done = true;
@@ -299,7 +306,8 @@ ProcessQuit(ReplState &state,
 static Result<bool>
 ProcessSchema(ReplState &state,
               const std::string &commandName,
-              const vector<std::string> &args)
+              const vector<std::string> &args,
+              const std::string &commandText)
 {
     REQUIRED_ARGS(1, 1);
     std::string tableName = ToLower(args[0]);
