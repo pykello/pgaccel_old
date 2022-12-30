@@ -66,6 +66,10 @@ static Result<bool> ProcessTiming(ReplState &state,
                                   const std::string &commandName,
                                   const vector<std::string> &args,
                                   const std::string &commandText);
+static Result<bool> ProcessAvx(ReplState &state,
+                               const std::string &commandName,
+                               const vector<std::string> &args,
+                               const std::string &commandText);
 static Result<bool> ProcessLoadParquet(ReplState &state, 
                                        const std::string &commandName,
                                        const vector<std::string> &args,
@@ -89,7 +93,8 @@ std::vector<ReplCommand> commands = {
     { "timing", ProcessTiming },
     { "load_parquet", ProcessLoadParquet },
     { "select", ProcessSelect },
-    { "schema", ProcessSchema }
+    { "schema", ProcessSchema },
+    { "avx", ProcessAvx }
 };
 
 // singal handler stuff
@@ -243,6 +248,19 @@ ProcessTiming(ReplState &state,
     if (args.size() == 1)
         ASSIGN_OR_RAISE(state.timingEnabled, ParseBool(args[0]));
     std::cout << "Timing is " << (state.timingEnabled ? "on." : "off.") << std::endl;
+    return true;
+}
+
+static Result<bool>
+ProcessAvx(ReplState &state,
+           const std::string &commandName,
+           const vector<std::string> &args,
+           const std::string &commandText)
+{
+    REQUIRED_ARGS(0, 1);
+    if (args.size() == 1)
+        ASSIGN_OR_RAISE(state.useAvx, ParseBool(args[0]));
+    std::cout << "AVX is " << (state.useAvx ? "on." : "off.") << std::endl;
     return true;
 }
 
