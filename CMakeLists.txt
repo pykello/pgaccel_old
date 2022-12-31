@@ -1,6 +1,7 @@
 project(PgAccel)
 
 cmake_minimum_required(VERSION 3.22)
+set(CMAKE_CXX_STANDARD 17)
 
 find_package(Arrow REQUIRED)
 find_package(Parquet REQUIRED)
@@ -26,3 +27,33 @@ target_include_directories(pgaccel PRIVATE "src")
 target_link_libraries(pgaccel PRIVATE
                       readline
                       pgaccel_static)
+
+# tests
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+
+file(GLOB pgaccel_test_SRC
+     "tests/*.h"
+     "tests/*.cc"
+     "tests/*.hpp"
+)
+
+add_executable(
+  run_tests
+  ${pgaccel_test_SRC}
+)
+target_include_directories(run_tests PRIVATE "src" "tests")
+target_link_libraries(
+  run_tests
+  GTest::gtest_main
+  pgaccel_static
+)
+
+include(GoogleTest)
+gtest_discover_tests(run_tests)
