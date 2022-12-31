@@ -24,7 +24,7 @@ namespace pgaccel
 
 #define RAISE_IF_FAILS(result) \
     do {\
-        const auto r = result; \
+        auto &&r = result; \
         if (!r.ok()) \
             return r.status(); \
     } while(0);

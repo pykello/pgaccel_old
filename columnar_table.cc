@@ -166,6 +166,7 @@ ColumnarTable::Save(std::ostream& metadataStream,
     {
         AccelType *type = schema_[colIdx].type.get();
         metadataStream << column_positions[colIdx];
+        metadataStream << " " << column_data_vecs_[colIdx].size();
         metadataStream << " " << schema_[colIdx].name;
         metadataStream << " " << type->type_num();
         switch (type->type_num())
@@ -188,7 +189,7 @@ ColumnarTable::Load(const std::string &tableName,
                     std::optional<std::set<std::string>> fields)
 {
     std::ifstream dataStream(path);
-    std::ifstream metadataStream(path + ".metadataStream");
+    std::ifstream metadataStream(path + ".metadata");
     return Load(tableName, metadataStream, dataStream, fields);
 }
 
@@ -214,16 +215,18 @@ ColumnarTable::Load(const std::string &tableName,
     }
 
     std::vector<uint64_t> column_positions;
+    std::vector<int> column_groups;
 
     int numCols;
     metadataStream >> numCols;
     for (int colIdx = 0; colIdx < numCols; colIdx++)
     {
         uint64_t position;
+        int groupCount;
         std::string columnName;
         int typeNum;
 
-        metadataStream >> position >> columnName >> typeNum;
+        metadataStream >> position >> groupCount >> columnName >> typeNum;
 
         ColumnDesc columnDesc;
         columnDesc.name = ToLower(columnName);
@@ -255,6 +258,7 @@ ColumnarTable::Load(const std::string &tableName,
         }
 
         column_positions.push_back(position);
+        column_groups.push_back(groupCount);
         if (loadAll || fieldsToLoad.count(columnDesc.name))
         {
             result->schema_.push_back(std::move(columnDesc));
@@ -269,9 +273,23 @@ ColumnarTable::Load(const std::string &tableName,
         {
             continue;
         }
+
+        uint64_t position = column_positions[colIdx];
+        int groupCount = column_groups[colIdx];
+        dataStream.seekg(position);
+
+        result->column_data_vecs_.push_back({});
+        auto &columnDataVec = result->column_data_vecs_.back();
+
+        for (int group = 0; group < groupCount; group++)
+        {
+            auto columnData = ColumnDataBase::Load(dataStream, columnDesc.type.get());
+            RAISE_IF_FAILS(columnData);
+            columnDataVec.push_back(std::move(columnData).ValueUnsafe());
+        }
     }
     
-    return Status::Invalid("load failed");
+    return result;
 }
 
 };

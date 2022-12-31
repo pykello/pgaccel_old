@@ -129,7 +129,7 @@ Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
         case ColumnDataBase::RAW_COLUMN_DATA:
             return LoadRawColumnData(in, dataType);
         default:
-            return Status::Invalid("Unknown column dataa type: ", type);
+            return Status::Invalid("Unknown column data type: ", type);
     }
 }
 
