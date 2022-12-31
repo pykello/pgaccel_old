@@ -185,8 +185,21 @@ TokenizeQuery(const std::string &query)
     std::vector<std::string> tokens;
     std::string current;
 
+    bool inString = false;
+
     for (auto c: query) {
-        if (isspace(c) || c == ';') {
+        if (inString) {
+            if (c == '\'') {
+                tokens.push_back(current);
+                tokens.push_back("'");
+                current = "";
+                inString = false;
+            }
+            else {
+                current += c;
+            }
+        }
+        else if (isspace(c) || c == ';') {
             if (current.length())
                 tokens.push_back(current);
             current = "";
@@ -199,6 +212,7 @@ TokenizeQuery(const std::string &query)
             std::string token;
             token += c;
             tokens.push_back(token);
+            inString = (c == '\'');
         }
         else {
             current += c;
@@ -375,8 +389,9 @@ ParseValue(const AccelType &type,
            int &currentIdx)
 {
     std::string result;
-    bool strType = type.type_num() == STRING_TYPE;
-    if (strType)
+    bool strValue = (type.type_num() == STRING_TYPE ||
+                     type.type_num() == DATE_TYPE);
+    if (strValue)
     {
         RAISE_IF_FAILS(ParseToken("'", tokens, currentIdx));
         ENSURE_TOKEN("filter value");
