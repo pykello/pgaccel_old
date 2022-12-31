@@ -479,5 +479,12 @@ int main() {
     //     {"L_ORDERKEY", "1"},            // 6
     // };
 
+    // TODO:
+    //  1. boolean flag to enable/disable query desc output.
+    //  2. task based executor.
+    //  3. select count(*) without filters.
+    //  4. sum() aggregates
+    
+
     return 0;
 }
