@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <parquet/types.h>
+#include <ostream>
 
 namespace pgaccel {
 

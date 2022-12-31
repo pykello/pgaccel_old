@@ -9,6 +9,7 @@
 #include <parquet/column_reader.h>
 #include <parquet/file_reader.h>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <cctype>
 #include <string>
@@ -67,6 +68,8 @@ ColumnarTable::ImportParquet(const std::string &tableName,
         if (0 == fieldsToLoad.count(ToLower(column->name())))
             continue;
 
+        std::cout << "Loading column " << column->name() << " ..." << std::endl;
+
         std::vector<ColumnDataP> columnDataVec;
         ColumnDesc columnDesc;
         columnDesc.name = column->name();
@@ -123,10 +126,75 @@ ColumnarTable::ImportParquet(const std::string &tableName,
         }
 
         result->schema_.push_back(std::move(columnDesc));
-        result->column_data_.push_back(std::move(columnDataVec));
+        result->column_data_vecs_.push_back(std::move(columnDataVec));
     }
 
     return result;
+}
+
+Result<bool>
+ColumnarTable::Save(const std::string &path)
+{
+    std::ofstream dataStream(path);
+    std::ofstream metadataStream(path + ".metadata");
+    return Save(metadataStream, dataStream);
+}
+
+
+Result<bool>
+ColumnarTable::Save(std::ostream& metadataStream,
+                    std::ostream& dataStream) const
+{
+    std::vector<uint64_t> column_positions;
+
+    int numCols = schema_.size();
+
+    uint64_t current_pos = 0;
+    for (int colIdx = 0; colIdx < numCols; colIdx++)
+    {
+        column_positions.push_back(dataStream.tellp());
+
+        const auto &columnDataVec = column_data_vecs_[colIdx];
+        for (const auto &columnDataP: columnDataVec)
+        {
+            RAISE_IF_FAILS(columnDataP->Save(dataStream));
+        }
+    }
+
+    metadataStream << numCols << std::endl;
+    for (int colIdx = 0; colIdx < numCols; colIdx++)
+    {
+        AccelType *type = schema_[colIdx].type.get();
+        metadataStream << column_positions[colIdx];
+        metadataStream << " " << schema_[colIdx].name;
+        metadataStream << " " << type->type_num();
+        switch (type->type_num())
+        {
+            case TypeNum::DECIMAL_TYPE:
+                auto decimalType = static_cast<DecimalType *>(type);
+                metadataStream << " " << decimalType->scale;
+                break;
+        }
+
+        metadataStream << std::endl;
+    }
+
+    return true;
+}
+
+Result<ColumnarTableP>
+ColumnarTable::Load(const std::string &path)
+{
+    std::ifstream dataStream(path);
+    std::ifstream metadataStream(path + ".metadataStream");
+    return Load(metadataStream, dataStream);
+}
+
+Result<ColumnarTableP>
+ColumnarTable::Load(std::istream& metadataStream,
+                    std::istream& dataStream)
+{
+    return Status::Invalid("load failed");
 }
 
 };

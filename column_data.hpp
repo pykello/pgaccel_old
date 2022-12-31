@@ -13,6 +13,12 @@
 #include <cstdint>
 #include <iostream>
 
+#include "result_type.hpp"
+#include "types.hpp"
+
+namespace pgaccel
+{
+
 /*
  * Data Structures
 */
@@ -23,22 +29,41 @@ struct ColumnDataBase {
         DICT_COLUMN_DATA = 0,
         RAW_COLUMN_DATA = 1
     } type;
+
+    virtual Result<bool> Save(std::ostream &out) const = 0;
 };
 
 template<class Ty>
 struct DictColumnData: public ColumnDataBase {
     using DictTy = typename Ty::c_type;
     std::vector<DictTy> dict;
-    alignas(512) uint8_t values[RowGroupSize * 2];
+    uint8_t *values = NULL;//[RowGroupSize * 2];
     int size;
+
+    virtual Result<bool> Save(std::ostream &out) const;
+
+    ~DictColumnData() {
+        if (values)
+            free(values);
+    }
+
+private:
+    Result<bool> SaveValue(std::ostream &out, const DictTy &value) const;
 };
 
 template<class Ty>
 struct RawColumnData: public ColumnDataBase {
-    alignas(512) uint8_t values[RowGroupSize * 8];
+    uint8_t *values = NULL;//[RowGroupSize * 8];
     int size;
     int bytesPerValue;
     typename Ty::c_type minValue, maxValue;
+
+    virtual Result<bool> Save(std::ostream &out) const;
+
+    ~RawColumnData() {
+        if (values)
+            free(values);
+    }
 };
 
 typedef std::unique_ptr<ColumnDataBase> ColumnDataP;
@@ -93,15 +118,19 @@ GenerateRawColumnData(parquet::ColumnReader &untypedReader,
 
         if (maxValue <= INT8_MAX && minValue >= INT8_MIN) {
             columnData->bytesPerValue = 1;
+            columnData->values = (uint8_t *) aligned_alloc(512, rowGroupSize);
             FILL_RAW_DATA(int8_t);
         } else if (maxValue <= INT16_MAX && minValue >= INT16_MIN) {
             columnData->bytesPerValue = 2;
+            columnData->values = (uint8_t *) aligned_alloc(512, 2 * rowGroupSize);
             FILL_RAW_DATA(int16_t);
         } else if (maxValue <= INT32_MAX && minValue >= INT32_MIN) {
             columnData->bytesPerValue = 4;
+            columnData->values = (uint8_t *) aligned_alloc(512, 4 * rowGroupSize);
             FILL_RAW_DATA(int32_t);
         } else {
             columnData->bytesPerValue = 8;
+            columnData->values = (uint8_t *) aligned_alloc(512, 8 * rowGroupSize);
             FILL_RAW_DATA(int64_t);
         }
 
@@ -157,15 +186,17 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader,
         }
 
         if (dictSize < 256) {
-            uint8_t *values8 = columnData->values;
+            uint8_t *values8 = (uint8_t *) aligned_alloc(512, rowGroupSize);
             for (int i = offset; i < offset + rowGroupSize; i++) {
                 values8[i - offset] = dictIndexMap[convertedValues[i]];
             }
+            columnData->values = values8;
         } else {
-            uint16_t *values16 = reinterpret_cast<uint16_t *>(columnData->values);
+            uint16_t *values16 = (uint16_t *) aligned_alloc(512, 2 * rowGroupSize);
             for (int i = offset; i < offset + rowGroupSize; i++) {
                 values16[i - offset] = dictIndexMap[convertedValues[i]];
             }
+            columnData->values = (uint8_t *) values16;
         }
 
         columnData->size = rowGroupSize;
@@ -181,7 +212,6 @@ GenerateDictColumnData(parquet::ParquetFileReader &fileReader, int column)
     std::vector<ColumnDataP> result;
     auto fileMetadata = fileReader.metadata();
     for (int rowGroup = 0; rowGroup < fileMetadata->num_row_groups(); rowGroup++) {
-        std::cout << "Row group: " << rowGroup << std::endl;
         auto rowGroupReader = fileReader.RowGroup(rowGroup);
         auto columnReader = rowGroupReader->Column(column);
         GenerateDictColumnData<ParquetTy, AccelTy>(*columnReader, result);
@@ -196,10 +226,55 @@ GenerateRawColumnData(parquet::ParquetFileReader &fileReader, int column)
     std::vector<ColumnDataP> result;
     auto fileMetadata = fileReader.metadata();
     for (int rowGroup = 0; rowGroup < fileMetadata->num_row_groups(); rowGroup++) {
-        std::cout << "Row group: " << rowGroup << std::endl;
         auto rowGroupReader = fileReader.RowGroup(rowGroup);
         auto columnReader = rowGroupReader->Column(column);
         GenerateRawColumnData<ParquetTy, AccelTy>(*columnReader, result);
     }
     return result;
 }
+
+// Save functions
+template<typename AccelTy>
+Result<bool>
+RawColumnData<AccelTy>::Save(std::ostream &out) const
+{
+    out.write((char *) &size, sizeof(size));
+    out.write((char *) &bytesPerValue, sizeof(bytesPerValue));
+    out.write((char *) &minValue, sizeof(minValue));
+    out.write((char *) &maxValue, sizeof(maxValue));
+    out.write((char *) values, size * bytesPerValue);
+    return true;
+}
+
+template<typename AccelTy>
+Result<bool>
+DictColumnData<AccelTy>::Save(std::ostream &out) const
+{
+    int dictSize = dict.size();
+    out.write((char *) &dictSize, sizeof(dictSize));
+    for (auto v: dict)
+    {
+        SaveValue(out, v);
+    }
+    out.write((char *) &size, sizeof(size));
+    int bytesPerValue = (dictSize < 256) ? 1 : 2;
+    out.write((char *) values, size * bytesPerValue);
+    return true;
+}
+
+template<typename AccelTy>
+Result<bool>
+DictColumnData<AccelTy>::SaveValue(std::ostream &out,
+                                   const typename AccelTy::c_type &value) const
+{
+    out.write((char *) &value, sizeof(value));
+    return true;
+}
+
+// declare specialized version for StringType, define in .cc
+template<>
+Result<bool> DictColumnData<StringType>::SaveValue(
+    std::ostream &out,
+    const std::string &value) const;
+
+};

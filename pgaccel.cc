@@ -86,11 +86,21 @@ static Result<bool> ProcessSchema(ReplState &state,
                                   const std::string &commandName,
                                   const vector<std::string> &args,
                                   const std::string &commandText);
+static Result<bool> ProcessLoad(ReplState &state,
+                                const std::string &commandName,
+                                const vector<std::string> &args,
+                                const std::string &commandText);
+static Result<bool> ProcessSave(ReplState &state,
+                                const std::string &commandName,
+                                const vector<std::string> &args,
+                                const std::string &commandText);
 
 std::vector<ReplCommand> commands = {
     { "help", ProcessHelp },
     { "quit", ProcessQuit },
     { "timing", ProcessTiming },
+    { "load", ProcessLoad },
+    { "save", ProcessSave },
     { "load_parquet", ProcessLoadParquet },
     { "select", ProcessSelect },
     { "schema", ProcessSchema },
@@ -356,6 +366,68 @@ ProcessSchema(ReplState &state,
 
     return true;
 }
+
+static Result<bool>
+ProcessLoad(ReplState &state,
+            const std::string &commandName,
+            const vector<std::string> &args,
+            const std::string &commandText)
+{
+    REQUIRED_ARGS(2, 3);
+
+    std::string tableName = ToLower(args[0]);
+    std::string path = args[1];
+    std::optional<std::set<std::string>> fields;
+    if (args.size() == 3) {
+        auto fieldsVec = Split(args[2], [](char c) { return c == ','; });
+        fields = std::set<std::string>(fieldsVec.begin(), fieldsVec.end());
+    }
+
+    Result<ColumnarTableP> loadResult(Status::Invalid(""));
+
+    auto durationMs = MeasureDurationMs([&]() {
+        loadResult = ColumnarTable::Load(path);
+    });
+
+    ColumnarTableP table;
+    ASSIGN_OR_RAISE(table, loadResult);
+
+    if (state.timingEnabled)
+        std::cout << "Duration: " << durationMs << "ms" << std::endl;
+
+    state.tables[tableName] = std::move(table);
+
+    return true;
+}
+
+static Result<bool>
+ProcessSave(ReplState &state,
+            const std::string &commandName,
+            const vector<std::string> &args,
+            const std::string &commandText)
+{
+    REQUIRED_ARGS(2, 2);
+
+    std::string tableName = ToLower(args[0]);
+    std::string path = args[1];
+
+    if (state.tables.count(tableName) == 0)
+        return Status::Invalid("Table not found: ", tableName);
+
+    Result<bool> saveResult(false);
+
+    auto durationMs = MeasureDurationMs([&]() {
+        saveResult = state.tables[tableName]->Save(path);
+    });
+
+    RAISE_IF_FAILS(saveResult);
+
+    if (state.timingEnabled)
+        std::cout << "Duration: " << durationMs << "ms" << std::endl;
+
+    return true;
+}
+
 
 void FileDebugInfo(parquet::FileMetaData &fileMetadata)
 {

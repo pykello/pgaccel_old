@@ -15,9 +15,9 @@ namespace pgaccel
 
 #define ASSIGN_OR_RAISE(var, result) \
     do {\
-        const auto r = result; \
+        auto &&r = result; \
         if (r.ok()) \
-            var = std::move(*r); \
+            var = std::move(r).ValueUnsafe(); \
         else \
             return r.status(); \
     } while(0);
@@ -88,6 +88,8 @@ public:
     Result(T&& value): status_(StatusCode::OK, ""), value_(std::move(value)) {}
 
     bool ok() const { return status_.Code() == StatusCode::OK; }
+
+    T ValueUnsafe() && { return std::move(*value_); }
 
     const T& operator*() const& { return *value_; }
     const T* operator->() const { return value_.operator->(); }
