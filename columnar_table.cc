@@ -216,6 +216,7 @@ ColumnarTable::Load(const std::string &tableName,
 
     std::vector<uint64_t> column_positions;
     std::vector<int> column_groups;
+    std::vector<ColumnDesc> column_descs;
 
     int numCols;
     metadataStream >> numCols;
@@ -260,15 +261,12 @@ ColumnarTable::Load(const std::string &tableName,
 
         column_positions.push_back(position);
         column_groups.push_back(groupCount);
-        if (loadAll || fieldsToLoad.count(columnDesc.name))
-        {
-            result->schema_.push_back(std::move(columnDesc));
-        }
+        column_descs.push_back(std::move(columnDesc));
     }
 
     for (int colIdx = 0; colIdx < numCols; colIdx++)
     {
-        const ColumnDesc &columnDesc = result->schema_[colIdx];
+        const ColumnDesc &columnDesc = column_descs[colIdx];
 
         if (!loadAll && !fieldsToLoad.count(columnDesc.name))
         {
@@ -288,6 +286,8 @@ ColumnarTable::Load(const std::string &tableName,
             RAISE_IF_FAILS(columnData);
             columnDataVec.push_back(std::move(columnData).ValueUnsafe());
         }
+
+        result->schema_.push_back(std::move(column_descs[colIdx]));
     }
     
     return result;
