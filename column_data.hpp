@@ -24,6 +24,9 @@ namespace pgaccel
 */
 const int RowGroupSize = 1 << 16;
 
+struct ColumnDataBase;
+typedef std::unique_ptr<ColumnDataBase> ColumnDataP;
+
 struct ColumnDataBase {
     enum Type {
         DICT_COLUMN_DATA = 0,
@@ -33,13 +36,15 @@ struct ColumnDataBase {
     virtual Result<bool> Save(std::ostream &out) const = 0;
 
     virtual ~ColumnDataBase() {};
+
+    static Result<ColumnDataP> Load(std::istream &in, AccelType *type);
 };
 
 template<class Ty>
 struct DictColumnData: public ColumnDataBase {
     using DictTy = typename Ty::c_type;
     std::vector<DictTy> dict;
-    uint8_t *values = NULL;//[RowGroupSize * 2];
+    uint8_t *values = NULL;
     int size;
 
     virtual Result<bool> Save(std::ostream &out) const;
@@ -55,7 +60,7 @@ private:
 
 template<class Ty>
 struct RawColumnData: public ColumnDataBase {
-    uint8_t *values = NULL;//[RowGroupSize * 8];
+    uint8_t *values = NULL;
     int size;
     int bytesPerValue;
     typename Ty::c_type minValue, maxValue;
@@ -67,8 +72,6 @@ struct RawColumnData: public ColumnDataBase {
             free(values);
     }
 };
-
-typedef std::unique_ptr<ColumnDataBase> ColumnDataP;
 
 /*
  * Functions
@@ -240,6 +243,7 @@ template<typename AccelTy>
 Result<bool>
 RawColumnData<AccelTy>::Save(std::ostream &out) const
 {
+    out.write((char *) &type, sizeof(type));
     out.write((char *) &size, sizeof(size));
     out.write((char *) &bytesPerValue, sizeof(bytesPerValue));
     out.write((char *) &minValue, sizeof(minValue));
@@ -252,6 +256,7 @@ template<typename AccelTy>
 Result<bool>
 DictColumnData<AccelTy>::Save(std::ostream &out) const
 {
+    out.write((char *) &type, sizeof(type));
     int dictSize = dict.size();
     out.write((char *) &dictSize, sizeof(dictSize));
     for (auto v: dict)

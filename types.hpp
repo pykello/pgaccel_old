@@ -4,6 +4,7 @@
 #include <string>
 #include <parquet/types.h>
 #include <ostream>
+#include <istream>
 
 namespace pgaccel {
 

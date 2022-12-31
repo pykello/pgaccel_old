@@ -14,4 +14,113 @@ DictColumnData<StringType>::SaveValue(std::ostream &out,
     return true;
 }
 
+template<class AccelTy>
+static void
+ReadValues(std::istream &in, int count, typename AccelTy::c_type *out)
+{
+    in.read((char *) out, count * sizeof(typename AccelTy::c_type));
+}
+
+template<>
+void
+ReadValues<StringType>(std::istream &in, int count, std::string *out)
+{
+    for (int i = 0; i < count; i++)
+    {
+        int size;
+        in.read((char *) &size, sizeof(size));
+        for (int j = 0; j < size; j++)
+        {
+            char c;
+            in.read((char *) &c, sizeof(c));
+            out[i].push_back(c);
+        }
+    }
+}
+
+template<class AccelTy>
+static Result<ColumnDataP>
+LoadDictColumnData(std::istream &in)
+{
+    int dictSize;
+    auto result = std::make_unique<DictColumnData<AccelTy>>();
+    in.read((char *) &dictSize, sizeof(dictSize));
+    for (int i = 0; i < dictSize; i++)
+    {
+        typename AccelTy::c_type value;
+        ReadValues<AccelTy>(in, 1, &value);
+        result->dict.push_back(value);
+    }
+
+    in.read((char *) &result->size, sizeof(result->size));
+    int bytesPerValue = (dictSize < 256) ? 1 : 2;
+    result->values = (uint8_t *) aligned_alloc(512, bytesPerValue * result->size);
+    in.read((char *) result->values, bytesPerValue * result->size);
+
+    ColumnDataP resultCasted = std::move(result);
+    return resultCasted;
+}
+
+static Result<ColumnDataP>
+LoadDictColumnData(std::istream &in, AccelType *dataType)
+{
+    switch (dataType->type_num())
+    {
+        case TypeNum::INT32_TYPE:
+            return LoadDictColumnData<Int32Type>(in);
+        case TypeNum::INT64_TYPE:
+            return LoadDictColumnData<Int64Type>(in);
+        case TypeNum::STRING_TYPE:
+            return LoadDictColumnData<StringType>(in);
+        case TypeNum::DATE_TYPE:
+            return LoadDictColumnData<DateType>(in);
+        case TypeNum::DECIMAL_TYPE:
+            return LoadDictColumnData<DecimalType>(in);
+    }
+
+    return Status::Invalid("");
+}
+
+template<class AccelTy>
+static Result<ColumnDataP>
+LoadRawColumnData(std::istream &in, AccelTy *dataType)
+{
+    return Status::Invalid("");
+}
+
+static Result<ColumnDataP>
+LoadRawColumnData(std::istream &in, AccelType *dataType)
+{
+    switch (dataType->type_num())
+    {
+        case TypeNum::INT32_TYPE:
+            return LoadRawColumnData<Int32Type>(in, (Int32Type *) dataType);
+        case TypeNum::INT64_TYPE:
+            return LoadRawColumnData<Int64Type>(in, (Int64Type *) dataType);
+        case TypeNum::STRING_TYPE:
+            return LoadRawColumnData<StringType>(in, (StringType *) dataType);
+        case TypeNum::DATE_TYPE:
+            return LoadRawColumnData<DateType>(in, (DateType *) dataType);
+        case TypeNum::DECIMAL_TYPE:
+            return LoadRawColumnData<DecimalType>(in, (DecimalType *) dataType);
+    }
+    return Status::Invalid("");
+}
+
+Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
+{
+    ColumnDataBase::Type type;
+    in.read((char *) &type, sizeof(type));
+
+    switch (type)
+    {
+        case ColumnDataBase::DICT_COLUMN_DATA:
+            return LoadDictColumnData(in, dataType);
+        case ColumnDataBase::RAW_COLUMN_DATA:
+            return LoadRawColumnData(in, dataType);
+        default:
+            return Status::Invalid("Unknown column dataa type: ", type);
+    }
+}
+
 };

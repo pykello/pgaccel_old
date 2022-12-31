@@ -391,7 +391,7 @@ ProcessLoad(ReplState &state,
     Result<ColumnarTableP> loadResult(Status::Invalid(""));
 
     auto durationMs = MeasureDurationMs([&]() {
-        loadResult = ColumnarTable::Load(path);
+        loadResult = ColumnarTable::Load(tableName, path, fields);
     });
 
     ColumnarTableP table;

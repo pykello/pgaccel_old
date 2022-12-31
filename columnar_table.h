@@ -46,9 +46,15 @@ public:
         const std::string &path,
         std::optional<std::set<std::string>> fields = {});
 
-    static Result<ColumnarTableP> Load(const std::string &path);
-    static Result<ColumnarTableP> Load(std::istream& metadataStream,
-                                       std::istream& dataStream);
+    static Result<ColumnarTableP> Load(
+        const std::string &tableName,
+        const std::string &path,
+        std::optional<std::set<std::string>> fields = {});
+    static Result<ColumnarTableP> Load(
+        const std::string &tableName,
+        std::istream& metadataStream,
+        std::istream& dataStream,
+        std::optional<std::set<std::string>> fields);
 
 
 private:

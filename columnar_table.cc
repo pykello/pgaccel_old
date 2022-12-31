@@ -183,17 +183,94 @@ ColumnarTable::Save(std::ostream& metadataStream,
 }
 
 Result<ColumnarTableP>
-ColumnarTable::Load(const std::string &path)
+ColumnarTable::Load(const std::string &tableName,
+                    const std::string &path,
+                    std::optional<std::set<std::string>> fields)
 {
     std::ifstream dataStream(path);
     std::ifstream metadataStream(path + ".metadataStream");
-    return Load(metadataStream, dataStream);
+    return Load(tableName, metadataStream, dataStream, fields);
 }
 
 Result<ColumnarTableP>
-ColumnarTable::Load(std::istream& metadataStream,
-                    std::istream& dataStream)
+ColumnarTable::Load(const std::string &tableName,
+                    std::istream& metadataStream,
+                    std::istream& dataStream,
+                    std::optional<std::set<std::string>> maybeFields)
 {
+    auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
+    result->name_ = tableName;
+
+    bool loadAll = false;
+    std::set<std::string> fieldsToLoad;
+    if (maybeFields.has_value())
+    {
+        for(auto f: maybeFields.value())
+            fieldsToLoad.insert(ToLower(f));
+    }
+    else
+    {
+        loadAll = true;
+    }
+
+    std::vector<uint64_t> column_positions;
+
+    int numCols;
+    metadataStream >> numCols;
+    for (int colIdx = 0; colIdx < numCols; colIdx++)
+    {
+        uint64_t position;
+        std::string columnName;
+        int typeNum;
+
+        metadataStream >> position >> columnName >> typeNum;
+
+        ColumnDesc columnDesc;
+        columnDesc.name = ToLower(columnName);
+
+        switch (typeNum)
+        {
+            case TypeNum::INT32_TYPE:
+                columnDesc.type = std::make_unique<Int32Type>();
+                break;
+            case TypeNum::INT64_TYPE:
+                columnDesc.type = std::make_unique<Int64Type>();
+                break;
+            case TypeNum::STRING_TYPE:
+                columnDesc.type = std::make_unique<StringType>();
+                break;
+            case TypeNum::DATE_TYPE:
+                columnDesc.type = std::make_unique<DateType>();
+                break;
+            case TypeNum::DECIMAL_TYPE:
+            {
+                auto decimalType = std::make_unique<DecimalType>();
+                int scale;
+                metadataStream >> scale;
+                columnDesc.type = std::move(decimalType);
+                break;
+            }
+            default:
+                return Status::Invalid("Unknown type number: ", typeNum);
+        }
+
+        column_positions.push_back(position);
+        if (loadAll || fieldsToLoad.count(columnDesc.name))
+        {
+            result->schema_.push_back(std::move(columnDesc));
+        }
+    }
+
+    for (int colIdx = 0; colIdx < numCols; colIdx++)
+    {
+        const ColumnDesc &columnDesc = result->schema_[colIdx];
+
+        if (!loadAll && !fieldsToLoad.count(columnDesc.name))
+        {
+            continue;
+        }
+    }
+    
     return Status::Invalid("load failed");
 }
 
