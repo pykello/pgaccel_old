@@ -250,6 +250,7 @@ ColumnarTable::Load(const std::string &tableName,
                 auto decimalType = std::make_unique<DecimalType>();
                 int scale;
                 metadataStream >> scale;
+                decimalType->scale = scale;
                 columnDesc.type = std::move(decimalType);
                 break;
             }
