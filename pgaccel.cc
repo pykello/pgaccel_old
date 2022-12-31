@@ -295,7 +295,7 @@ ProcessLoadParquet(ReplState &state,
         fields = std::set<std::string>(fieldsVec.begin(), fieldsVec.end());
     }
 
-    std::unique_ptr<ColumnarTable> table;
+    ColumnarTableP table;
 
     auto durationMs = MeasureDurationMs([&]() {
         table = ColumnarTable::ImportParquet(tableName, path, fields);
