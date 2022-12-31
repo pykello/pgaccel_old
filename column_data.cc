@@ -78,15 +78,26 @@ LoadDictColumnData(std::istream &in, AccelType *dataType)
             return LoadDictColumnData<DecimalType>(in);
     }
 
-    return Status::Invalid("");
+    return Status::Invalid("Invalid type for DictColumnData: ", dataType->type_num());
 }
 
 template<class AccelTy>
 static Result<ColumnDataP>
-LoadRawColumnData(std::istream &in, AccelTy *dataType)
+LoadRawColumnData(std::istream &in)
 {
-    return Status::Invalid("");
-}
+    auto result = std::make_unique<RawColumnData<AccelTy>>();
+
+    in.read((char *) &result->size, sizeof (result->size));
+    in.read((char *) &result->bytesPerValue, sizeof (result->bytesPerValue));
+    in.read((char *) &result->minValue, sizeof (result->minValue));
+    in.read((char *) &result->maxValue, sizeof (result->maxValue));
+
+    result->values =
+        (uint8_t *) aligned_alloc(512, result->bytesPerValue * result->size);
+    in.read((char *) result->values, result->bytesPerValue * result->size);
+
+    ColumnDataP resultCasted = std::move(result);
+    return resultCasted;}
 
 static Result<ColumnDataP>
 LoadRawColumnData(std::istream &in, AccelType *dataType)
@@ -94,17 +105,16 @@ LoadRawColumnData(std::istream &in, AccelType *dataType)
     switch (dataType->type_num())
     {
         case TypeNum::INT32_TYPE:
-            return LoadRawColumnData<Int32Type>(in, (Int32Type *) dataType);
+            return LoadRawColumnData<Int32Type>(in);
         case TypeNum::INT64_TYPE:
-            return LoadRawColumnData<Int64Type>(in, (Int64Type *) dataType);
-        case TypeNum::STRING_TYPE:
-            return LoadRawColumnData<StringType>(in, (StringType *) dataType);
+            return LoadRawColumnData<Int64Type>(in);
         case TypeNum::DATE_TYPE:
-            return LoadRawColumnData<DateType>(in, (DateType *) dataType);
+            return LoadRawColumnData<DateType>(in);
         case TypeNum::DECIMAL_TYPE:
-            return LoadRawColumnData<DecimalType>(in, (DecimalType *) dataType);
+            return LoadRawColumnData<DecimalType>(in);
     }
-    return Status::Invalid("");
+
+    return Status::Invalid("Invalid type for RawColumnDate: ", dataType->type_num());
 }
 
 Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
