@@ -94,6 +94,10 @@ static Result<bool> ProcessSave(ReplState &state,
                                 const std::string &commandName,
                                 const vector<std::string> &args,
                                 const std::string &commandText);
+static Result<bool> ProcessForget(ReplState &state,
+                                  const std::string &commandName,
+                                  const vector<std::string> &args,
+                                  const std::string &commandText);
 
 std::vector<ReplCommand> commands = {
     { "help", ProcessHelp },
@@ -102,6 +106,7 @@ std::vector<ReplCommand> commands = {
     { "load", ProcessLoad },
     { "save", ProcessSave },
     { "load_parquet", ProcessLoadParquet },
+    { "forget", ProcessForget },
     { "select", ProcessSelect },
     { "schema", ProcessSchema },
     { "avx", ProcessAvx }
@@ -424,6 +429,24 @@ ProcessSave(ReplState &state,
 
     if (state.timingEnabled)
         std::cout << "Duration: " << durationMs << "ms" << std::endl;
+
+    return true;
+}
+
+static Result<bool>
+ProcessForget(ReplState &state,
+              const std::string &commandName,
+              const vector<std::string> &args,
+              const std::string &commandText)
+{
+    REQUIRED_ARGS(1, 1);
+
+    std::string tableName = ToLower(args[0]);
+
+    if (state.tables.count(tableName) == 0)
+        return Status::Invalid("Table not found: ", tableName);
+
+    state.tables.erase(tableName);
 
     return true;
 }

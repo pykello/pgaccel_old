@@ -31,6 +31,8 @@ struct ColumnDataBase {
     } type;
 
     virtual Result<bool> Save(std::ostream &out) const = 0;
+
+    virtual ~ColumnDataBase() {};
 };
 
 template<class Ty>
@@ -42,7 +44,7 @@ struct DictColumnData: public ColumnDataBase {
 
     virtual Result<bool> Save(std::ostream &out) const;
 
-    ~DictColumnData() {
+    virtual ~DictColumnData() {
         if (values)
             free(values);
     }
@@ -60,7 +62,7 @@ struct RawColumnData: public ColumnDataBase {
 
     virtual Result<bool> Save(std::ostream &out) const;
 
-    ~RawColumnData() {
+    virtual ~RawColumnData() {
         if (values)
             free(values);
     }
