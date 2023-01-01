@@ -23,6 +23,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
         {
             case AggregateClause::AGGREGATE_COUNT:
             {
+                // SELECT count(*) FROM table
                 const auto &columnDataVec = columnarTable->ColumnData(0);
                 int totalCount = CountAll(columnDataVec);
 
@@ -33,6 +34,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
             }
             case AggregateClause::AGGREGATE_SUM:
             {
+                // SELECT sum(col) FROM table
                 const auto &columnDataVec = columnarTable->ColumnData(0);
                 auto totalSum = SumAll(columnDataVec);
 

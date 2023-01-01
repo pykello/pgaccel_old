@@ -259,6 +259,22 @@ ParseAggregates(QueryDesc &queryDesc,
     else
     {
         // TODO: sum(...), max(...), min(...)
+        ENSURE_TOKEN("aggregate name");
+        std::string aggName = ToLower(tokens[currentIdx++]);
+        if (aggName == "sum")
+        {
+            AggregateClause agg;
+            agg.type = AggregateClause::AGGREGATE_SUM;
+
+            RAISE_IF_FAILS(ParseToken("(", tokens, currentIdx));
+            // ColumnRef colRef;
+            // ASSIGN_OR_RAISE(colRef, ParseColumnRef(queryDesc, tokens, currentIdx));
+            ENSURE_TOKEN("col name");
+            currentIdx++;
+            RAISE_IF_FAILS(ParseToken(")", tokens, currentIdx));
+
+            queryDesc.aggregateClauses.push_back(agg);
+        }
     }
     
     if (ParseToken(",", tokens, currentIdx).ok())
