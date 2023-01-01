@@ -37,8 +37,10 @@ const char * HISTORY_FILE = ".pgaccel_history";
 struct ReplState {
     TableRegistry tables;
     bool done = false;
+
     bool timingEnabled = true;
     bool useAvx = true;
+    bool showQueryDesc = false;
 };
 
 struct ReplCommand {
@@ -62,11 +64,7 @@ static Result<bool> ProcessHelp(ReplState &state,
                                 const std::string &commandName,
                                 const vector<std::string> &args,
                                 const std::string &commandText);
-static Result<bool> ProcessTiming(ReplState &state,
-                                  const std::string &commandName,
-                                  const vector<std::string> &args,
-                                  const std::string &commandText);
-static Result<bool> ProcessAvx(ReplState &state,
+static Result<bool> ProcessSet(ReplState &state,
                                const std::string &commandName,
                                const vector<std::string> &args,
                                const std::string &commandText);
@@ -102,14 +100,13 @@ static Result<bool> ProcessForget(ReplState &state,
 std::vector<ReplCommand> commands = {
     { "help", ProcessHelp },
     { "quit", ProcessQuit },
-    { "timing", ProcessTiming },
+    { "set", ProcessSet },
     { "load", ProcessLoad },
     { "save", ProcessSave },
     { "load_parquet", ProcessLoadParquet },
     { "forget", ProcessForget },
     { "select", ProcessSelect },
-    { "schema", ProcessSchema },
-    { "avx", ProcessAvx }
+    { "schema", ProcessSchema }
 };
 
 // singal handler stuff
@@ -254,28 +251,27 @@ ProcessHelp(ReplState &state,
 }
 
 static Result<bool>
-ProcessTiming(ReplState &state,
-              const std::string &commandName,
-              const vector<std::string> &args,
-              const std::string &commandText)
-{
-    REQUIRED_ARGS(0, 1);
-    if (args.size() == 1)
-        ASSIGN_OR_RAISE(state.timingEnabled, ParseBool(args[0]));
-    std::cout << "Timing is " << (state.timingEnabled ? "on." : "off.") << std::endl;
-    return true;
-}
-
-static Result<bool>
-ProcessAvx(ReplState &state,
+ProcessSet(ReplState &state,
            const std::string &commandName,
            const vector<std::string> &args,
            const std::string &commandText)
 {
-    REQUIRED_ARGS(0, 1);
-    if (args.size() == 1)
-        ASSIGN_OR_RAISE(state.useAvx, ParseBool(args[0]));
-    std::cout << "AVX is " << (state.useAvx ? "on." : "off.") << std::endl;
+    REQUIRED_ARGS(1, 2);
+    std::string varName = ToLower(args[0]);
+    bool *var;
+    if (varName == "timing")
+        var = &state.timingEnabled;
+    else if (varName == "avx")
+        var = &state.useAvx;
+    else if (varName == "query_desc")
+        var = &state.showQueryDesc;
+    else
+        return Status::Invalid("Unknown variable: ", varName);
+
+    if (args.size() == 2)
+        ASSIGN_OR_RAISE(*var, ParseBool(args[1]));
+
+    std::cout << varName << " is " << (*var ? "on." : "off.") << std::endl;
     return true;
 }
 
@@ -320,7 +316,9 @@ ProcessSelect(ReplState &state,
 {
     QueryDesc queryDesc;
     ASSIGN_OR_RAISE(queryDesc, ParseSelect(commandText, state.tables));
-    std::cout << queryDesc.ToString() << std::endl;
+
+    if (state.showQueryDesc)
+        std::cout << queryDesc.ToString() << std::endl;
 
     Result<QueryOutput> queryOutput(Status::Invalid(""));
 
