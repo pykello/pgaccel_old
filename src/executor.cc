@@ -13,42 +13,64 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
     int aggregateCount = query.aggregateClauses.size();
     if (aggregateCount != 1)
         return Status::Invalid(aggregateCount, " aggregates not suppprted yet");
-    if (query.aggregateClauses[0].type != AggregateClause::AGGREGATE_COUNT)
-        return Status::Invalid("non-count(*) aggregates not supported yet");
 
-    // ensure single equality filter
     int filterCount = query.filterClauses.size();
     if (filterCount == 0)
     {
         auto columnarTable = query.tables[0];
-        const auto &columnDataVec = columnarTable->ColumnData(0);
 
-        int totalCount = CountAll(columnDataVec);
+        switch (query.aggregateClauses[0].type)
+        {
+            case AggregateClause::AGGREGATE_COUNT:
+            {
+                const auto &columnDataVec = columnarTable->ColumnData(0);
+                int totalCount = CountAll(columnDataVec);
 
-        QueryOutput output;
-        output.fieldNames.push_back("count");
-        output.values.push_back({ std::to_string(totalCount) });
+                QueryOutput output;
+                output.fieldNames.push_back("count");
+                output.values.push_back({ std::to_string(totalCount) });
+                return output;
+            }
+            case AggregateClause::AGGREGATE_SUM:
+            {
+                const auto &columnDataVec = columnarTable->ColumnData(0);
+                auto totalSum = SumAll(columnDataVec);
 
-        return output;
+                QueryOutput output;
+                output.fieldNames.push_back("sum");
+                output.values.push_back({ std::to_string(totalSum) });
+                return output;
+            }
+            default:
+                return Status::Invalid("Unsupported aggregate type");
+        }
     }
     else if (filterCount == 1)
     {
         if (query.filterClauses[0].op != FilterClause::FILTER_EQ)
             return Status::Invalid("non-equality filters not supported yet");
 
-        // execute SELECT count(*) FROM tbl WHERE field=xyz;
-        const std::string &value = query.filterClauses[0].value[0];
-        ColumnRef col = query.filterClauses[0].columnRef;
-        auto columnarTable = query.tables[col.tableIdx];
-        const auto &columnDataVec = columnarTable->ColumnData(col.columnIdx);
+        switch (query.aggregateClauses[0].type)
+        {
+            case AggregateClause::AGGREGATE_COUNT:
+            {
+                // execute SELECT count(*) FROM tbl WHERE field=xyz;
+                const std::string &value = query.filterClauses[0].value[0];
+                ColumnRef col = query.filterClauses[0].columnRef;
+                auto columnarTable = query.tables[col.tableIdx];
+                const auto &columnDataVec = columnarTable->ColumnData(col.columnIdx);
 
-        int matchCount = CountMatches(columnDataVec, value, col.type, useAvx);
+                int matchCount = CountMatches(columnDataVec, value, col.type, useAvx);
 
-        QueryOutput output;
-        output.fieldNames.push_back("count");
-        output.values.push_back({ std::to_string(matchCount) });
+                QueryOutput output;
+                output.fieldNames.push_back("count");
+                output.values.push_back({ std::to_string(matchCount) });
 
-        return output;
+                return output;
+            }
+            default:
+                return Status::Invalid("Unsupported aggregate type");
+        }
     }
     else
     {

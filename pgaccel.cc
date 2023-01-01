@@ -374,6 +374,7 @@ ProcessSchema(ReplState &state,
               << std::setw(20) << "======"
               << std::setw(20) << "========="
               << std::endl;
+
     for (int colIdx = 0; colIdx < schema.size(); colIdx++)
     {
         const auto &field = schema[colIdx];
