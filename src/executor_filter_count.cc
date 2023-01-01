@@ -68,6 +68,8 @@ int CountMatchesDictAVX(const DictColumnData<AccelTy> &columnData,
                         typename AccelTy::c_type value)
 {
     int dictIdx = DictIndex(columnData, value);
+    if (dictIdx == -1)
+        return 0;
 
     if (columnData.dict.size() < 256) {
         return FilterMatchesRawAVX512_8<true, false>(
@@ -87,6 +89,8 @@ int CountMatchesDict(const DictColumnData<AccelTy> &columnData,
         return CountMatchesDictAVX(columnData, value);
 
     int dictIdx = DictIndex(columnData, value);
+    if (dictIdx == -1)
+        return 0;
 
     if (columnData.dict.size() < 256) {
         int matches = 0;
