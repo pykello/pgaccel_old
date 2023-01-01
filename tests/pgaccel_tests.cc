@@ -12,6 +12,7 @@ using namespace pgaccel;
 static void VerifyQuery(const TableRegistry &registry,
                         const string &query,
                         const vector<string> &expectedResult);
+static void VerifyLineitemBasic(const TableRegistry &registry);
 
 static std::string TestsDir()
 {
@@ -22,16 +23,46 @@ static std::string TestsDir()
 
 const std::string LINEITEM_PARQUET = TestsDir() + "/data/lineitem.parquet";
 
-TEST(PgAccelTest, BasicQueries) {
-    set<string> fields = { "L_ORDERKEY", "L_SHIPMODE", "L_SHIPDATE", "L_QUANTITY" };
 
-    ColumnarTableP lineitem =
-        ColumnarTable::ImportParquet("lineitem", LINEITEM_PARQUET, fields);
-    ASSERT_NE(lineitem.get(), nullptr);
+class PgAccelTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        set<string> fields = { "L_ORDERKEY", "L_SHIPMODE", "L_SHIPDATE", "L_QUANTITY" };
 
-    TableRegistry registry;
-    registry.insert ({ "lineitem", std::move(lineitem) });
+        ColumnarTableP lineitem =
+            ColumnarTable::ImportParquet("lineitem", LINEITEM_PARQUET, fields);
+        ASSERT_NE(lineitem.get(), nullptr);
 
+        registry_parquet.insert ({ "lineitem", std::move(lineitem) });
+    }
+
+    TableRegistry registry_parquet;
+
+};
+
+TEST_F(PgAccelTest, BasicQueriesParquet) {
+    VerifyLineitemBasic(registry_parquet);
+}
+
+TEST_F(PgAccelTest, SaveAndLoad) {
+    stringstream dataStream, metadataStream;
+    registry_parquet["lineitem"]->Save(metadataStream, dataStream);
+    dataStream.seekg(0);
+    metadataStream.seekg(0);
+
+    Result<ColumnarTableP> lineitem =
+        ColumnarTable::Load("lineitem", metadataStream, dataStream);
+    ASSERT_TRUE(lineitem.ok());
+
+    TableRegistry registry_pgaccel;
+    registry_pgaccel.insert ({ "lineitem", std::move(lineitem).ValueUnsafe() });
+
+    VerifyLineitemBasic(registry_pgaccel);
+}
+
+static void
+VerifyLineitemBasic(const TableRegistry &registry)
+{
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_ORDERKEY=1;",
                 { "6" });
@@ -48,7 +79,6 @@ TEST(PgAccelTest, BasicQueries) {
                 "SELECT count(*) FROM lineitem WHERE L_QUANTITY=2;",
                 { "4004" });
 }
-
 
 static void
 VerifyQuery(const TableRegistry &registry,
