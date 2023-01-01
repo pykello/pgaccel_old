@@ -24,4 +24,6 @@ int CountMatches(const std::vector<ColumnDataP>& columnDataVec,
                  const pgaccel::AccelType *type,
                  bool useAvx);
 
+uint64_t CountAll(const std::vector<ColumnDataP>& columnDataVec);
+
 };

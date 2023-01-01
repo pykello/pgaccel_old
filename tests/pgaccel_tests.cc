@@ -64,6 +64,10 @@ static void
 VerifyLineitemBasic(const TableRegistry &registry)
 {
     VerifyQuery(registry,
+                "SELECT count(*) from lineitem;",
+                { "200000" });
+
+    VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_ORDERKEY=1;",
                 { "6" });
 

@@ -32,6 +32,7 @@ struct ColumnDataBase {
         DICT_COLUMN_DATA = 0,
         RAW_COLUMN_DATA = 1
     } type;
+    int size;
 
     virtual Result<bool> Save(std::ostream &out) const = 0;
 
@@ -45,7 +46,6 @@ struct DictColumnData: public ColumnDataBase {
     using DictTy = typename Ty::c_type;
     std::vector<DictTy> dict;
     uint8_t *values = NULL;
-    int size;
 
     virtual Result<bool> Save(std::ostream &out) const;
 
@@ -61,7 +61,6 @@ private:
 template<class Ty>
 struct RawColumnData: public ColumnDataBase {
     uint8_t *values = NULL;
-    int size;
     int bytesPerValue;
     typename Ty::c_type minValue, maxValue;
 
