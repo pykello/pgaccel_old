@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <map>
 #include <setjmp.h>
@@ -361,10 +362,27 @@ ProcessSchema(ReplState &state,
         return Status::Invalid("Table not found: ", tableName);
 
     const auto &schema = state.tables[tableName]->Schema();
-    
-    for (const auto &field: schema)
+
+    std::cout << std::left
+              << std::setw(20) << "Name"
+              << std::setw(20) << "Type"
+              << std::setw(20) << "Group#"
+              << std::endl;
+
+    std::cout << std::left
+              << std::setw(20) << "======"
+              << std::setw(20) << "======"
+              << std::setw(20) << "========="
+              << std::endl;
+    for (int colIdx = 0; colIdx < schema.size(); colIdx++)
     {
-        std::cout << "  " << field.name << ": " << field.type->ToString() << std::endl;
+        const auto &field = schema[colIdx];
+        int groupCount = state.tables[tableName]->ColumnData(colIdx).size();
+        std::cout << std::left
+                  << std::setw(20) << field.name
+                  << std::setw(20) << field.type->ToString()
+                  << std::setw(20) << groupCount
+                  << std::endl;
     }
 
     return true;
