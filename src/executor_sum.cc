@@ -4,6 +4,36 @@
 namespace pgaccel
 {
 
+// good gains if noOverflowCnt >= 64.
+int32_t
+SumAllAvx512_16(uint8_t *valuesRaw, int size, int noOverflowCnt)
+{
+    auto valuesR = reinterpret_cast<const __m512i*>(valuesRaw);
+
+    int avxCnt = size / (512 / 16);
+    int32_t sum = 0;
+
+    for (int i = 0; i < avxCnt; i += noOverflowCnt)
+    {
+        __m512i result = _mm512_set1_epi16(0);
+        int x = std::min(avxCnt, i + noOverflowCnt);
+        for (int j = i; j < x; j++) {
+            result = _mm512_add_epi16(result, valuesR[j]);
+        }
+
+        auto avxVec = (int16_t *) &result;
+        for (int i = 0; i < (512 / 16); i++)
+            sum += avxVec[i];
+    }
+
+    auto values16 = reinterpret_cast<const int16_t *>(valuesRaw);
+    for (int i = (512 / 16) * avxCnt; i < size; i++) {
+        sum += values16[i];
+    }
+
+    return sum;
+}
+
 int32_t
 SumAllAvx512_16(uint8_t *valuesRaw, int size)
 {

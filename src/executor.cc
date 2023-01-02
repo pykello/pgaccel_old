@@ -72,6 +72,10 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
 
                 return output;
             }
+            case AggregateClause::AGGREGATE_SUM:
+            {
+                // SELECT sum(col) FROM table WHERE field=xyz;
+            }
             default:
                 return Status::Invalid("Unsupported aggregate type");
         }
