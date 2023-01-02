@@ -82,6 +82,10 @@ VerifyLineitemBasic(const TableRegistry &registry)
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_QUANTITY=2;",
                 { "4004" });
+
+    VerifyQuery(registry,
+                "SELECT sum(l_quantity) FROM lineitem;",
+                { "5103301.00" });
 }
 
 static void

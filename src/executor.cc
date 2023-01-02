@@ -42,7 +42,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
 
                 QueryOutput output;
                 output.fieldNames.push_back("sum");
-                output.values.push_back({ std::to_string(totalSum) });
+                output.values.push_back({ ToString(colRef.type, totalSum) });
                 return output;
             }
             default:

@@ -56,4 +56,25 @@ ParseDate(const std::string &s)
     return t/(60*60*24);
 }
 
+std::string
+ToString(const AccelType *type, int64_t value)
+{
+    switch (type->type_num())
+    {
+        case DECIMAL_TYPE:
+        {
+            auto decimalType = static_cast<const DecimalType *>(type);
+            int64_t x = pow(10, decimalType->scale);
+            int64_t decimal = value % x;
+            int64_t whole = value / x;
+            std::string decimalStr = std::to_string(decimal);
+            while (decimalStr.length() < decimalType->scale)
+                decimalStr = std::string("0") + decimalStr;
+            return std::to_string(whole) + "." + decimalStr;
+        }
+        default:
+            return std::to_string(value);
+    }
+}
+
 };

@@ -114,5 +114,6 @@ struct DateType: public AccelType {
 
 int64_t ParseDecimal(int scale, const std::string &valueStr);
 int32_t ParseDate(const std::string &s);
+std::string ToString(const AccelType *type, int64_t value);
 
 };
