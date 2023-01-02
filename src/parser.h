@@ -39,7 +39,7 @@ struct FilterClause {
 };
 
 struct AggregateClause {
-    enum {
+    enum Type {
         AGGREGATE_COUNT,
         AGGREGATE_COUNT_DISTINCT,
         AGGREGATE_SUM,
@@ -48,6 +48,7 @@ struct AggregateClause {
         AGGREGATE_MAX,
     } type;
 
+    std::optional<ColumnRef> columnRef;
     // todo: expression
 
     std::string ToString() const;

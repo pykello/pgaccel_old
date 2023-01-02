@@ -51,9 +51,15 @@ int FilterMatchesRawAVX ## REGW ## _ ## N(const uint8_t *buf, int size, TYPE val
     } \
 \
     auto values8 = reinterpret_cast<const TYPE *>(buf); \
-    for (int i = (REGW / N) * avxCnt; i < size; i++) \
+    for (int i = (REGW / N) * avxCnt; i < size; i++) {\
         if (values8[i] == value) \
-            matches++; \
+        { \
+            if constexpr(countMatches) \
+                matches++; \
+            if constexpr(fillBitmap) \
+                bitmap[i >> 3] |= (1 << (i & 7)); \
+        } \
+    } \
 \
     return matches; \
 }
