@@ -38,7 +38,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
                 ColumnRef colRef = *agg.columnRef;
                 auto columnarTable = query.tables[colRef.tableIdx];
                 const auto &columnDataVec = columnarTable->ColumnData(colRef.columnIdx);
-                auto totalSum = SumAll(columnDataVec, colRef.type);
+                auto totalSum = SumAll(columnDataVec, colRef.type, useAvx);
 
                 QueryOutput output;
                 output.fieldNames.push_back("sum");
