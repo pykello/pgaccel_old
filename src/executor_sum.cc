@@ -124,7 +124,7 @@ SumAll(const std::vector<ColumnDataP>& columnDataVec,
        bool useParallelism)
 {
     int64_t result = 0;
-    int numThreads = 16;
+    int numThreads = 8;
     if (useParallelism)
     {
         std::vector<std::future<int64_t>> futureResults;

@@ -67,7 +67,11 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
                 auto columnarTable = query.tables[col.tableIdx];
                 const auto &columnDataVec = columnarTable->ColumnData(col.columnIdx);
 
-                int matchCount = CountMatches(columnDataVec, value, col.type, useAvx);
+                int matchCount = CountMatches(columnDataVec,
+                                              value,
+                                              col.type,
+                                              useAvx,
+                                              useParallelism);
 
                 QueryOutput output;
                 output.fieldNames.push_back("count");

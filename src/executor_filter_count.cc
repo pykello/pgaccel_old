@@ -2,6 +2,7 @@
 #include "types.hpp"
 #include "executor.h"
 #include <immintrin.h>
+#include <future>
 
 namespace pgaccel
 {
@@ -253,11 +254,35 @@ int FilterMatches(const ColumnDataP &columnData,
 int CountMatches(const std::vector<ColumnDataP>& columnDataVec, 
                  const std::string &valueStr,
                  const pgaccel::AccelType *type,
-                 bool useAvx)
+                 bool useAvx,
+                 bool useParallelism)
 {
     int count = 0;
-    for (auto &columnData: columnDataVec) {
-        count += FilterMatches<true, false>(columnData, valueStr, type, nullptr, useAvx);
+
+    int numThreads = 8;
+    if (useParallelism)
+    {
+        std::vector<std::future<int>> futureResults;
+        for (int i = 0; i < numThreads; i++)
+        {
+            futureResults.push_back(
+                std::async([&](int m) {
+                    int cnt = 0;
+                    for (int j = 0; j < columnDataVec.size(); j++)
+                        if (j % numThreads == m)
+                            cnt += FilterMatches<true, false>(
+                                columnDataVec[j], valueStr, type, nullptr, useAvx);
+                    return cnt;
+                }, i));
+        }
+        for (auto &f: futureResults)
+            count += f.get();
+    }
+    else
+    {
+        for (auto &columnData: columnDataVec) {
+            count += FilterMatches<true, false>(columnData, valueStr, type, nullptr, useAvx);
+        }
     }
     return count;
 }

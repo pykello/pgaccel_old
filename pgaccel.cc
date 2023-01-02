@@ -42,7 +42,7 @@ struct ReplState {
     bool timingEnabled = true;
     bool useAvx = true;
     bool showQueryDesc = false;
-    bool useParallelism = false;
+    bool useParallelism = true;
 };
 
 struct ReplCommand {
