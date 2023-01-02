@@ -367,22 +367,30 @@ ProcessSchema(ReplState &state,
               << std::setw(20) << "Name"
               << std::setw(20) << "Type"
               << std::setw(20) << "Group#"
+              << std::setw(20) << "GroupType"
               << std::endl;
 
     std::cout << std::left
               << std::setw(20) << "======"
               << std::setw(20) << "======"
               << std::setw(20) << "========="
+              << std::setw(20) << "==========="
               << std::endl;
 
     for (int colIdx = 0; colIdx < schema.size(); colIdx++)
     {
         const auto &field = schema[colIdx];
         int groupCount = state.tables[tableName]->ColumnData(colIdx).size();
+        int groupType = state.tables[tableName]->ColumnData(colIdx)[0]->type;
+        std::string groupTypeStr =
+            groupType == ColumnDataBase::RAW_COLUMN_DATA ? "RAW" :
+            groupType == ColumnDataBase::DICT_COLUMN_DATA ? "DICT" :
+            "UNKNOWN";
         std::cout << std::left
                   << std::setw(20) << field.name
                   << std::setw(20) << field.type->ToString()
                   << std::setw(20) << groupCount
+                  << std::setw(20) << groupTypeStr
                   << std::endl;
     }
 

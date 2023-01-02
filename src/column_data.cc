@@ -44,6 +44,7 @@ LoadDictColumnData(std::istream &in)
 {
     int dictSize;
     auto result = std::make_unique<DictColumnData<AccelTy>>();
+    result->type = ColumnDataBase::DICT_COLUMN_DATA;
     in.read((char *) &dictSize, sizeof(dictSize));
     for (int i = 0; i < dictSize; i++)
     {
@@ -86,6 +87,7 @@ static Result<ColumnDataP>
 LoadRawColumnData(std::istream &in)
 {
     auto result = std::make_unique<RawColumnData<AccelTy>>();
+    result->type = ColumnDataBase::RAW_COLUMN_DATA;
 
     in.read((char *) &result->size, sizeof (result->size));
     in.read((char *) &result->bytesPerValue, sizeof (result->bytesPerValue));

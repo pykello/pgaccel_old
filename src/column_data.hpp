@@ -58,18 +58,21 @@ private:
     Result<bool> SaveValue(std::ostream &out, const DictTy &value) const;
 };
 
-template<class Ty>
-struct RawColumnData: public ColumnDataBase {
+struct RawColumnDataBase: public ColumnDataBase {
     uint8_t *values = NULL;
     int bytesPerValue;
-    typename Ty::c_type minValue, maxValue;
 
-    virtual Result<bool> Save(std::ostream &out) const;
-
-    virtual ~RawColumnData() {
+    virtual ~RawColumnDataBase() {
         if (values)
             free(values);
     }
+};
+
+template<class Ty>
+struct RawColumnData: public RawColumnDataBase {
+    typename Ty::c_type minValue, maxValue;
+
+    virtual Result<bool> Save(std::ostream &out) const;
 };
 
 /*

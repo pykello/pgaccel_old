@@ -27,7 +27,8 @@ int CountMatches(const std::vector<ColumnDataP>& columnDataVec,
 uint64_t CountAll(const std::vector<ColumnDataP>& columnDataVec);
 
 // sum
-int64_t SumAll(const std::vector<ColumnDataP>& columnDataVec);
+int64_t SumAll(const std::vector<ColumnDataP>& columnDataVec,
+               const pgaccel::AccelType *type);
 
 template<class AccelTy>
 int DictIndex(const DictColumnData<AccelTy> &columnData, 

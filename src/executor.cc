@@ -17,13 +17,13 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
     int filterCount = query.filterClauses.size();
     if (filterCount == 0)
     {
-        auto columnarTable = query.tables[0];
-
-        switch (query.aggregateClauses[0].type)
+        const auto &agg = query.aggregateClauses[0];
+        switch (agg.type)
         {
             case AggregateClause::AGGREGATE_COUNT:
             {
                 // SELECT count(*) FROM table
+                auto columnarTable = query.tables[0];
                 const auto &columnDataVec = columnarTable->ColumnData(0);
                 int totalCount = CountAll(columnDataVec);
 
@@ -35,8 +35,10 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
             case AggregateClause::AGGREGATE_SUM:
             {
                 // SELECT sum(col) FROM table
-                const auto &columnDataVec = columnarTable->ColumnData(0);
-                auto totalSum = SumAll(columnDataVec);
+                ColumnRef colRef = *agg.columnRef;
+                auto columnarTable = query.tables[colRef.tableIdx];
+                const auto &columnDataVec = columnarTable->ColumnData(colRef.columnIdx);
+                auto totalSum = SumAll(columnDataVec, colRef.type);
 
                 QueryOutput output;
                 output.fieldNames.push_back("sum");
