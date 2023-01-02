@@ -42,6 +42,7 @@ struct ReplState {
     bool timingEnabled = true;
     bool useAvx = true;
     bool showQueryDesc = false;
+    bool useParallelism = false;
 };
 
 struct ReplCommand {
@@ -266,6 +267,8 @@ ProcessSet(ReplState &state,
         var = &state.useAvx;
     else if (varName == "query_desc")
         var = &state.showQueryDesc;
+    else if (varName == "parallel")
+        var = &state.useParallelism;
     else
         return Status::Invalid("Unknown variable: ", varName);
 
@@ -324,7 +327,7 @@ ProcessSelect(ReplState &state,
     Result<QueryOutput> queryOutput(Status::Invalid(""));
 
     auto durationMs = MeasureDurationMs([&]() {
-       queryOutput = ExecuteQuery(queryDesc, state.useAvx);
+       queryOutput = ExecuteQuery(queryDesc, state.useAvx, state.useParallelism);
     });
 
     if (!queryOutput.ok())

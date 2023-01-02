@@ -1,5 +1,6 @@
 #include "executor.h"
 #include <immintrin.h>
+#include <future>
 
 namespace pgaccel
 {
@@ -119,12 +120,35 @@ SumAll(const ColumnDataP& columnData,
 int64_t
 SumAll(const std::vector<ColumnDataP>& columnDataVec,
        const pgaccel::AccelType *type,
-       bool useAvx)
+       bool useAvx,
+       bool useParallelism)
 {
-    uint64_t result = 0;
-    for (auto &columnData: columnDataVec) {
-        result += SumAll(columnData, type, useAvx);
+    int64_t result = 0;
+    int numThreads = 16;
+    if (useParallelism)
+    {
+        std::vector<std::future<int64_t>> futureResults;
+        for (int i = 0; i < numThreads; i++)
+        {
+            futureResults.push_back(
+                std::async([&](int m) {
+                    int64_t sum = 0;
+                    for (int j = 0; j < columnDataVec.size(); j++)
+                        if (j % numThreads == m)
+                            sum += SumAll(columnDataVec[j], type, useAvx);
+                    return sum;
+                }, i));
+        }
+        for (auto &f: futureResults)
+            result += f.get();
     }
+    else
+    {
+        for (auto &columnData: columnDataVec) {
+            result += SumAll(columnData, type, useAvx);
+        }
+    }
+
     return result;
 }
 

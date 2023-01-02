@@ -4,7 +4,7 @@ namespace pgaccel
 {
 
 Result<QueryOutput>
-ExecuteQuery(const QueryDesc &query, bool useAvx)
+ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
     if (query.groupBy.size())
         return Status::Invalid("group by not supported yet");
@@ -38,7 +38,10 @@ ExecuteQuery(const QueryDesc &query, bool useAvx)
                 ColumnRef colRef = *agg.columnRef;
                 auto columnarTable = query.tables[colRef.tableIdx];
                 const auto &columnDataVec = columnarTable->ColumnData(colRef.columnIdx);
-                auto totalSum = SumAll(columnDataVec, colRef.type, useAvx);
+                auto totalSum = SumAll(columnDataVec,
+                                       colRef.type,
+                                       useAvx,
+                                       useParallelism);
 
                 QueryOutput output;
                 output.fieldNames.push_back("sum");

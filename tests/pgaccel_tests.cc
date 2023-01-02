@@ -92,14 +92,15 @@ static void
 VerifyQuery(const TableRegistry &registry,
             const string &query,
             const vector<string> &expectedResult,
-            bool useAvx)
+            bool useAvx,
+            bool useParallel)
 {
     auto parsed = ParseSelect(query, registry);
     if (!parsed.ok())
         cout << parsed.status().Message() << endl;
     ASSERT_TRUE(parsed.ok());
 
-    auto result = ExecuteQuery(*parsed, useAvx);
+    auto result = ExecuteQuery(*parsed, useAvx, useParallel);
     ASSERT_TRUE(result.ok());
 
     ASSERT_EQ(result->values.size(), 1);
@@ -111,6 +112,6 @@ VerifyQuery(const TableRegistry &registry,
             const string &query,
             const vector<string> &expectedResult)
 {
-    VerifyQuery(registry, query, expectedResult, true);
-    VerifyQuery(registry, query, expectedResult, false);
+    VerifyQuery(registry, query, expectedResult, true, true);
+    VerifyQuery(registry, query, expectedResult, false, true);
 }
