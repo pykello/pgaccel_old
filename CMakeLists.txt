@@ -1,6 +1,6 @@
 project(PgAccel)
 
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.18)
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(Arrow REQUIRED)
@@ -10,7 +10,7 @@ if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx512f -mavx512bw")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx512f -mavx512bw -pthread")
 
 file(GLOB pgaccel_lib_SRC
      "src/*.h"
