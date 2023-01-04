@@ -385,8 +385,8 @@ ProcessSchema(ReplState &state,
     for (int colIdx = 0; colIdx < schema.size(); colIdx++)
     {
         const auto &field = schema[colIdx];
-        int groupCount = state.tables[tableName]->ColumnData(colIdx).size();
-        int groupType = state.tables[tableName]->ColumnData(colIdx)[0]->type;
+        int groupCount = state.tables[tableName]->RowGroupCount();
+        int groupType = state.tables[tableName]->GetRowGroup(0).columns[colIdx]->type;
         std::string groupTypeStr =
             groupType == ColumnDataBase::RAW_COLUMN_DATA ? "RAW" :
             groupType == ColumnDataBase::DICT_COLUMN_DATA ? "DICT" :
@@ -526,7 +526,6 @@ int main() {
     //  2. task based executor.
     //  3. select count(*) without filters.
     //  4. sum() aggregates
-    
 
     return 0;
 }

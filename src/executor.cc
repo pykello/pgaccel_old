@@ -1,4 +1,5 @@
 #include "executor.h"
+#include <functional>
 
 namespace pgaccel
 {
@@ -24,12 +25,18 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
             {
                 // SELECT count(*) FROM table
                 auto columnarTable = query.tables[0];
-                const auto &columnDataVec = columnarTable->ColumnData(0);
-                int totalCount = CountAll(columnDataVec);
-
                 QueryOutput output;
                 output.fieldNames.push_back("count");
-                output.values.push_back({ std::to_string(totalCount) });
+                output.values = ExecuteAgg<int32_t>(
+                    [](const RowGroup& r) { return r.columns[0]->size; },
+                    [](int32_t a, int32_t b) { return a + b; },
+                    [](int32_t a) {
+                        return Rows({{ std::to_string(a) }});
+                    },
+                    *columnarTable,
+                    useParallelism
+                );
+
                 return output;
             }
             case AggregateClause::AGGREGATE_SUM:
@@ -37,15 +44,22 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
                 // SELECT sum(col) FROM table
                 ColumnRef colRef = *agg.columnRef;
                 auto columnarTable = query.tables[colRef.tableIdx];
-                const auto &columnDataVec = columnarTable->ColumnData(colRef.columnIdx);
-                auto totalSum = SumAll(columnDataVec,
-                                       colRef.type,
-                                       useAvx,
-                                       useParallelism);
 
                 QueryOutput output;
-                output.fieldNames.push_back("sum");
-                output.values.push_back({ ToString(colRef.type, totalSum) });
+                output.values = ExecuteAgg<int64_t>(
+                    [&](const RowGroup& r) {
+                        return SumAll(r.columns[colRef.columnIdx],
+                                      colRef.type,
+                                      useAvx);
+                    },
+                    [](int64_t a, int64_t b) { return a + b; },
+                    [&](int64_t totalSum) {
+                        return Rows({{ ToString(colRef.type, totalSum) }});
+                    },
+                    *columnarTable,
+                    useParallelism
+                );
+
                 return output;
             }
             default:
@@ -65,17 +79,23 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
                 const std::string &value = query.filterClauses[0].value[0];
                 ColumnRef col = query.filterClauses[0].columnRef;
                 auto columnarTable = query.tables[col.tableIdx];
-                const auto &columnDataVec = columnarTable->ColumnData(col.columnIdx);
-
-                int matchCount = CountMatches(columnDataVec,
-                                              value,
-                                              col.type,
-                                              useAvx,
-                                              useParallelism);
 
                 QueryOutput output;
                 output.fieldNames.push_back("count");
-                output.values.push_back({ std::to_string(matchCount) });
+                output.values = ExecuteAgg<int32_t>(
+                    [&](const RowGroup& r) {
+                        return CountMatches(r.columns[col.columnIdx],
+                                            value,
+                                            col.type,
+                                            useAvx);
+                    },
+                    [](int32_t a, int32_t b) { return a + b; },
+                    [](int32_t a) {
+                        return Rows({{ std::to_string(a) }});
+                    },
+                    *columnarTable,
+                    useParallelism
+                );
 
                 return output;
             }
@@ -91,16 +111,6 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
     {
         return Status::Invalid(filterCount, " filters not supported yet");
     }
-}
-
-uint64_t CountAll(const std::vector<ColumnDataP>& columnDataVec)
-{
-    uint64_t result = 0;
-    for(const auto &vec: columnDataVec)
-    {
-        result += vec->size;
-    }
-    return result;
 }
 
 };

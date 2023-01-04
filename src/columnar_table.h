@@ -15,6 +15,10 @@ struct ColumnDesc {
     std::unique_ptr<AccelType> type;
 };
 
+struct RowGroup {
+    std::vector<ColumnDataP> columns;
+};
+
 class ColumnarTable;
 typedef std::unique_ptr<ColumnarTable> ColumnarTableP;
 
@@ -25,17 +29,24 @@ public:
         return schema_;
     }
 
-    const std::vector<ColumnDataP>& ColumnData(int idx) const
-    {
-        return column_data_vecs_[idx];
-    }
-
     const std::string Name() const
     {
         return name_;
     }
 
     std::optional<int> ColumnIndex(const std::string& name) const;
+
+    const RowGroup &GetRowGroup(int idx) const {
+        return row_groups_[idx];
+    }
+
+    int RowGroupCount() const {
+        return row_groups_.size();
+    }
+
+    int ColumnCount() const {
+        return schema_.size();
+    }
 
     Result<bool> Save(const std::string &path);
     Result<bool> Save(std::ostream& metadataStream,
@@ -61,7 +72,7 @@ private:
     ColumnarTable() {}
 
     std::vector<ColumnDesc> schema_;
-    std::vector<std::vector<ColumnDataP>> column_data_vecs_;
+    std::vector<RowGroup> row_groups_;
     std::string name_;
 };
 

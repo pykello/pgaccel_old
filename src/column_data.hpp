@@ -80,14 +80,14 @@ struct RawColumnData: public RawColumnDataBase {
 */
 
 template<class ParquetTy, class AccelTy>
-void
-GenerateRawColumnData(parquet::ColumnReader &untypedReader,
-                      std::vector<ColumnDataP> &result)
+std::vector<ColumnDataP>
+GenerateRawColumnData(parquet::ColumnReader &untypedReader)
 {
     using ReaderType = parquet::TypedColumnReader<ParquetTy>&;
     ReaderType& typedReader = static_cast<ReaderType>(untypedReader);
 
     const int N = RowGroupSize;
+    std::vector<ColumnDataP> result;
 
     std::vector<typename AccelTy::c_type> allValues;
     while (true) {
@@ -147,16 +147,18 @@ GenerateRawColumnData(parquet::ColumnReader &untypedReader,
 
         result.push_back(std::move(columnData));
     }
+
+    return std::move(result);
 }
 
 template<class ParquetTy, class AccelTy>
-void
-GenerateDictColumnData(parquet::ColumnReader &untypedReader,
-                       std::vector<ColumnDataP> &result)
+std::vector<ColumnDataP>
+GenerateDictColumnData(parquet::ColumnReader &untypedReader)
 {
     using ReaderType = parquet::TypedColumnReader<ParquetTy>&;
     using DictTy = typename AccelTy::c_type;
     ReaderType& typedReader = static_cast<ReaderType>(untypedReader);
+    std::vector<ColumnDataP> result;
 
     const int N = RowGroupSize;
 
@@ -210,34 +212,8 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader,
 
         result.push_back(std::move(columnData));
     }
-}
 
-template<class ParquetTy, class AccelTy>
-std::vector<ColumnDataP>
-GenerateDictColumnData(parquet::ParquetFileReader &fileReader, int column)
-{
-    std::vector<ColumnDataP> result;
-    auto fileMetadata = fileReader.metadata();
-    for (int rowGroup = 0; rowGroup < fileMetadata->num_row_groups(); rowGroup++) {
-        auto rowGroupReader = fileReader.RowGroup(rowGroup);
-        auto columnReader = rowGroupReader->Column(column);
-        GenerateDictColumnData<ParquetTy, AccelTy>(*columnReader, result);
-    }
-    return result;
-}
-
-template<class ParquetTy, class AccelTy>
-std::vector<ColumnDataP>
-GenerateRawColumnData(parquet::ParquetFileReader &fileReader, int column)
-{
-    std::vector<ColumnDataP> result;
-    auto fileMetadata = fileReader.metadata();
-    for (int rowGroup = 0; rowGroup < fileMetadata->num_row_groups(); rowGroup++) {
-        auto rowGroupReader = fileReader.RowGroup(rowGroup);
-        auto columnReader = rowGroupReader->Column(column);
-        GenerateRawColumnData<ParquetTy, AccelTy>(*columnReader, result);
-    }
-    return result;
+    return std::move(result);
 }
 
 // Save functions

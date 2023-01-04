@@ -29,6 +29,67 @@ ColumnarTable::ColumnIndex(const std::string& name) const
     return {};
 }
 
+std::vector<RowGroup>
+LoadParquetRowGroup(parquet::RowGroupReader& rowGroupReader,
+                    const ColumnarTable &columnarTable)
+{
+    std::vector<RowGroup> result;
+
+    int parquetColCount = rowGroupReader.metadata()->num_columns();
+    for (size_t colIdx = 0; colIdx < parquetColCount; colIdx++)
+    {
+        auto columnReader = rowGroupReader.Column(colIdx);
+        auto name = columnReader->descr()->name();
+        auto maybeColumnIdx = columnarTable.ColumnIndex(name);
+        if (!maybeColumnIdx.has_value())
+            continue;
+
+        std::vector<ColumnDataP> columnDataVec;
+
+        const auto &accelType = columnarTable.Schema()[*maybeColumnIdx].type;
+
+        switch (accelType->type_num()) {
+            case STRING_TYPE:
+                columnDataVec =
+                    GenerateDictColumnData<parquet::ByteArrayType, pgaccel::StringType>(
+                        *columnReader);
+                break;
+
+            case DATE_TYPE:
+                columnDataVec =
+                    GenerateDictColumnData<parquet::Int32Type, pgaccel::DateType>(
+                        *columnReader);
+                break;
+
+            case INT32_TYPE:
+                columnDataVec =
+                    GenerateRawColumnData<parquet::Int32Type, pgaccel::Int32Type>(
+                        *columnReader);
+                break;
+
+            case DECIMAL_TYPE:
+                columnDataVec =
+                    GenerateRawColumnData<parquet::Int64Type, pgaccel::DecimalType>(
+                        *columnReader);
+                break;
+
+            case INT64_TYPE:
+                columnDataVec =
+                    GenerateRawColumnData<parquet::Int64Type, pgaccel::Int64Type>(
+                        *columnReader);
+                break;
+        }
+
+        while (result.size() < columnDataVec.size())
+            result.push_back({});
+
+        for (int i = 0; i < columnDataVec.size(); i++)
+            result[i].columns.push_back(std::move(columnDataVec[i]));
+    }
+
+    return std::move(result);
+}
+
 std::unique_ptr<ColumnarTable> 
 ColumnarTable::ImportParquet(const std::string &tableName,
                              const std::string &path,
@@ -61,16 +122,12 @@ ColumnarTable::ImportParquet(const std::string &tableName,
     auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
     result->name_ = tableName;
 
-    for (size_t colIdx = 0; colIdx < parquetSchema->num_columns(); colIdx++)
+    for (size_t col = 0; col < parquetSchema->num_columns(); col++)
     {
-        auto column = parquetSchema->Column(colIdx);
-
+        auto column = parquetSchema->Column(col);
         if (0 == fieldsToLoad.count(ToLower(column->name())))
             continue;
 
-        std::cout << "Loading column " << column->name() << " ..." << std::endl;
-
-        std::vector<ColumnDataP> columnDataVec;
         ColumnDesc columnDesc;
         columnDesc.name = column->name();
 
@@ -79,33 +136,23 @@ ColumnarTable::ImportParquet(const std::string &tableName,
 
         switch (phyType) {
             case parquet::Type::BYTE_ARRAY:
-                columnDataVec = 
-                    GenerateDictColumnData<parquet::ByteArrayType, pgaccel::StringType>(
-                        *fileReader, colIdx);
                 columnDesc.type = std::make_unique<pgaccel::StringType>();
                 break;
+
             case parquet::Type::INT32:
                 if (logicalType->is_date())
                 {
-                    columnDataVec =
-                        GenerateDictColumnData<parquet::Int32Type, pgaccel::DateType>(
-                            *fileReader, colIdx);
                     columnDesc.type = std::make_unique<pgaccel::DateType>();
                 }
                 else
                 {
-                    columnDataVec =
-                        GenerateRawColumnData<parquet::Int32Type, pgaccel::Int32Type>(
-                            *fileReader, colIdx);
                     columnDesc.type = std::make_unique<pgaccel::Int32Type>();
                 }
                 break;
+
             case parquet::Type::INT64:
                 if (logicalType->is_decimal())
                 {
-                    columnDataVec = 
-                        GenerateRawColumnData<parquet::Int64Type, pgaccel::DecimalType>(
-                            *fileReader, colIdx);
                     auto parquetDecimalType =
                         static_cast<const parquet::DecimalLogicalType *>(logicalType.get());
                     auto accelDecimalType = std::make_unique<pgaccel::DecimalType>();
@@ -114,19 +161,25 @@ ColumnarTable::ImportParquet(const std::string &tableName,
                 }
                 else
                 {
-                    columnDataVec = 
-                        GenerateRawColumnData<parquet::Int64Type, pgaccel::Int64Type>(
-                            *fileReader, colIdx);
                     columnDesc.type = std::make_unique<pgaccel::Int64Type>();
                 }
                 break;
+
             default:
                 std::cout << "Unsupported type: " << parquet::TypeToString(phyType) << std::endl;
                 return {};
         }
 
         result->schema_.push_back(std::move(columnDesc));
-        result->column_data_vecs_.push_back(std::move(columnDataVec));
+    }
+
+    for (size_t parquetGrp = 0; parquetGrp < fileMetadata->num_row_groups(); parquetGrp++)
+    {
+        auto rowGroupReader = fileReader->RowGroup(parquetGrp);
+        auto rowGroups = LoadParquetRowGroup(*rowGroupReader, *result);
+
+        for(auto &rowGroup: rowGroups)
+            result->row_groups_.push_back(std::move(rowGroup));
     }
 
     return result;
@@ -154,10 +207,9 @@ ColumnarTable::Save(std::ostream& metadataStream,
     {
         column_positions.push_back(dataStream.tellp());
 
-        const auto &columnDataVec = column_data_vecs_[colIdx];
-        for (const auto &columnDataP: columnDataVec)
+        for (const auto &rowGroup: row_groups_)
         {
-            RAISE_IF_FAILS(columnDataP->Save(dataStream));
+            RAISE_IF_FAILS(rowGroup.columns[colIdx]->Save(dataStream));
         }
     }
 
@@ -166,7 +218,7 @@ ColumnarTable::Save(std::ostream& metadataStream,
     {
         AccelType *type = schema_[colIdx].type.get();
         metadataStream << column_positions[colIdx];
-        metadataStream << " " << column_data_vecs_[colIdx].size();
+        metadataStream << " " << row_groups_.size();
         metadataStream << " " << schema_[colIdx].name;
         metadataStream << " " << type->type_num();
         switch (type->type_num())
@@ -277,14 +329,15 @@ ColumnarTable::Load(const std::string &tableName,
         int groupCount = column_groups[colIdx];
         dataStream.seekg(position);
 
-        result->column_data_vecs_.push_back({});
-        auto &columnDataVec = result->column_data_vecs_.back();
+        while(result->row_groups_.size() < groupCount)
+            result->row_groups_.push_back({});
 
         for (int group = 0; group < groupCount; group++)
         {
+            auto &rowGroup = result->row_groups_[group];
             auto columnData = ColumnDataBase::Load(dataStream, columnDesc.type.get());
             RAISE_IF_FAILS(columnData);
-            columnDataVec.push_back(std::move(columnData).ValueUnsafe());
+            rowGroup.columns.push_back(std::move(columnData).ValueUnsafe());
         }
 
         result->schema_.push_back(std::move(column_descs[colIdx]));

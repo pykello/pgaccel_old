@@ -6,11 +6,13 @@
 #include "parser.h"
 #include <vector>
 #include <string>
+#include <future>
 
 namespace pgaccel
 {
 
 typedef std::vector<std::string> Row;
+typedef std::vector<Row> Rows;
 
 struct QueryOutput {
     Row fieldNames;
@@ -23,18 +25,15 @@ Result<QueryOutput> ExecuteQuery(
     bool useParallelism);
 
 // count
-int CountMatches(const std::vector<ColumnDataP>& columnDataVec, 
+int CountMatches(const ColumnDataP &columnData,
                  const std::string &valueStr,
                  const pgaccel::AccelType *type,
-                 bool useAvx,
-                 bool useParallel);
-uint64_t CountAll(const std::vector<ColumnDataP>& columnDataVec);
+                 bool useAvx);
 
 // sum
-int64_t SumAll(const std::vector<ColumnDataP>& columnDataVec,
+int64_t SumAll(const ColumnDataP& columnData,
                const pgaccel::AccelType *type,
-               bool useAvx,
-               bool useParallelism);
+               bool useAvx);
 
 template<class AccelTy>
 int DictIndex(const DictColumnData<AccelTy> &columnData, 
@@ -52,6 +51,58 @@ int DictIndex(const DictColumnData<AccelTy> &columnData,
         }
     }
     return -1;
+}
+
+template<typename PartialResult>
+Rows
+ExecuteAgg(const std::function<PartialResult(const RowGroup&)> &ProcessRowgroupF,
+           const std::function<PartialResult(const PartialResult&, const PartialResult&)> &CombineF,
+           const std::function<Rows(const PartialResult&)> &FinalizeF,
+           const ColumnarTable &table,
+           bool useParallelism)
+{
+    if (useParallelism)
+    {
+        int numThreads = 8;
+        int rowGroupCnt = table.RowGroupCount();
+
+        std::vector<std::future<PartialResult>> futureResults;
+        for (int i = 0; i < numThreads; i++)
+        {
+            futureResults.push_back(
+                std::async([&](int m) {
+                    PartialResult localResult {};
+                    for (int j = 0; j < rowGroupCnt; j++)
+                    {
+                        if (j % numThreads == m)
+                        {
+                            const RowGroup &rowGroup = table.GetRowGroup(j);
+                            localResult =
+                                CombineF(localResult, ProcessRowgroupF(rowGroup));
+                        }
+                    }
+                    return localResult;
+                }, i));
+        }
+
+        PartialResult globalResult {};
+        for (auto &f: futureResults)
+            globalResult = CombineF(globalResult, f.get());
+
+        return FinalizeF(globalResult);
+    }
+    else
+    {
+        PartialResult partialResult {};
+        int rowGroupCnt = table.RowGroupCount();
+        for (int groupIdx = 0; groupIdx < rowGroupCnt; groupIdx++)
+        {
+            const RowGroup &rowGroup = table.GetRowGroup(groupIdx);
+            partialResult = CombineF(partialResult, ProcessRowgroupF(rowGroup));
+        }
+
+        return FinalizeF(partialResult);
+    }
 }
 
 };
