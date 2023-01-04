@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <string>
 #include <map>
@@ -32,7 +33,6 @@ using namespace std;
             return Status::Invalid(commandName.c_str(), " requires ", MIN, "..", MAX, " args."); \
     }
 
-const std::string path = "/home/hadi/data/tpch/1/parquet/lineitem.parquet";
 const char * HISTORY_FILE = ".pgaccel_history";
 
 struct ReplState {
@@ -60,6 +60,8 @@ static Result<bool> ProcessCommand(ReplState &state, const std::string &commandS
 static std::vector<std::string> TokenizeCommand(const std::string &s);
 static Result<bool> ParseBool(const std::string& s);
 static std::string HistoryFile();
+static void AddHistory(const std::string &command);
+static void LoadHistory(const std::string &historyFile);
 
 // commands
 static Result<bool> ProcessHelp(ReplState &state,
@@ -135,7 +137,7 @@ repl()
     }
 
     std::string historyFile = HistoryFile();
-    read_history(historyFile.c_str());
+    LoadHistory(historyFile);
 
     std::string line;
 
@@ -159,7 +161,7 @@ repl()
         line += buf;
 
         if (line.length() > 0 && CommandTerminated(line)) {
-            add_history(line.c_str());
+            AddHistory(line);
             auto result = ProcessCommand(state, line);
             if (!result.ok()) {
                 std::cout << "ERROR: " << result.status().Message() << std::endl;
@@ -179,7 +181,7 @@ repl()
 static bool
 CommandTerminated(const std::string &s)
 {
-    int i = s.length() - 1;
+    int i = (int) s.length() - 1;
     while (i >= 0 && isspace(s[i]))
         i--;
     return i >= 0 && s[i] == ';';
@@ -479,23 +481,35 @@ ProcessForget(ReplState &state,
     return true;
 }
 
-
-void FileDebugInfo(parquet::FileMetaData &fileMetadata)
+static void AddHistory(const std::string &command)
 {
-    auto schema = fileMetadata.schema();
-    cout << "Row groups: " << fileMetadata.num_row_groups() << endl;
-    cout << "Columns: " << fileMetadata.num_columns() << endl;
-    for (int col = 0; col < schema->num_columns(); col++) {
-        auto column = schema->Column(col);
-        cout << "  " << column->name() << "," << parquet::TypeToString(column->physical_type()) << endl;
+    HISTORY_STATE * state = history_get_history_state();
+
+    // don't add anything if repeating the last command
+    if (state->offset + 1 != state->length)
+    {
+        add_history(command.c_str());
     }
 }
 
-void MeasurePerf(const std::function<void()> &body)
+static void LoadHistory(const std::string &historyFile)
 {
-    auto durationMs = MeasureDurationMs(body);
-
-    std::cout << "Duration: " << durationMs << "ms" << std::endl;
+    std::ifstream fin(historyFile);
+    if (fin.fail())
+        return;
+    
+    std::string current, buf;
+    while (getline(fin, buf))
+    {
+        if (current.length())
+            current += "\n";
+        current += buf;
+        if (CommandTerminated(current))
+        {
+            add_history(current.c_str());
+            current = "";
+        }
+    }
 }
 
 int main() {
