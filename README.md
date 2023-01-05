@@ -1,6 +1,6 @@
 ## Requirements
 
-* sudo apt install build-essential cmake googletest libreadline-dev
+* sudo apt install build-essential cmake googletest libreadline-dev libtbb-dev
 * Install libarrow-dev && libparquet-dev: https://arrow.apache.org/install/
 
 ## Loading data into clickhouse

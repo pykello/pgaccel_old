@@ -8,6 +8,7 @@
 #include <parquet/types.h>
 #include <parquet/column_reader.h>
 #include <parquet/file_reader.h>
+#include <execution>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -173,14 +174,29 @@ ColumnarTable::ImportParquet(const std::string &tableName,
         result->schema_.push_back(std::move(columnDesc));
     }
 
-    for (size_t parquetGrp = 0; parquetGrp < fileMetadata->num_row_groups(); parquetGrp++)
-    {
-        auto rowGroupReader = fileReader->RowGroup(parquetGrp);
-        auto rowGroups = LoadParquetRowGroup(*rowGroupReader, *result);
+    std::vector<int> rowGroupIdxs;
+    for (size_t i = 0; i < fileMetadata->num_row_groups(); i++)
+        rowGroupIdxs.push_back(i);
 
-        for(auto &rowGroup: rowGroups)
-            result->row_groups_.push_back(std::move(rowGroup));
-    }
+    std::mutex push_mutex;
+    std::mutex log_mutex;
+    std::for_each(
+        std::execution::par_unseq,
+        rowGroupIdxs.begin(),
+        rowGroupIdxs.end(),
+        [&](int parquetGroup)
+        {
+            {
+                std::lock_guard lock(push_mutex);
+                std::cout << "Loading group " << parquetGroup << std::endl;
+            }
+            auto rowGroupReader = fileReader->RowGroup(parquetGroup);
+            auto rowGroups = LoadParquetRowGroup(*rowGroupReader, *result);
+
+            std::lock_guard lock(push_mutex);
+            for(auto &rowGroup: rowGroups)
+                result->row_groups_.push_back(std::move(rowGroup));
+        });
 
     return result;
 }

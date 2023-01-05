@@ -20,7 +20,7 @@ file(GLOB pgaccel_lib_SRC
 
 add_library(pgaccel_static STATIC ${pgaccel_lib_SRC})
 target_link_libraries(pgaccel_static PRIVATE
-                      Arrow::arrow_shared Parquet::parquet_shared)
+                      Arrow::arrow_shared Parquet::parquet_shared tbb)
 
 add_executable(pgaccel "pgaccel.cc")
 target_include_directories(pgaccel PRIVATE "src")
