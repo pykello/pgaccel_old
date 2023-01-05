@@ -115,7 +115,14 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
         }
     }
 
+    std::vector<int> startOffsets;
     for (int offset = 0; offset < convertedValues.size(); offset += RowGroupSize)
+        startOffsets.push_back(offset);
+
+    std::mutex push_mutex;
+
+    std::for_each(std::execution::par, startOffsets.begin(), startOffsets.end(),
+    [&](int offset)
     {
         int rowGroupSize = std::min((int) convertedValues.size() - offset, RowGroupSize);
         auto columnData = std::make_unique<DictColumnData<AccelTy>>();
@@ -161,8 +168,9 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
 
         columnData->size = rowGroupSize;
 
+        std::lock_guard lock(push_mutex);
         result.push_back(std::move(columnData));
-    }
+    });
 
     return std::move(result);
 }
