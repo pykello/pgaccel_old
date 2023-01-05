@@ -120,14 +120,27 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
         int rowGroupSize = std::min((int) convertedValues.size() - offset, RowGroupSize);
         auto columnData = std::make_unique<DictColumnData<AccelTy>>();
         columnData->type = ColumnDataBase::DICT_COLUMN_DATA;
-        std::set<DictTy> distinctValues;
-        std::map<DictTy, int> dictIndexMap;
+        std::unordered_set<DictTy> distinctValues;
+        std::vector<DictTy> v(convertedValues.begin() + offset,
+                              convertedValues.begin() + offset + rowGroupSize);
+        // ordered map: 5.3s, 5.4s
+        // unordered map: 4.2s
+        // + unordered set + sort: 3.4s
+        std::unordered_map<DictTy, int> dictIndexMap;
 
         for (int i = offset; i < offset + rowGroupSize; i++) {
             distinctValues.insert(convertedValues[i]);
         }
+
+        std::vector<DictTy> distinctValuesSorted(
+            distinctValues.begin(),
+            distinctValues.end());
+        std::sort(std::execution::par,
+                  distinctValuesSorted.begin(),
+                  distinctValuesSorted.end());
+
         int dictSize = 0;
-        for (const auto &distinctValue: distinctValues) {
+        for (const auto &distinctValue: distinctValuesSorted) {
             dictIndexMap[distinctValue] = dictSize++;
             columnData->dict.push_back(distinctValue);
         }
