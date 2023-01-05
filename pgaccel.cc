@@ -486,7 +486,7 @@ static void AddHistory(const std::string &command)
     HISTORY_STATE * state = history_get_history_state();
 
     // don't add anything if repeating the last command
-    if (state->offset + 1 != state->length)
+    if (state->offset + 1 != state->length || command != state->entries[state->offset]->line)
     {
         add_history(command.c_str());
     }

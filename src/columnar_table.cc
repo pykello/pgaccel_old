@@ -1,13 +1,6 @@
 #include "columnar_table.h"
 #include "util.h"
 
-#include <arrow/api.h>
-#include <arrow/filesystem/api.h>
-#include <arrow/util/bit_stream_utils.h>
-
-#include <parquet/types.h>
-#include <parquet/column_reader.h>
-#include <parquet/file_reader.h>
 #include <execution>
 #include <iostream>
 #include <fstream>
