@@ -3,6 +3,9 @@ project(PgAccel)
 cmake_minimum_required(VERSION 3.18)
 set(CMAKE_CXX_STANDARD 20)
 
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+
+find_package(PAPI REQUIRED)
 find_package(Arrow REQUIRED)
 find_package(Parquet REQUIRED)
 
@@ -26,6 +29,7 @@ add_executable(pgaccel "pgaccel.cc")
 target_include_directories(pgaccel PRIVATE "src")
 target_link_libraries(pgaccel PRIVATE
                       readline
+                      ${PAPI_LIBRARIES}
                       pgaccel_static)
 
 # tests

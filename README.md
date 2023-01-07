@@ -1,7 +1,8 @@
 ## Requirements
 
-* sudo apt install build-essential cmake googletest libreadline-dev libtbb-dev
+* sudo apt install build-essential cmake googletest libreadline-dev libtbb-dev libpapi-dev linux-tools-generic linux-cloud-tools-generic linux-tools-command
 * Install libarrow-dev && libparquet-dev: https://arrow.apache.org/install/
+* enable perf counters: `sudo sh -c 'echo -1 > /proc/sys/kernel/perf_event_paranoid'`
 
 ## Loading data into clickhouse
 

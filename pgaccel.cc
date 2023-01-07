@@ -10,6 +10,7 @@
 #include <readline/history.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <papi.h>
 
 #include "column_data.hpp"
 #include "executor.h"
@@ -35,14 +36,25 @@ using namespace std;
 
 const char * HISTORY_FILE = ".pgaccel_history";
 
+const int papi_event_count = 4;
+int papi_events[papi_event_count] = {
+    PAPI_TOT_INS, 
+    PAPI_TOT_CYC,
+    PAPI_L3_TCR,
+    PAPI_L3_TCM,
+};
+
 struct ReplState {
     TableRegistry tables;
     bool done = false;
+    int papiEventSet = PAPI_NULL;
+    bool papiAvailable = false;
 
     bool timingEnabled = true;
     bool useAvx = true;
     bool showQueryDesc = false;
     bool useParallelism = true;
+    bool papiEnabled = false;
 };
 
 struct ReplCommand {
@@ -62,6 +74,9 @@ static Result<bool> ParseBool(const std::string& s);
 static std::string HistoryFile();
 static void AddHistory(const std::string &command);
 static void LoadHistory(const std::string &historyFile);
+static void InitPAPI(ReplState &state);
+static void StartPAPI(ReplState &state);
+static void StopPAPI(ReplState &state);
 
 // commands
 static Result<bool> ProcessHelp(ReplState &state,
@@ -135,6 +150,8 @@ repl()
         std::cout << "failed to register interrupts with kernel" << std::endl;
         return -1;
     }
+
+    InitPAPI(state);
 
     std::string historyFile = HistoryFile();
     LoadHistory(historyFile);
@@ -271,6 +288,8 @@ ProcessSet(ReplState &state,
         var = &state.showQueryDesc;
     else if (varName == "parallel")
         var = &state.useParallelism;
+    else if (varName == "papi")
+        var = &state.papiEnabled;
     else
         return Status::Invalid("Unknown variable: ", varName);
 
@@ -328,9 +347,13 @@ ProcessSelect(ReplState &state,
 
     Result<QueryOutput> queryOutput(Status::Invalid(""));
 
+    StartPAPI(state);
+
     auto durationMs = MeasureDurationMs([&]() {
        queryOutput = ExecuteQuery(queryDesc, state.useAvx, state.useParallelism);
     });
+
+    StopPAPI(state);
 
     if (!queryOutput.ok())
         return queryOutput.status();
@@ -509,6 +532,67 @@ static void LoadHistory(const std::string &historyFile)
             add_history(current.c_str());
             current = "";
         }
+    }
+}
+
+static void
+InitPAPI(ReplState &state)
+{
+    if (PAPI_VER_CURRENT != PAPI_library_init(PAPI_VER_CURRENT))
+    {
+        std::cout << "Initializing PAPI failed." << std::endl;
+        return;
+    }
+
+    if (PAPI_OK != PAPI_create_eventset(&state.papiEventSet))
+    {
+        std::cout << "Creating PAPI eventset failed." << std::endl;
+        return;
+    }
+
+    if (PAPI_OK != PAPI_add_events(state.papiEventSet, papi_events, papi_event_count))
+    {
+        std::cout << "Adding PAPI events failed." << std::endl;
+        return;
+    }
+
+    state.papiAvailable = true;
+}
+
+static void
+StartPAPI(ReplState &state)
+{
+    if (!state.papiAvailable || !state.papiEnabled)
+        return;
+
+    if (PAPI_OK != PAPI_start(state.papiEventSet))
+    {
+        std::cout << "Starting PAPI failed." << std::endl;
+        state.papiAvailable = false;
+        return;
+    }
+}
+
+static void
+StopPAPI(ReplState &state)
+{
+    long long values[papi_event_count];
+
+    if (!state.papiAvailable || !state.papiEnabled)
+        return;
+
+    if (PAPI_OK != PAPI_stop(state.papiEventSet, values))
+    {
+        std::cout << "Starting PAPI failed." << std::endl;
+        state.papiAvailable = false;
+        return;
+    }
+
+    for (int i = 0; i < papi_event_count; i++)
+    {
+        char name[1024];
+        PAPI_event_code_to_name(papi_events[i], name);
+        std::cout << name << ": " << values[i] << std::endl;
     }
 }
 
