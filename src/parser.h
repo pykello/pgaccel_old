@@ -22,9 +22,9 @@ struct ColumnRef {
 };
 
 struct FilterClause {
-    enum {
+    enum Op {
         FILTER_EQ,
-        FILTER_LE,
+        FILTER_LT,
         FILTER_LTE,
         FILTER_GT,
         FILTER_GTE,

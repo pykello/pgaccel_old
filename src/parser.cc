@@ -99,13 +99,13 @@ std::string ColumnRef::ToString() const
 std::string FilterClause::ToString() const
 {
     std::ostringstream sout;
-    sout << "(op=";
+    sout << "(op='";
     switch (op)
     {
         case FilterClause::FILTER_EQ:
             sout << "=";
             break;
-        case FilterClause::FILTER_LE:
+        case FilterClause::FILTER_LT:
             sout << "<";
             break;
         case FilterClause::FILTER_LTE:
@@ -130,7 +130,7 @@ std::string FilterClause::ToString() const
             sout << "between[]";
             break;
     }
-    sout << ",columnRef=" << columnRef.ToString();
+    sout << "',columnRef=" << columnRef.ToString();
     sout << ",value=(" << value[0] << "," << value[1] << ")";
     sout << ")";
     return sout.str();
@@ -180,8 +180,7 @@ std::string QueryDesc::ToString() const
     sout << "Filter Clauses:" << std::endl;
     for(auto filterClause: filterClauses)
     {
-        auto col = filterClause.columnRef;
-        sout << "  - " << col.ToString() << std::endl;
+        sout << "  - " << filterClause.ToString() << std::endl;
     }
 
     sout << "Group By:" << std::endl;
@@ -197,6 +196,13 @@ std::string QueryDesc::ToString() const
     }
 
     return sout.str();
+}
+
+static bool
+OperatorChar(char ch)
+{
+    return ch == '*' || ch == '/' || ch == '-' || ch == '+' || ch == '|' ||
+           ch == '>' || ch == '<' || ch == '=';
 }
 
 static std::vector<std::string>
@@ -224,8 +230,7 @@ TokenizeQuery(const std::string &query)
                 tokens.push_back(current);
             current = "";
         }
-        else if (c == '(' || c == ')' || c == '=' || c == ',' ||
-                 c == '*' || c == '+' || c == '-' || c == '/' || c == '\'') {
+        else if (c == '(' || c == ')' || c == ',' || c == '\'') {
             if (current.length())
                 tokens.push_back(current);
             current = "";
@@ -234,7 +239,23 @@ TokenizeQuery(const std::string &query)
             tokens.push_back(token);
             inString = (c == '\'');
         }
+        else if (OperatorChar(c))
+        {
+            if (current.length() && !OperatorChar(current.back()))
+            {
+                tokens.push_back(current);
+                current = "";
+            }
+
+            current += c;
+        }
         else {
+            if (current.length() && OperatorChar(current.back()))
+            {
+                tokens.push_back(current);
+                current = "";
+            }
+
             current += c;
         }
     }
@@ -374,21 +395,31 @@ ParseFilterAtom(QueryDesc &queryDesc,
                 const std::vector<std::string> &tokens,
                 int &currentIdx)
 {
+    int opCount = 5;
+    struct {
+        std::string token;
+        FilterClause::Op op;
+    } ops[opCount] = {
+        { "=" , FilterClause::FILTER_EQ },
+        { ">" , FilterClause::FILTER_GT },
+        { ">=" , FilterClause::FILTER_GTE },
+        { "<" , FilterClause::FILTER_LT },
+        { "<=" , FilterClause::FILTER_LTE },
+    };
+
     FilterClause result;
     ASSIGN_OR_RAISE(result.columnRef, ParseColumnRef(queryDesc, tokens, currentIdx));
     const auto &columnType = *result.columnRef.type;
 
-    if (ParseToken("=", tokens, currentIdx).ok())
-    {
-        result.op = FilterClause::FILTER_EQ;
-        ASSIGN_OR_RAISE(result.value[0], ParseValue(columnType, tokens, currentIdx));
-    }
-    else
-    {
-        return Status::Invalid("Invalid operator: ", tokens[currentIdx]);
-    }
+    for (int i = 0; i < opCount; i++)
+        if (ParseToken(ops[i].token, tokens, currentIdx).ok())
+        {
+            result.op = ops[i].op;
+            ASSIGN_OR_RAISE(result.value[0], ParseValue(columnType, tokens, currentIdx));
+            return result;
+        }
 
-    return result;
+    return Status::Invalid("Invalid operator: ", tokens[currentIdx]);
 }
 
 static Result<ColumnRef>
