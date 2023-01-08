@@ -156,11 +156,11 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
     switch (columnData.bytesPerValue())
     {
         case 1:
-            return FilterMatchesRaw<int8_t, countMatches, bitmapAction>(
+            return FilterMatchesRaw<uint8_t, countMatches, bitmapAction>(
                 columnData.values, columnData.size, (uint8_t) dictIdx, bitmap, useAvx);
 
         case 2:
-            return FilterMatchesRaw<int16_t, countMatches, bitmapAction>(
+            return FilterMatchesRaw<uint16_t, countMatches, bitmapAction>(
                 columnData.values, columnData.size, (uint16_t) dictIdx, bitmap, useAvx);
     }
 

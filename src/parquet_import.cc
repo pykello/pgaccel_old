@@ -115,21 +115,15 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
         }
     }
 
-    std::vector<int> startOffsets;
-    for (int offset = 0; offset < convertedValues.size(); offset += RowGroupSize)
-        startOffsets.push_back(offset);
-
     std::mutex push_mutex;
 
-    std::for_each(std::execution::par, startOffsets.begin(), startOffsets.end(),
-    [&](int offset)
+    for (int offset = 0; offset < convertedValues.size(); offset += RowGroupSize)
     {
         int rowGroupSize = std::min((int) convertedValues.size() - offset, RowGroupSize);
         auto columnData = std::make_unique<DictColumnData<AccelTy>>();
         columnData->type = ColumnDataBase::DICT_COLUMN_DATA;
         std::unordered_set<DictTy> distinctValues;
-        std::vector<DictTy> v(convertedValues.begin() + offset,
-                              convertedValues.begin() + offset + rowGroupSize);
+
         // ordered map: 5.3s, 5.4s
         // unordered map: 4.2s
         // + unordered set + sort: 3.4s
@@ -142,9 +136,7 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
         std::vector<DictTy> distinctValuesSorted(
             distinctValues.begin(),
             distinctValues.end());
-        std::sort(std::execution::par,
-                  distinctValuesSorted.begin(),
-                  distinctValuesSorted.end());
+        std::sort(distinctValuesSorted.begin(), distinctValuesSorted.end());
 
         int dictSize = 0;
         for (const auto &distinctValue: distinctValuesSorted) {
@@ -170,7 +162,7 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
 
         std::lock_guard lock(push_mutex);
         result.push_back(std::move(columnData));
-    });
+    }
 
     return std::move(result);
 }
