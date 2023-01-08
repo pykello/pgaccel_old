@@ -14,6 +14,24 @@ namespace pgaccel
 typedef std::vector<std::string> Row;
 typedef std::vector<Row> Rows;
 
+// nodes
+
+enum CompareOp {
+    COMPARE_EQ
+};
+
+class FilterNode {
+public:
+    virtual int ExecuteCount(ColumnDataBase *columnData) = 0;
+    virtual int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) = 0;
+    virtual int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) = 0;
+
+    static std::unique_ptr<FilterNode> Create(const ColumnDesc &columnDesc,
+                                              const std::string &valueStr,
+                                              CompareOp op,
+                                              bool useAvx);
+};
+
 struct QueryOutput {
     Row fieldNames;
     std::vector<Row> values;
@@ -23,12 +41,6 @@ Result<QueryOutput> ExecuteQuery(
     const QueryDesc &query,
     bool useAvx,
     bool useParallelism);
-
-// count
-int CountMatches(const ColumnDataP &columnData,
-                 const std::string &valueStr,
-                 const pgaccel::AccelType *type,
-                 bool useAvx);
 
 // sum
 int64_t SumAll(const ColumnDataP& columnData,

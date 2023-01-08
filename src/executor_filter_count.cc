@@ -115,15 +115,6 @@ int CountMatchesDict(const DictColumnData<AccelTy> &columnData,
     }
 }
 
-template<class AccelTy>
-int CountMatchesDict(const ColumnDataP &columnData,
-                     const typename AccelTy::c_type &value,
-                     bool useAvx)
-{
-    auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData.get());
-    return CountMatchesDict<AccelTy>(*typedColumnData, value, useAvx);
-}
-
 template<class AccelTy, class storageType, bool returnCount, bool fillBitmap>
 int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
                      storageType value, uint8_t *bitmap)
@@ -197,66 +188,133 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
     return 0;
 }
 
-template<class AccelTy, bool returnCount, bool fillBitmap>
-int FilterMatchesRaw(const ColumnDataP &columnData,
-                     const typename AccelTy::c_type &value,
-                     uint8_t *bitmap,
+template<typename AccelTy>
+class FilterRawDataNode: public FilterNode {
+public:
+    FilterRawDataNode(const typename AccelTy::c_type &value,
+                      CompareOp op,
+                      bool useAvx): 
+        value(value),
+        op(op),
+        useAvx(useAvx) {}
+
+    int ExecuteCount(ColumnDataBase *columnData) {
+        auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
+        return FilterMatchesRaw<AccelTy, true, false>(
+            *typedColumnData, value, nullptr, useAvx);
+    }
+
+    int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) {
+        return 0;
+    }
+
+    int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) {
+        return 0;
+    }
+
+private:
+    typename AccelTy::c_type value;
+    CompareOp op;
+    bool useAvx;
+};
+
+template<typename AccelTy>
+class FilterDictDataNode: public FilterNode {
+public:
+    FilterDictDataNode(const typename AccelTy::c_type &value,
+                       CompareOp op,
+                       bool useAvx): 
+        value(value),
+        op(op),
+        useAvx(useAvx) {}
+
+    int ExecuteCount(ColumnDataBase *columnData) {
+        auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
+        return CountMatchesDict<AccelTy>(*typedColumnData, value, useAvx);
+    }
+
+    int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) {
+        auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
+        return 0;
+    }
+
+    int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) {
+        auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
+        return 0;
+    }
+
+private:
+    typename AccelTy::c_type value;
+    CompareOp op;
+    bool useAvx;
+};
+
+std::unique_ptr<FilterNode>
+CreateRawFilterNode(const ColumnDesc &columnDesc,
+                    const std::string &valueStr,
+                    CompareOp op,
+                    bool useAvx)
+{
+    switch (columnDesc.type->type_num())
+    {
+        case INT32_TYPE:
+            return std::make_unique<FilterRawDataNode<Int32Type>>(
+                columnDesc.type->asInt32Type()->Parse(valueStr),
+                op,
+                useAvx);
+        case INT64_TYPE:
+            return std::make_unique<FilterRawDataNode<Int64Type>>(
+                columnDesc.type->asInt64Type()->Parse(valueStr),
+                op,
+                useAvx);
+        case DECIMAL_TYPE:
+            return std::make_unique<FilterRawDataNode<DecimalType>>(
+                columnDesc.type->asDecimalType()->Parse(valueStr),
+                op,
+                useAvx);
+    }
+
+    return {};
+}
+
+std::unique_ptr<FilterNode>
+CreateDictFilterNode(const ColumnDesc &columnDesc,
+                     const std::string &valueStr,
+                     CompareOp op,
                      bool useAvx)
 {
-    auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData.get());
-    return FilterMatchesRaw<AccelTy, returnCount, fillBitmap>(
-        *typedColumnData, value, bitmap, useAvx);
-}
-
-template<bool returnCount, bool fillBitmap>
-int FilterMatches(const ColumnDataP &columnData,
-                  const std::string &valueStr,
-                  const pgaccel::AccelType *type,
-                  uint8_t *bitmap,
-                  bool useAvx)
-{
-    switch (type->type_num())
+    switch (columnDesc.type->type_num())
     {
-        case pgaccel::STRING_TYPE:
-        {
-            return CountMatchesDict<pgaccel::StringType>(columnData, valueStr, useAvx);
-        }
-        case pgaccel::DATE_TYPE:
-        {
-            int32_t value = pgaccel::ParseDate(valueStr);
-            return CountMatchesDict<pgaccel::DateType>(columnData, value, useAvx);
-        }
-        case pgaccel::INT32_TYPE:
-        {
-            int32_t value = std::stol(valueStr);
-            return FilterMatchesRaw<pgaccel::Int32Type, returnCount, fillBitmap>(
-                columnData, value, bitmap, useAvx);
-        }
-        case pgaccel::INT64_TYPE:
-        {
-            int64_t value = std::stoll(valueStr);
-            return FilterMatchesRaw<pgaccel::Int64Type, returnCount, fillBitmap>(
-                columnData, value, bitmap, useAvx);
-        }
-        case pgaccel::DECIMAL_TYPE:
-        {
-            auto decimalType = static_cast<const pgaccel::DecimalType *>(type);
-            int64_t value = pgaccel::ParseDecimal(decimalType->scale, valueStr);
-            return FilterMatchesRaw<pgaccel::DecimalType, returnCount, fillBitmap>(
-                columnData, value, bitmap, useAvx);
-        }
-        default:
-            std::cout << "???" << std::endl;
-            return 0;
+        case STRING_TYPE:
+            return std::make_unique<FilterDictDataNode<StringType>>(
+                columnDesc.type->asStringType()->Parse(valueStr),
+                op,
+                useAvx);
+        case DATE_TYPE:
+            return std::make_unique<FilterDictDataNode<DateType>>(
+                columnDesc.type->asDateType()->Parse(valueStr),
+                op,
+                useAvx);
     }
+
+    return {};
 }
 
-int CountMatches(const ColumnDataP &columnData,
-                  const std::string &valueStr,
-                  const pgaccel::AccelType *type,
-                  bool useAvx)
+std::unique_ptr<FilterNode>
+FilterNode::Create(const ColumnDesc &columnDesc,
+                   const std::string &valueStr,
+                   CompareOp op,
+                   bool useAvx)
 {
-    return FilterMatches<true, false>(columnData, valueStr, type, nullptr, useAvx);
+    switch (columnDesc.layout)
+    {
+        case ColumnDataBase::DICT_COLUMN_DATA:
+            return CreateDictFilterNode(columnDesc, valueStr, op, useAvx);
+        case ColumnDataBase::RAW_COLUMN_DATA:
+            return CreateRawFilterNode(columnDesc, valueStr, op, useAvx);
+    }
+
+    return {};
 }
 
 };

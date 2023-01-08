@@ -17,9 +17,38 @@ enum TypeNum {
     INVALID_TYPE
 };
 
+int64_t ParseDecimal(int scale, const std::string &valueStr);
+int32_t ParseDate(const std::string &s);
+
+struct StringType;
+struct Int32Type;
+struct Int64Type;
+struct DecimalType;
+struct DateType;
+
 struct AccelType {
     virtual TypeNum type_num() const {
         return INVALID_TYPE;
+    }
+
+    StringType *asStringType() {
+        return reinterpret_cast<StringType *>(this);
+    }
+
+    DateType *asDateType() {
+        return reinterpret_cast<DateType *>(this);
+    }
+
+    DecimalType *asDecimalType() {
+        return reinterpret_cast<DecimalType *>(this);
+    }
+
+    Int32Type *asInt32Type() {
+        return reinterpret_cast<Int32Type *>(this);
+    }
+
+    Int64Type *asInt64Type() {
+        return reinterpret_cast<Int64Type *>(this);
     }
 
     virtual std::string ToString() const {
@@ -32,6 +61,10 @@ struct StringType: public AccelType {
 
     virtual TypeNum type_num() const {
         return STRING_TYPE;
+    }
+
+    c_type Parse(const std::string &str) const {
+        return str;
     }
 
     static c_type FromParquet(const parquet::ByteArray &value) {
@@ -50,6 +83,10 @@ struct Int32Type: public AccelType {
         return INT32_TYPE;
     }
 
+    c_type Parse(const std::string &str) const {
+        return std::stoi(str);
+    }
+
     static c_type FromParquet(int32_t value) {
         return value;
     }
@@ -66,6 +103,10 @@ struct Int64Type: public AccelType {
         return INT64_TYPE;
     }
 
+    c_type Parse(const std::string &str) const {
+        return std::stoll(str);
+    }
+
     static c_type FromParquet(int64_t value) {
         return value;
     }
@@ -80,6 +121,10 @@ struct DecimalType: public AccelType {
 
     virtual TypeNum type_num() const {
         return DECIMAL_TYPE;
+    }
+
+    c_type Parse(const std::string &str) const {
+        return ParseDecimal(scale, str);
     }
 
     virtual std::string ToString() const {
@@ -103,6 +148,10 @@ struct DateType: public AccelType {
         return DATE_TYPE;
     }
 
+    c_type Parse(const std::string &str) const {
+        return ParseDate(str);
+    }
+
     static c_type FromParquet(int32_t value) {
         return value;
     }
@@ -112,8 +161,6 @@ struct DateType: public AccelType {
     }
 };
 
-int64_t ParseDecimal(int scale, const std::string &valueStr);
-int32_t ParseDate(const std::string &s);
 std::string ToString(const AccelType *type, int64_t value);
 
 };

@@ -156,7 +156,7 @@ ColumnarTable::Load(const std::string &tableName,
 
     for (int colIdx = 0; colIdx < numCols; colIdx++)
     {
-        const ColumnDesc &columnDesc = column_descs[colIdx];
+        ColumnDesc &columnDesc = column_descs[colIdx];
 
         if (!loadAll && !fieldsToLoad.count(columnDesc.name))
         {
@@ -177,6 +177,8 @@ ColumnarTable::Load(const std::string &tableName,
             RAISE_IF_FAILS(columnData);
             rowGroup.columns.push_back(std::move(columnData).ValueUnsafe());
         }
+
+        columnDesc.layout = result->row_groups_[0].columns.back()->type;
 
         result->schema_.push_back(std::move(column_descs[colIdx]));
     }

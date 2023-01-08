@@ -80,14 +80,15 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
                 ColumnRef col = query.filterClauses[0].columnRef;
                 auto columnarTable = query.tables[col.tableIdx];
 
+                auto filterNode =
+                    FilterNode::Create(columnarTable->Schema()[col.columnIdx],
+                                       value, COMPARE_EQ, useAvx);
+
                 QueryOutput output;
                 output.fieldNames.push_back("count");
                 output.values = ExecuteAgg<int32_t>(
                     [&](const RowGroup& r) {
-                        return CountMatches(r.columns[col.columnIdx],
-                                            value,
-                                            col.type,
-                                            useAvx);
+                        return filterNode->ExecuteCount(r.columns[col.columnIdx].get());
                     },
                     [](int32_t a, int32_t b) { return a + b; },
                     [](int32_t a) {
