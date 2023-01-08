@@ -4,6 +4,12 @@
 namespace pgaccel
 {
 
+static std::vector<FilterNodeP> CreateFilterNodes(const QueryDesc &query,
+                                                  bool useAvx);
+static Rows SingleFilterCount(const QueryDesc &query,
+                              const std::vector<FilterNodeP> &filterNodes,
+                              bool useParallelism);
+
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
@@ -28,7 +34,9 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
                 QueryOutput output;
                 output.fieldNames.push_back("count");
                 output.values = ExecuteAgg<int32_t>(
-                    [](const RowGroup& r) { return r.columns[0]->size; },
+                    [](const RowGroup& r, uint8_t *bitmap) {
+                        return r.columns[0]->size;
+                    },
                     [](int32_t a, int32_t b) { return a + b; },
                     [](int32_t a) {
                         return Rows({{ std::to_string(a) }});
@@ -47,7 +55,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 
                 QueryOutput output;
                 output.values = ExecuteAgg<int64_t>(
-                    [&](const RowGroup& r) {
+                    [&](const RowGroup& r, uint8_t *bitmap) {
                         return SumAll(r.columns[colRef.columnIdx],
                                       colRef.type,
                                       useAvx);
@@ -66,52 +74,64 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
                 return Status::Invalid("Unsupported aggregate type");
         }
     }
-    else if (filterCount == 1)
-    {
-        if (query.filterClauses[0].op != FilterClause::FILTER_EQ)
-            return Status::Invalid("non-equality filters not supported yet");
 
-        switch (query.aggregateClauses[0].type)
+    auto filterNodes = CreateFilterNodes(query, useAvx);
+
+    switch (query.aggregateClauses[0].type)
+    {
+        case AggregateClause::AGGREGATE_COUNT:
         {
-            case AggregateClause::AGGREGATE_COUNT:
-            {
-                // execute SELECT count(*) FROM tbl WHERE field=xyz;
-                const std::string &value = query.filterClauses[0].value[0];
-                ColumnRef col = query.filterClauses[0].columnRef;
-                auto columnarTable = query.tables[col.tableIdx];
+            QueryOutput output;
+            output.fieldNames.push_back("count");
+            if (filterNodes.size() == 1)
+                output.values = SingleFilterCount(query, filterNodes, useParallelism);
+            else
+                return Status::Invalid("multiple filters not supported yet");
 
-                auto filterNode =
-                    FilterNode::Create(columnarTable->Schema()[col.columnIdx],
-                                       value, COMPARE_EQ, useAvx);
-
-                QueryOutput output;
-                output.fieldNames.push_back("count");
-                output.values = ExecuteAgg<int32_t>(
-                    [&](const RowGroup& r) {
-                        return filterNode->ExecuteCount(r.columns[col.columnIdx].get());
-                    },
-                    [](int32_t a, int32_t b) { return a + b; },
-                    [](int32_t a) {
-                        return Rows({{ std::to_string(a) }});
-                    },
-                    *columnarTable,
-                    useParallelism
-                );
-
-                return output;
-            }
-            case AggregateClause::AGGREGATE_SUM:
-            {
-                // SELECT sum(col) FROM table WHERE field=xyz;
-            }
-            default:
-                return Status::Invalid("Unsupported aggregate type");
+            return output;
         }
+        case AggregateClause::AGGREGATE_SUM:
+        {
+            // SELECT sum(col) FROM table WHERE field=xyz;
+        }
+        default:
+            return Status::Invalid("Unsupported aggregate type");
     }
-    else
+}
+
+static std::vector<FilterNodeP>
+CreateFilterNodes(const QueryDesc &query, bool useAvx)
+{
+    std::vector<FilterNodeP> result;
+    for (const auto &filterClause: query.filterClauses)
     {
-        return Status::Invalid(filterCount, " filters not supported yet");
+        const std::string &value = filterClause.value[0];
+        ColumnRef col = filterClause.columnRef;
+        auto columnarTable = query.tables[col.tableIdx];
+
+        result.push_back(FilterNode::Create(col, value, COMPARE_EQ, useAvx));
     }
+
+    return result;
+}
+
+static Rows
+SingleFilterCount(const QueryDesc &query,
+                  const std::vector<FilterNodeP> &filterNodes,
+                  bool useParallelism)
+{
+    return
+    ExecuteAgg<int32_t>(
+        [&](const RowGroup& r, uint8_t *bitmap) {
+                return filterNodes[0]->ExecuteCount(r);
+            },
+            [](int32_t a, int32_t b) { return a + b; },
+            [](int32_t a) {
+                return Rows({{ std::to_string(a) }});
+            },
+            *query.tables[0],
+            useParallelism
+        );
 }
 
 };

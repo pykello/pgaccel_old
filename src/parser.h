@@ -12,6 +12,8 @@ namespace pgaccel
 {
 
 struct ColumnRef {
+    ColumnarTable *table;
+
     int tableIdx;
     int columnIdx;
     AccelType *type;

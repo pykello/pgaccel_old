@@ -22,15 +22,35 @@ enum CompareOp {
 
 class FilterNode {
 public:
-    virtual int ExecuteCount(ColumnDataBase *columnData) = 0;
-    virtual int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) = 0;
-    virtual int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) = 0;
+    virtual int ExecuteCount(ColumnDataBase *columnData) const = 0;
+    virtual int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const = 0;
+    virtual int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask)const  = 0;
 
-    static std::unique_ptr<FilterNode> Create(const ColumnDesc &columnDesc,
+    virtual int ExecuteCount(const RowGroup &rowGroup) const
+    {
+        return ExecuteCount(rowGroup.columns[columnIndex].get());
+    }
+
+    virtual int ExecuteSet(const RowGroup &rowGroup, uint8_t *bitmask) const
+    {
+        return ExecuteSet(rowGroup.columns[columnIndex].get(), bitmask);
+    }
+
+    virtual int ExecuteAnd(const RowGroup &rowGroup, uint8_t *bitmask) const
+    {
+        return ExecuteAnd(rowGroup.columns[columnIndex].get(), bitmask);
+    }
+
+    static std::unique_ptr<FilterNode> Create(const ColumnRef &colRef,
                                               const std::string &valueStr,
                                               CompareOp op,
                                               bool useAvx);
+
+private:
+    int columnIndex;
 };
+
+typedef std::unique_ptr<FilterNode> FilterNodeP;
 
 struct QueryOutput {
     Row fieldNames;
@@ -67,7 +87,7 @@ int DictIndex(const DictColumnData<AccelTy> &columnData,
 
 template<typename PartialResult>
 Rows
-ExecuteAgg(const std::function<PartialResult(const RowGroup&)> &ProcessRowgroupF,
+ExecuteAgg(const std::function<PartialResult(const RowGroup&, uint8_t *)> &ProcessRowgroupF,
            const std::function<PartialResult(const PartialResult&, const PartialResult&)> &CombineF,
            const std::function<Rows(const PartialResult&)> &FinalizeF,
            const ColumnarTable &table,
@@ -84,13 +104,14 @@ ExecuteAgg(const std::function<PartialResult(const RowGroup&)> &ProcessRowgroupF
             futureResults.push_back(
                 std::async([&](int m) {
                     PartialResult localResult {};
+                    uint8_t bitmap[1 << 13];
                     for (int j = 0; j < rowGroupCnt; j++)
                     {
                         if (j % numThreads == m)
                         {
                             const RowGroup &rowGroup = table.GetRowGroup(j);
                             localResult =
-                                CombineF(localResult, ProcessRowgroupF(rowGroup));
+                                CombineF(localResult, ProcessRowgroupF(rowGroup, bitmap));
                         }
                     }
                     return localResult;
@@ -105,12 +126,13 @@ ExecuteAgg(const std::function<PartialResult(const RowGroup&)> &ProcessRowgroupF
     }
     else
     {
+        uint8_t bitmap[1 << 13];
         PartialResult partialResult {};
         int rowGroupCnt = table.RowGroupCount();
         for (int groupIdx = 0; groupIdx < rowGroupCnt; groupIdx++)
         {
             const RowGroup &rowGroup = table.GetRowGroup(groupIdx);
-            partialResult = CombineF(partialResult, ProcessRowgroupF(rowGroup));
+            partialResult = CombineF(partialResult, ProcessRowgroupF(rowGroup, bitmap));
         }
 
         return FinalizeF(partialResult);

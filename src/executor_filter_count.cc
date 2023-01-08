@@ -30,8 +30,14 @@ struct AvxTraits<512, 64> {
     using mask_type = __mmask8;
 };
 
+enum BitmapAction {
+    BITMAP_NOOP,
+    BITMAP_SET,
+    BITMAP_AND,
+};
+
 #define Define_CountMatchesAvx(REGW, N, TYPE) \
-template<bool countMatches, bool fillBitmap> \
+template<bool countMatches, BitmapAction bitmapAction> \
 int FilterMatchesRawAVX ## REGW ## _ ## N(const uint8_t *buf, int size, TYPE value, uint8_t *bitmap) \
 { \
     using RegType = __m ## REGW ## i; \
@@ -47,8 +53,10 @@ int FilterMatchesRawAVX ## REGW ## _ ## N(const uint8_t *buf, int size, TYPE val
         MaskType mask = _mm ## REGW ## _cmp_epi ## N ## _mask(valuesR[i], comparator, _MM_CMPINT_EQ); \
         if constexpr(countMatches) \
             matches += __builtin_popcountll(mask); \
-        if constexpr(fillBitmap) \
+        if constexpr(bitmapAction == BITMAP_SET)\
             bitmapTyped[i] = mask; \
+        if constexpr(bitmapAction == BITMAP_AND)\
+            bitmapTyped[i] &= mask; \
     } \
 \
     auto values8 = reinterpret_cast<const TYPE *>(buf); \
@@ -57,8 +65,13 @@ int FilterMatchesRawAVX ## REGW ## _ ## N(const uint8_t *buf, int size, TYPE val
         { \
             if constexpr(countMatches) \
                 matches++; \
-            if constexpr(fillBitmap) \
+            if constexpr(bitmapAction == BITMAP_SET) \
                 bitmap[i >> 3] |= (1 << (i & 7)); \
+        } \
+        else \
+        { \
+            if constexpr(bitmapAction == BITMAP_SET) \
+                bitmap[i >> 3] &= 0xff ^ (1 << (i & 7)); \
         } \
     } \
 \
@@ -79,10 +92,10 @@ int CountMatchesDictAVX(const DictColumnData<AccelTy> &columnData,
         return 0;
 
     if (columnData.dict.size() < 256) {
-        return FilterMatchesRawAVX512_8<true, false>(
+        return FilterMatchesRawAVX512_8<true, BITMAP_NOOP>(
                     columnData.values, columnData.size, dictIdx, nullptr);
     } else {
-        return FilterMatchesRawAVX512_16<true, false>(
+        return FilterMatchesRawAVX512_16<true, BITMAP_NOOP>(
                     columnData.values, columnData.size, dictIdx, nullptr);
     }
 }
@@ -115,7 +128,7 @@ int CountMatchesDict(const DictColumnData<AccelTy> &columnData,
     }
 }
 
-template<class AccelTy, class storageType, bool returnCount, bool fillBitmap>
+template<class AccelTy, class storageType, bool returnCount, BitmapAction bitmapAction>
 int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
                      storageType value, uint8_t *bitmap)
 {
@@ -126,14 +139,19 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
         {
             if constexpr (returnCount)
                 count++;
-            if constexpr (fillBitmap)
+            if constexpr (bitmapAction == BITMAP_SET)
                 bitmap[i >> 3] |= (1 << (i & 7));
+        }
+        else
+        {
+            if constexpr (bitmapAction == BITMAP_AND)
+                bitmap[i >> 3] &= 0xff ^ (1 << (i & 7));
         }
     }
     return count;
 }
 
-template<class AccelTy, bool returnCount, bool fillBitmap>
+template<class AccelTy, bool returnCount, BitmapAction bitmapAction>
 int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
                      const typename AccelTy::c_type &value,
                      uint8_t *bitmap,
@@ -145,43 +163,43 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
     switch (columnData.bytesPerValue) {
         case 1:
             if (useAvx)
-                return FilterMatchesRawAVX512_8<returnCount, fillBitmap>(
+                return FilterMatchesRawAVX512_8<returnCount, bitmapAction>(
                             columnData.values,
                             columnData.size,
                             (uint8_t) value,
                             bitmap);
             else
-                return FilterMatchesRaw<AccelTy, int8_t, returnCount, fillBitmap>(
+                return FilterMatchesRaw<AccelTy, int8_t, returnCount, bitmapAction>(
                     columnData, value, bitmap);
         case 2:
             if (useAvx)
-                return FilterMatchesRawAVX512_16<returnCount, fillBitmap>(
+                return FilterMatchesRawAVX512_16<returnCount, bitmapAction>(
                             columnData.values,
                             columnData.size,
                             (uint16_t) value,
                             bitmap);
             else
-                return FilterMatchesRaw<AccelTy, int16_t, returnCount, fillBitmap>(
+                return FilterMatchesRaw<AccelTy, int16_t, returnCount, bitmapAction>(
                     columnData, value, bitmap);
         case 4:
             if (useAvx)
-                return FilterMatchesRawAVX512_32<returnCount, fillBitmap>(
+                return FilterMatchesRawAVX512_32<returnCount, bitmapAction>(
                             columnData.values,
                             columnData.size,
                             (uint32_t) value,
                             bitmap);
             else
-                return FilterMatchesRaw<AccelTy, int16_t, returnCount, fillBitmap>(
+                return FilterMatchesRaw<AccelTy, int16_t, returnCount, bitmapAction>(
                     columnData, value, bitmap);
         case 8:
             if (useAvx)
-                return FilterMatchesRawAVX512_64<returnCount, fillBitmap>(
+                return FilterMatchesRawAVX512_64<returnCount, bitmapAction>(
                             columnData.values,
                             columnData.size,
                             (uint64_t) value,
                             bitmap);
             else
-                return FilterMatchesRaw<AccelTy, int16_t, returnCount, fillBitmap>(
+                return FilterMatchesRaw<AccelTy, int16_t, returnCount, bitmapAction>(
                     columnData, value, bitmap);
     }
 
@@ -198,17 +216,20 @@ public:
         op(op),
         useAvx(useAvx) {}
 
-    int ExecuteCount(ColumnDataBase *columnData) {
+    int ExecuteCount(ColumnDataBase *columnData) const
+    {
         auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
-        return FilterMatchesRaw<AccelTy, true, false>(
+        return FilterMatchesRaw<AccelTy, true, BITMAP_NOOP>(
             *typedColumnData, value, nullptr, useAvx);
     }
 
-    int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) {
+    int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const
+    {
         return 0;
     }
 
-    int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) {
+    int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) const
+    {
         return 0;
     }
 
@@ -228,17 +249,20 @@ public:
         op(op),
         useAvx(useAvx) {}
 
-    int ExecuteCount(ColumnDataBase *columnData) {
+    int ExecuteCount(ColumnDataBase *columnData) const
+    {
         auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
         return CountMatchesDict<AccelTy>(*typedColumnData, value, useAvx);
     }
 
-    int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) {
+    int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const
+    {
         auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
         return 0;
     }
 
-    int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) {
+    int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) const
+    {
         auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
         return 0;
     }
@@ -301,20 +325,28 @@ CreateDictFilterNode(const ColumnDesc &columnDesc,
 }
 
 std::unique_ptr<FilterNode>
-FilterNode::Create(const ColumnDesc &columnDesc,
+FilterNode::Create(const ColumnRef &colRef,
                    const std::string &valueStr,
                    CompareOp op,
                    bool useAvx)
 {
+    FilterNodeP result;
+
+    const auto &columnDesc = colRef.table->Schema()[colRef.columnIdx];
     switch (columnDesc.layout)
     {
         case ColumnDataBase::DICT_COLUMN_DATA:
-            return CreateDictFilterNode(columnDesc, valueStr, op, useAvx);
-        case ColumnDataBase::RAW_COLUMN_DATA:
-            return CreateRawFilterNode(columnDesc, valueStr, op, useAvx);
+            result = CreateDictFilterNode(columnDesc, valueStr, op, useAvx);
+            break;
+
+        case  ColumnDataBase::RAW_COLUMN_DATA:
+            result = CreateRawFilterNode(columnDesc, valueStr, op, useAvx);
+            break;
     }
 
-    return {};
+    result->columnIndex = colRef.columnIdx;
+
+    return std::move(result);
 }
 
 };
