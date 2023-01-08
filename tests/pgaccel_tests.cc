@@ -116,6 +116,12 @@ VerifyLineitemBasic(const TableRegistry &registry)
             "SELECT count(*) FROM lineitem WHERE L_SHIPMODE='SHIP' "
             "AND L_SHIPDATE>='1996-02-11' and L_QUANTITY<10;",
             { "2047" });
+
+    // != operator
+    VerifyQuery(registry,
+            "SELECT count(*) FROM lineitem WHERE "
+            "L_SHIPMODE != 'AIR' and L_QUANTITY != 3;",
+            { "168109" });
 }
 
 static void

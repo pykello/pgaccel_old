@@ -105,6 +105,9 @@ std::string FilterClause::ToString() const
         case FilterClause::FILTER_EQ:
             sout << "=";
             break;
+        case FilterClause::FILTER_NE:
+            sout << "!=";
+            break;
         case FilterClause::FILTER_LT:
             sout << "<";
             break;
@@ -202,7 +205,7 @@ static bool
 OperatorChar(char ch)
 {
     return ch == '*' || ch == '/' || ch == '-' || ch == '+' || ch == '|' ||
-           ch == '>' || ch == '<' || ch == '=';
+           ch == '>' || ch == '<' || ch == '=' || ch == '!';
 }
 
 static std::vector<std::string>
@@ -395,12 +398,13 @@ ParseFilterAtom(QueryDesc &queryDesc,
                 const std::vector<std::string> &tokens,
                 int &currentIdx)
 {
-    int opCount = 5;
+    int opCount = 6;
     struct {
         std::string token;
         FilterClause::Op op;
     } ops[opCount] = {
         { "=" , FilterClause::FILTER_EQ },
+        { "!=" , FilterClause::FILTER_NE },
         { ">" , FilterClause::FILTER_GT },
         { ">=" , FilterClause::FILTER_GTE },
         { "<" , FilterClause::FILTER_LT },

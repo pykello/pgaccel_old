@@ -24,6 +24,7 @@ struct ColumnRef {
 struct FilterClause {
     enum Op {
         FILTER_EQ,
+        FILTER_NE,
         FILTER_LT,
         FILTER_LTE,
         FILTER_GT,

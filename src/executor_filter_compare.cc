@@ -55,6 +55,15 @@ struct OperatorTraits<FilterClause::FILTER_GTE, ty> {
     const static int AvxOp = _MM_CMPINT_GE;
 };
 
+template<typename ty>
+struct OperatorTraits<FilterClause::FILTER_NE, ty> {
+    static inline bool compare(const ty& a, const ty& b)
+    {
+        return a != b;
+    }
+    const static int AvxOp = _MM_CMPINT_NE;
+};
+
 template<int REGW, int N>
 struct AvxTraits {};
 
@@ -120,7 +129,9 @@ int FilterMatchesRawAVX ## REGW ## _ ## N(const uint8_t *buf, int size, TYPE val
     matches += \
        FilterMatchesRaw<TYPE, countMatches, bitmapAction>( \
         buf + (processed * (N / 8)), size - processed, \
-        value, op, bitmap + (processed / 8), false); \
+        value, op, \
+        bitmap == nullptr ? nullptr : bitmap + (processed / 8), \
+        false); \
 \
     return matches; \
 }
@@ -212,6 +223,7 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                 valueBuffer, size, value, bitmap, useAvx);
 
         FILTER_MATCHES_RAW_DISPATCH_CASE(FilterClause::FILTER_EQ);
+        FILTER_MATCHES_RAW_DISPATCH_CASE(FilterClause::FILTER_NE);
         FILTER_MATCHES_RAW_DISPATCH_CASE(FilterClause::FILTER_LT);
         FILTER_MATCHES_RAW_DISPATCH_CASE(FilterClause::FILTER_LTE);
         FILTER_MATCHES_RAW_DISPATCH_CASE(FilterClause::FILTER_GT);
