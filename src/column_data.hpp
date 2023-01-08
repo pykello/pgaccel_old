@@ -49,6 +49,10 @@ struct DictColumnData: public ColumnDataBase {
             free(values);
     }
 
+    int bytesPerValue() const {
+        return dict.size() < 256 ? 1 : 2;
+    }
+
 private:
     Result<bool> SaveValue(std::ostream &out, const DictTy &value) const;
 };

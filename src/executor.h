@@ -20,37 +20,22 @@ enum CompareOp {
     COMPARE_EQ
 };
 
+class FilterNode;
+typedef std::unique_ptr<FilterNode> FilterNodeP;
+
 class FilterNode {
 public:
-    virtual int ExecuteCount(ColumnDataBase *columnData) const = 0;
-    virtual int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const = 0;
-    virtual int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask)const  = 0;
+    virtual int ExecuteCount(const RowGroup &rowGroup) const = 0;
+    virtual int ExecuteSet(const RowGroup &rowGroup, uint8_t *bitmask) const = 0;
+    virtual int ExecuteAnd(const RowGroup &rowGroup, uint8_t *bitmask) const = 0;
 
-    virtual int ExecuteCount(const RowGroup &rowGroup) const
-    {
-        return ExecuteCount(rowGroup.columns[columnIndex].get());
-    }
+    static FilterNodeP CreateSimpleCompare(const ColumnRef &colRef,
+                                           const std::string &valueStr,
+                                           CompareOp op,
+                                           bool useAvx);
+    static FilterNodeP CreateAndNode(std::vector<FilterNodeP>&& children);
 
-    virtual int ExecuteSet(const RowGroup &rowGroup, uint8_t *bitmask) const
-    {
-        return ExecuteSet(rowGroup.columns[columnIndex].get(), bitmask);
-    }
-
-    virtual int ExecuteAnd(const RowGroup &rowGroup, uint8_t *bitmask) const
-    {
-        return ExecuteAnd(rowGroup.columns[columnIndex].get(), bitmask);
-    }
-
-    static std::unique_ptr<FilterNode> Create(const ColumnRef &colRef,
-                                              const std::string &valueStr,
-                                              CompareOp op,
-                                              bool useAvx);
-
-private:
-    int columnIndex;
 };
-
-typedef std::unique_ptr<FilterNode> FilterNodeP;
 
 struct QueryOutput {
     Row fieldNames;

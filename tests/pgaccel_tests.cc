@@ -63,10 +63,17 @@ TEST_F(PgAccelTest, SaveAndLoad) {
 static void
 VerifyLineitemBasic(const TableRegistry &registry)
 {
+    // total count
     VerifyQuery(registry,
                 "SELECT count(*) from lineitem;",
                 { "200000" });
 
+    // unfiltered sum
+    VerifyQuery(registry,
+                "SELECT sum(l_quantity) FROM lineitem;",
+                { "5103301.00" });
+
+    // filter on one column
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_ORDERKEY=1;",
                 { "6" });
@@ -83,9 +90,16 @@ VerifyLineitemBasic(const TableRegistry &registry)
                 "SELECT count(*) FROM lineitem WHERE L_QUANTITY=2;",
                 { "4004" });
 
+    // filter on two columns
     VerifyQuery(registry,
-                "SELECT sum(l_quantity) FROM lineitem;",
-                { "5103301.00" });
+                "SELECT count(*) FROM lineitem WHERE L_QUANTITY=3 "
+                "AND L_SHIPDATE='1996-02-11';",
+                { "1" });
+
+    // VerifyQuery(registry,
+    //             "SELECT count(*) FROM lineitem WHERE L_SHIPMODE='AIR' "
+    //             "AND L_SHIPDATE='1996-02-11';",
+    //             { "14" });
 }
 
 static void

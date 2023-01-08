@@ -4,10 +4,9 @@
 namespace pgaccel
 {
 
-static std::vector<FilterNodeP> CreateFilterNodes(const QueryDesc &query,
-                                                  bool useAvx);
+static FilterNodeP CreateFilterNode(const QueryDesc &query, bool useAvx);
 static Rows SingleFilterCount(const QueryDesc &query,
-                              const std::vector<FilterNodeP> &filterNodes,
+                              const FilterNodeP &filterNode,
                               bool useParallelism);
 
 Result<QueryOutput>
@@ -75,7 +74,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         }
     }
 
-    auto filterNodes = CreateFilterNodes(query, useAvx);
+    auto filterNode = CreateFilterNode(query, useAvx);
 
     switch (query.aggregateClauses[0].type)
     {
@@ -83,10 +82,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         {
             QueryOutput output;
             output.fieldNames.push_back("count");
-            if (filterNodes.size() == 1)
-                output.values = SingleFilterCount(query, filterNodes, useParallelism);
-            else
-                return Status::Invalid("multiple filters not supported yet");
+            output.values = SingleFilterCount(query, filterNode, useParallelism);
 
             return output;
         }
@@ -99,31 +95,36 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
     }
 }
 
-static std::vector<FilterNodeP>
-CreateFilterNodes(const QueryDesc &query, bool useAvx)
+static FilterNodeP
+CreateFilterNode(const QueryDesc &query, bool useAvx)
 {
-    std::vector<FilterNodeP> result;
+    std::vector<FilterNodeP> filterNodes;
+
     for (const auto &filterClause: query.filterClauses)
     {
         const std::string &value = filterClause.value[0];
         ColumnRef col = filterClause.columnRef;
         auto columnarTable = query.tables[col.tableIdx];
 
-        result.push_back(FilterNode::Create(col, value, COMPARE_EQ, useAvx));
+        filterNodes.push_back(
+            FilterNode::CreateSimpleCompare(col, value, COMPARE_EQ, useAvx));
     }
 
-    return result;
+    if (filterNodes.size() == 1)
+        return std::move(filterNodes[0]);
+
+    return FilterNode::CreateAndNode(std::move(filterNodes));
 }
 
 static Rows
 SingleFilterCount(const QueryDesc &query,
-                  const std::vector<FilterNodeP> &filterNodes,
+                  const FilterNodeP &filterNode,
                   bool useParallelism)
 {
     return
     ExecuteAgg<int32_t>(
         [&](const RowGroup& r, uint8_t *bitmap) {
-                return filterNodes[0]->ExecuteCount(r);
+                return filterNode->ExecuteCount(r);
             },
             [](int32_t a, int32_t b) { return a + b; },
             [](int32_t a) {
