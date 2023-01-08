@@ -16,10 +16,6 @@ typedef std::vector<Row> Rows;
 
 // nodes
 
-enum CompareOp {
-    COMPARE_EQ
-};
-
 class FilterNode;
 typedef std::unique_ptr<FilterNode> FilterNodeP;
 
@@ -31,7 +27,7 @@ public:
 
     static FilterNodeP CreateSimpleCompare(const ColumnRef &colRef,
                                            const std::string &valueStr,
-                                           CompareOp op,
+                                           FilterClause::Op op,
                                            bool useAvx);
     static FilterNodeP CreateAndNode(std::vector<FilterNodeP>&& children);
 

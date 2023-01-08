@@ -107,7 +107,7 @@ CreateFilterNode(const QueryDesc &query, bool useAvx)
         auto columnarTable = query.tables[col.tableIdx];
 
         filterNodes.push_back(
-            FilterNode::CreateSimpleCompare(col, value, COMPARE_EQ, useAvx));
+            FilterNode::CreateSimpleCompare(col, value, filterClause.op, useAvx));
     }
 
     if (filterNodes.size() == 1)
