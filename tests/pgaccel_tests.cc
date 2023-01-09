@@ -147,6 +147,21 @@ VerifyLineitemBasic(const TableRegistry &registry)
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPMODE != 'xyz' AND L_SHIPDATE > '1996-02-01';",
             { "80915" });
+
+    VerifyQuery(registry,
+            "SELECT count(*) FROM lineitem WHERE "
+            "L_SHIPMODE='AIR' and L_SHIPDATE < '2022-01-01';",
+            { "28551" });
+
+    VerifyQuery(registry,
+            "SELECT count(*) FROM lineitem WHERE "
+            "L_SHIPDATE < '2022-01-01' and L_SHIPMODE='AIR';",
+            { "28551" });
+
+    VerifyQuery(registry,
+            "SELECT count(*) FROM lineitem WHERE "
+            "L_SHIPDATE < '2022-01-01';",
+            { "200000" });
 }
 
 static void

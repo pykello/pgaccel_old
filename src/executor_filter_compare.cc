@@ -141,6 +141,17 @@ Define_CountMatchesAvx(512, 16, uint16_t)
 Define_CountMatchesAvx(512, 32, uint32_t)
 Define_CountMatchesAvx(512, 64, uint64_t)
 
+static int CountSetBits(int size, uint8_t *bitmap)
+{
+    int result = 0;
+    for (int i = 0; i < size / 8; i++)
+        result += __builtin_popcount(bitmap[i]);
+    for (int i = 0; i < size % 8; i++)
+        if ((1 << i) & bitmap[size / 8])
+            result++;
+    return result;
+}
+
 template<class storageType, bool returnCount, BitmapAction bitmapAction, FilterClause::Op op>
 int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                      storageType value,
@@ -263,13 +274,33 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
                 }
                 if constexpr(bitmapAction == BITMAP_AND)
                 {
-                    int result = 0;
-                    for (int i = 0; i < columnData.size / 8; i++)
-                        result += __builtin_popcount(bitmap[i]);
-                    for (int i = 0; i < columnData.size % 8; i++)
-                        if ((1 << i) & bitmap[columnData.size / 8])
-                            result++;
-                    return result;
+                    return CountSetBits(columnData.size, bitmap);
+                }
+        }
+    }
+    else if (dictIdx >= columnData.dict.size())
+    {
+        switch (op)
+        {
+            case FilterClause::FILTER_EQ:
+            case FilterClause::FILTER_GT:
+            case FilterClause::FILTER_GTE:
+                if constexpr(bitmapAction != BITMAP_NOOP)
+                    memset(bitmap, 0, (columnData.size + 7) / 8);
+                return 0;
+
+            case FilterClause::FILTER_LT:
+            case FilterClause::FILTER_LTE:
+                if constexpr(bitmapAction == BITMAP_NOOP)
+                    return columnData.size;
+                if constexpr(bitmapAction == BITMAP_SET)
+                {
+                    memset(bitmap, -1, (columnData.size + 7) / 8);
+                    return columnData.size;
+                }
+                if constexpr(bitmapAction == BITMAP_AND)
+                {
+                    return CountSetBits(columnData.size, bitmap);
                 }
         }
     }
