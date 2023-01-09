@@ -240,9 +240,39 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
                       uint8_t *bitmap,
                       bool useAvx)
 {
-    int dictIdx = DictIndex(columnData, value);
+    int dictIdx = DictIndex(columnData, value, op);
     if (dictIdx == -1)
-        return 0;
+    {
+        switch (op)
+        {
+            case FilterClause::FILTER_EQ:
+            case FilterClause::FILTER_LT:
+            case FilterClause::FILTER_LTE:
+                if constexpr(bitmapAction != BITMAP_NOOP)
+                    memset(bitmap, 0, (columnData.size + 7) / 8);
+                return 0;
+
+            case FilterClause::FILTER_GT:
+            case FilterClause::FILTER_GTE:
+                if constexpr(bitmapAction == BITMAP_NOOP)
+                    return columnData.size;
+                if constexpr(bitmapAction == BITMAP_SET)
+                {
+                    memset(bitmap, -1, (columnData.size + 7) / 8);
+                    return columnData.size;
+                }
+                if constexpr(bitmapAction == BITMAP_AND)
+                {
+                    int result = 0;
+                    for (int i = 0; i < columnData.size / 8; i++)
+                        result += __builtin_popcount(bitmap[i]);
+                    for (int i = 0; i < columnData.size % 8; i++)
+                        if ((1 << i) & bitmap[columnData.size / 8])
+                            result++;
+                    return result;
+                }
+        }
+    }
 
     switch (columnData.bytesPerValue())
     {
@@ -265,8 +295,13 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
                      uint8_t *bitmap,
                      bool useAvx)
 {
-    if(value < columnData.minValue || value > columnData.maxValue)
+    if(op == FilterClause::FILTER_EQ &&
+        (value < columnData.minValue || value > columnData.maxValue))
+    {
+        if constexpr(bitmapAction != BITMAP_NOOP)
+            memset(bitmap, 0, (columnData.size + 7) / 8);
         return 0;
+    }
 
     switch (columnData.bytesPerValue) {
         case 1:

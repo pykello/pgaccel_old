@@ -50,20 +50,53 @@ int64_t SumAll(const ColumnDataP& columnData,
 
 template<class AccelTy>
 int DictIndex(const DictColumnData<AccelTy> &columnData, 
-              typename AccelTy::c_type value)
+              typename AccelTy::c_type value,
+              FilterClause::Op op)
 {
     int left = 0, right = columnData.dict.size() - 1;
+    int result;
+    switch (op)
+    {
+        case FilterClause::FILTER_LT:
+        case FilterClause::FILTER_LTE:
+            result = columnData.dict.size();
+            break;
+
+        default:
+            result = -1;
+    }
+
     while (left <= right) {
         int mid = (left + right) / 2;
         if (columnData.dict[mid] == value)
             return mid;
-        else if (value < columnData.dict[mid]) {
+
+        if (value < columnData.dict[mid]) {
             right = mid - 1;
+            switch (op)
+            {
+                case FilterClause::FILTER_LT:
+                    result = mid;
+                    break;
+                case FilterClause::FILTER_LTE:
+                    result = mid - 1;
+                    break;
+            }
         } else {
             left = mid + 1;
+            switch (op)
+            {
+                case FilterClause::FILTER_GT:
+                    result = mid;
+                    break;
+                case FilterClause::FILTER_GTE:
+                    result = mid + 1;
+                    break;
+            }
         }
     }
-    return -1;
+
+    return result;
 }
 
 template<typename PartialResult>
