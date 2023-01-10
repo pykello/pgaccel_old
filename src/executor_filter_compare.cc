@@ -310,6 +310,72 @@ int FilterAll(int size, uint8_t *bitmap)
     return 0;
 }
 
+enum SkipAction {
+    FILTER_NONE,
+    FILTER_ALL,
+    CANNOT_SKIP
+};
+
+template<typename T>
+static SkipAction
+ComputeSkipAction(T value, FilterClause::Op op,
+                  T value2, FilterClause::Op op2,
+                  T minValue, T maxValue)
+{
+    switch (op)
+    {
+        case FilterClause::FILTER_EQ:
+            if (value < minValue || value > maxValue)
+                return FILTER_NONE;
+            break;
+        
+        case FilterClause::FILTER_LT:
+        case FilterClause::FILTER_LTE:
+            if (op2 == FilterClause::INVALID)
+            {
+                if (value < minValue)
+                    return FILTER_NONE;
+
+                if (value > maxValue)
+                    return FILTER_ALL;
+            }
+            else if (value < minValue)
+            {
+                // filter range starts before vector range, should check end
+
+                // case 1: filter range ends before vector range. no overlaps
+                if (value2 < minValue)
+                    return FILTER_NONE;
+
+                // case 2: filter range ends after vector range. full overlap.
+                if (value2 > maxValue)
+                    return FILTER_ALL;
+            }
+            else if (value > maxValue)
+            {
+                // filter range starts after vector range. no overlaps.
+                return FILTER_NONE;
+            }
+
+            break;
+
+        case FilterClause::FILTER_GT:
+        case FilterClause::FILTER_GTE:
+            if (value < minValue)
+            {
+                return FILTER_ALL;
+            }
+            else if (value > maxValue)
+            {
+                return FILTER_NONE;
+            }
+
+            break;
+    }
+
+    return CANNOT_SKIP;
+}
+
 template<class AccelTy, bool countMatches, BitmapAction bitmapAction>
 int FilterMatchesDict(const DictColumnData<AccelTy> &columnData, 
                       typename AccelTy::c_type value,
@@ -327,55 +393,13 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
     int dictIdx2 = op2 == FilterClause::INVALID ? -1 : DictIndex(columnData, value, op2);
     int dictSize = columnData.dict.size();
 
-    switch (op)
+    switch (ComputeSkipAction(dictIdx, op, dictIdx2, op2, 0, dictSize - 1))
     {
-        case FilterClause::FILTER_EQ:
-            if (dictIdx == -1 || dictIdx >= dictSize)
-                return FilterNone<bitmapAction>(columnData.size, bitmap);
-            break;
-        
-        case FilterClause::FILTER_LT:
-        case FilterClause::FILTER_LTE:
-            if (op2 == FilterClause::INVALID)
-            {
-                if (dictIdx == -1)
-                    return FilterNone<bitmapAction>(columnData.size, bitmap);
+        case FILTER_NONE:
+            return FilterNone<bitmapAction>(columnData.size, bitmap);
 
-                if (dictIdx >= dictSize)
-                    return FilterAll<bitmapAction>(columnData.size, bitmap);
-            }
-            else if (dictIdx == -1)
-            {
-                // filter range starts before vector range, should check end
-
-                // case 1: filter range ends before vector range. no overlaps
-                if (dictIdx2 == -1)
-                    return FilterNone<bitmapAction>(columnData.size, bitmap);
-
-                // case 2: filter range ends after vector range. full overlap.
-                if (dictIdx2 >= dictSize)
-                    return FilterAll<bitmapAction>(columnData.size, bitmap);
-            }
-            else if (dictIdx >= dictSize)
-            {
-                // filter range starts after vector range. no overlaps.
-                return FilterNone<bitmapAction>(columnData.size, bitmap);
-            }
-
-            break;
-
-        case FilterClause::FILTER_GT:
-        case FilterClause::FILTER_GTE:
-            if (dictIdx == -1)
-            {
-                return FilterAll<bitmapAction>(columnData.size, bitmap);
-            }
-            else if (dictIdx >= dictSize)
-            {
-                return FilterNone<bitmapAction>(columnData.size, bitmap);
-            }
-
-            break;
+        case FILTER_ALL:
+            return FilterAll<bitmapAction>(columnData.size, bitmap);
     }
 
     switch (columnData.bytesPerValue())
@@ -407,26 +431,13 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
                      uint8_t *bitmap,
                      bool useAvx)
 {
-    if (value < columnData.minValue)
+    switch (ComputeSkipAction(value, op, value2, op2, columnData.minValue, columnData.maxValue))
     {
-        switch (op)
-        {
-            case FilterClause::FILTER_EQ:
-            case FilterClause::FILTER_LT:
-            case FilterClause::FILTER_LTE:
-                return FilterNone<bitmapAction>(columnData.size, bitmap);
-        }
-    }
+        case FILTER_NONE:
+            return FilterNone<bitmapAction>(columnData.size, bitmap);
 
-    if (value > columnData.maxValue)
-    {
-        switch (op)
-        {
-            case FilterClause::FILTER_EQ:
-            case FilterClause::FILTER_GT:
-            case FilterClause::FILTER_GTE:
-                return FilterNone<bitmapAction>(columnData.size, bitmap);
-        }
+        case FILTER_ALL:
+            return FilterAll<bitmapAction>(columnData.size, bitmap);
     }
 
     switch (columnData.bytesPerValue) {
