@@ -76,7 +76,10 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                      uint8_t *bitmap,
                      bool useAvx);
 
-template<int REGW, int N, bool sign, bool countMatches, BitmapAction bitmapAction, FilterClause::Op op>
+template<int REGW, int N, bool sign, 
+         bool countMatches,
+         BitmapAction bitmapAction,
+         FilterClause::Op op>
 int FilterMatchesRawAVX(
     const uint8_t *buf,
     int size,
@@ -304,12 +307,26 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
                      uint8_t *bitmap,
                      bool useAvx)
 {
-    if(op == FilterClause::FILTER_EQ &&
-        (value < columnData.minValue || value > columnData.maxValue))
+    if (value < columnData.minValue)
     {
-        if constexpr(bitmapAction != BITMAP_NOOP)
-            memset(bitmap, 0, (columnData.size + 7) / 8);
-        return 0;
+        switch (op)
+        {
+            case FilterClause::FILTER_EQ:
+            case FilterClause::FILTER_LT:
+            case FilterClause::FILTER_LTE:
+                return FilterNone<bitmapAction>(columnData.size, bitmap);
+        }
+    }
+
+    if (value > columnData.maxValue)
+    {
+        switch (op)
+        {
+            case FilterClause::FILTER_EQ:
+            case FilterClause::FILTER_GT:
+            case FilterClause::FILTER_GTE:
+                return FilterNone<bitmapAction>(columnData.size, bitmap);
+        }
     }
 
     switch (columnData.bytesPerValue) {
