@@ -1,7 +1,7 @@
 #include "column_data.hpp"
 #include "types.hpp"
 #include "executor.h"
-#include <immintrin.h>
+#include "avx_traits.hpp"
 #include <future>
 
 namespace pgaccel
@@ -64,29 +64,6 @@ struct OperatorTraits<FilterClause::FILTER_NE, ty> {
     const static int AvxOp = _MM_CMPINT_NE;
 };
 
-template<int REGW, int N>
-struct AvxTraits {};
-
-template<>
-struct AvxTraits<512, 8> {
-    using mask_type = __mmask64;
-};
-
-template<>
-struct AvxTraits<512, 16> {
-    using mask_type = __mmask32;
-};
-
-template<>
-struct AvxTraits<512, 32> {
-    using mask_type = __mmask16;
-};
-
-template<>
-struct AvxTraits<512, 64> {
-    using mask_type = __mmask8;
-};
-
 enum BitmapAction {
     BITMAP_NOOP,
     BITMAP_SET,
@@ -99,47 +76,47 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                      uint8_t *bitmap,
                      bool useAvx);
 
-#define Define_CountMatchesAvx(REGW, N, TYPE) \
-template<bool countMatches, BitmapAction bitmapAction, FilterClause::Op op> \
-int FilterMatchesRawAVX ## REGW ## _ ## N(const uint8_t *buf, int size, TYPE value, uint8_t *bitmap) \
-{ \
-    using RegType = __m ## REGW ## i; \
-    using MaskType = AvxTraits<REGW, N>::mask_type; \
-    using OpTraits = OperatorTraits<op, TYPE>; \
-    RegType comparator = _mm ## REGW ## _set1_epi ## N(value); \
-    auto valuesR = reinterpret_cast<const RegType *>(buf); \
-\
-    int avxCnt = size / (REGW / N); \
-    int matches = 0; \
-    MaskType *bitmapTyped = (MaskType *) bitmap; \
-\
-    for (int i = 0; i < avxCnt; i++) { \
-        MaskType mask; \
-        if constexpr(bitmapAction == BITMAP_AND) \
-            mask = _mm ## REGW ## _mask_cmp_epi ## N ## _mask(bitmapTyped[i], valuesR[i], comparator, OpTraits::AvxOp); \
-        else \
-            mask = _mm ## REGW ## _cmp_epi ## N ## _mask(valuesR[i], comparator, OpTraits::AvxOp); \
-        if constexpr(countMatches) \
-            matches += __builtin_popcountll(mask); \
-        if constexpr(bitmapAction != BITMAP_NOOP) \
-            bitmapTyped[i] = mask; \
-    } \
-    int processed = (REGW / N) * avxCnt; \
-\
-    matches += \
-       FilterMatchesRaw<TYPE, countMatches, bitmapAction>( \
-        buf + (processed * (N / 8)), size - processed, \
-        value, op, \
-        bitmap == nullptr ? nullptr : bitmap + (processed / 8), \
-        false); \
-\
-    return matches; \
-}
+template<int REGW, int N, bool sign, bool countMatches, BitmapAction bitmapAction, FilterClause::Op op>
+int FilterMatchesRawAVX(
+    const uint8_t *buf,
+    int size,
+    typename AvxTraits<REGW, N, sign>::atom_type value,
+    uint8_t *bitmap)
+{
+    using Traits = AvxTraits<REGW, N, sign>;
+    using RegType = Traits::register_type;
+    using MaskType = Traits::mask_type;
+    using AtomType = Traits::atom_type;
+    using OpTraits = OperatorTraits<op, AtomType>;
+    RegType comparator = Traits::set1(value);
+    auto valuesR = reinterpret_cast<const RegType *>(buf);
 
-Define_CountMatchesAvx(512, 8, uint8_t)
-Define_CountMatchesAvx(512, 16, uint16_t)
-Define_CountMatchesAvx(512, 32, uint32_t)
-Define_CountMatchesAvx(512, 64, uint64_t)
+    int avxCnt = size / (REGW / N);
+    int matches = 0;
+    MaskType *bitmapTyped = (MaskType *) bitmap;
+
+    for (int i = 0; i < avxCnt; i++) {
+        MaskType mask;
+        if constexpr(bitmapAction == BITMAP_AND)
+            mask = Traits::mask_compare(bitmapTyped[i], valuesR[i], comparator, OpTraits::AvxOp);
+        else
+            mask = Traits::compare(valuesR[i], comparator, OpTraits::AvxOp);
+        if constexpr(countMatches)
+            matches += __builtin_popcountll(mask);
+        if constexpr(bitmapAction != BITMAP_NOOP)
+            bitmapTyped[i] = mask;
+    }
+    int processed = (REGW / N) * avxCnt;
+
+    matches +=
+       FilterMatchesRaw<AtomType, countMatches, bitmapAction>(
+        buf + (processed * (N / 8)), size - processed,
+        value, op,
+        bitmap == nullptr ? nullptr : bitmap + (processed / 8),
+        false);
+
+    return matches;
+}
 
 static int CountSetBits(int size, uint8_t *bitmap)
 {
@@ -160,21 +137,18 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
 {
     if (useAvx)
     {
-        if constexpr(sizeof(storageType) == 1)
-            return FilterMatchesRawAVX512_8<returnCount, bitmapAction, op>(
-                valueBuffer, size, value, bitmap);
+    #define FilterMatchesRawCase(N) \
+        if constexpr(sizeof(storageType) == N) \
+            return FilterMatchesRawAVX< \
+                    512 /* reg width */, 8 * N /* bits per value */, \
+                    std::is_signed<storageType>::value, \
+                    returnCount, bitmapAction, op> \
+                (valueBuffer, size, value, bitmap);
 
-        if constexpr(sizeof(storageType) == 2)
-            return FilterMatchesRawAVX512_16<returnCount, bitmapAction, op>(
-                valueBuffer, size, value, bitmap);
-
-        if constexpr(sizeof(storageType) == 4)
-            return FilterMatchesRawAVX512_32<returnCount, bitmapAction, op>(
-                valueBuffer, size, value, bitmap);
-
-        if constexpr(sizeof(storageType) == 8)
-            return FilterMatchesRawAVX512_64<returnCount, bitmapAction, op>(
-                valueBuffer, size, value, bitmap);
+        FilterMatchesRawCase(1);
+        FilterMatchesRawCase(2);
+        FilterMatchesRawCase(4);
+        FilterMatchesRawCase(8);
     }
 
     using OpTraits = OperatorTraits<op, storageType>;
