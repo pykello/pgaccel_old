@@ -112,15 +112,15 @@ int FilterMatchesRawAVX(
         { \
             mask = Traits::mask_compare(bitmapTyped[i], valuesR[i], comparator, OpTraits::AvxOp); \
             if constexpr (fusedOp != FilterClause::INVALID) \
-                mask = Traits::mask_compare(mask, valuesR[i], comparator2, \
-                                            OperatorTraits<fusedOp, AtomType>::AvxOp); \
+                mask &= Traits::compare(valuesR[i], comparator2, \
+                                        OperatorTraits<fusedOp, AtomType>::AvxOp); \
         } \
         else \
         { \
             mask = Traits::compare(valuesR[i], comparator, OpTraits::AvxOp); \
             if constexpr (fusedOp != FilterClause::INVALID) \
-                mask = Traits::mask_compare(mask, valuesR[i], comparator2, \
-                                            OperatorTraits<fusedOp, AtomType>::AvxOp); \
+                mask &= Traits::compare(valuesR[i], comparator2, \
+                                        OperatorTraits<fusedOp, AtomType>::AvxOp); \
         } \
 \
         if constexpr(countMatches) \
