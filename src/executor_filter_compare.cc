@@ -218,6 +218,34 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
     return 0;
 }
 
+template<BitmapAction bitmapAction>
+int FilterNone(int size, uint8_t *bitmap)
+{
+    if constexpr(bitmapAction != BITMAP_NOOP)
+        memset(bitmap, 0, (size + 7) / 8);
+    return 0;
+}
+
+template<BitmapAction bitmapAction>
+int FilterAll(int size, uint8_t *bitmap)
+{
+    if constexpr(bitmapAction == BITMAP_NOOP)
+        return size;
+
+    if constexpr(bitmapAction == BITMAP_SET)
+    {
+        memset(bitmap, -1, (size + 7) / 8);
+        return size;
+    }
+
+    if constexpr(bitmapAction == BITMAP_AND)
+    {
+        return CountSetBits(size, bitmap);
+    }
+
+    return 0;
+}
+
 template<class AccelTy, bool countMatches, BitmapAction bitmapAction>
 int FilterMatchesDict(const DictColumnData<AccelTy> &columnData, 
                       typename AccelTy::c_type value,
@@ -233,23 +261,11 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
             case FilterClause::FILTER_EQ:
             case FilterClause::FILTER_LT:
             case FilterClause::FILTER_LTE:
-                if constexpr(bitmapAction != BITMAP_NOOP)
-                    memset(bitmap, 0, (columnData.size + 7) / 8);
-                return 0;
+                return FilterNone<bitmapAction>(columnData.size, bitmap);
 
             case FilterClause::FILTER_GT:
             case FilterClause::FILTER_GTE:
-                if constexpr(bitmapAction == BITMAP_NOOP)
-                    return columnData.size;
-                if constexpr(bitmapAction == BITMAP_SET)
-                {
-                    memset(bitmap, -1, (columnData.size + 7) / 8);
-                    return columnData.size;
-                }
-                if constexpr(bitmapAction == BITMAP_AND)
-                {
-                    return CountSetBits(columnData.size, bitmap);
-                }
+                return FilterAll<bitmapAction>(columnData.size, bitmap);
         }
     }
     else if (dictIdx >= columnData.dict.size())
@@ -259,23 +275,11 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
             case FilterClause::FILTER_EQ:
             case FilterClause::FILTER_GT:
             case FilterClause::FILTER_GTE:
-                if constexpr(bitmapAction != BITMAP_NOOP)
-                    memset(bitmap, 0, (columnData.size + 7) / 8);
-                return 0;
+                return FilterNone<bitmapAction>(columnData.size, bitmap);
 
             case FilterClause::FILTER_LT:
             case FilterClause::FILTER_LTE:
-                if constexpr(bitmapAction == BITMAP_NOOP)
-                    return columnData.size;
-                if constexpr(bitmapAction == BITMAP_SET)
-                {
-                    memset(bitmap, -1, (columnData.size + 7) / 8);
-                    return columnData.size;
-                }
-                if constexpr(bitmapAction == BITMAP_AND)
-                {
-                    return CountSetBits(columnData.size, bitmap);
-                }
+                return FilterAll<bitmapAction>(columnData.size, bitmap);
         }
     }
 
