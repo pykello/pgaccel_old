@@ -33,6 +33,7 @@ struct FilterClause {
         FILTER_BETWEEN_01,
         FILTER_BETWEEN_10,
         FILTER_BETWEEN_11,
+        INVALID
     } op;
 
     ColumnRef columnRef;
