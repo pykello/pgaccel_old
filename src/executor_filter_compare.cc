@@ -73,7 +73,7 @@ enum BitmapAction {
 template<class storageType, bool returnCount, BitmapAction bitmapAction>
 int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                      storageType value, FilterClause::Op op,
-                     storageType value2, FilterClause::Op op2,
+                     storageType fusedVal, FilterClause::Op fusedOp,
                      uint8_t *bitmap,
                      bool useAvx);
 
@@ -81,12 +81,12 @@ template<int REGW, int N, bool sign,
          bool countMatches,
          BitmapAction bitmapAction,
          FilterClause::Op op,
-         FilterClause::Op op2>
+         FilterClause::Op fusedOp>
 int FilterMatchesRawAVX(
     const uint8_t *buf,
     int size,
     typename AvxTraits<REGW, N, sign>::atom_type value,
-    typename AvxTraits<REGW, N, sign>::atom_type value2,
+    typename AvxTraits<REGW, N, sign>::atom_type fusedVal,
     uint8_t *bitmap)
 {
     using Traits = AvxTraits<REGW, N, sign>;
@@ -98,41 +98,58 @@ int FilterMatchesRawAVX(
     auto valuesR = reinterpret_cast<const RegType *>(buf);
 
     RegType comparator2;
-    if constexpr (op2 != FilterClause::INVALID)
-        comparator2 = Traits::set1(value2);
+    if constexpr (fusedOp != FilterClause::INVALID)
+        comparator2 = Traits::set1(fusedVal);
 
     int avxCnt = size / (REGW / N);
     int matches = 0;
     MaskType *bitmapTyped = (MaskType *) bitmap;
 
-    for (int i = 0; i < avxCnt; i++) {
-        MaskType mask;
-        if constexpr(bitmapAction == BITMAP_AND)
-        {
-            mask = Traits::mask_compare(bitmapTyped[i], valuesR[i], comparator, OpTraits::AvxOp);
-            if constexpr (op2 != FilterClause::INVALID)
-                mask = Traits::mask_compare(mask, valuesR[i], comparator2,
-                                            OperatorTraits<op2, AtomType>::AvxOp);
-        }
-        else
-        {
-            mask = Traits::compare(valuesR[i], comparator, OpTraits::AvxOp);
-            if constexpr (op2 != FilterClause::INVALID)
-                mask = Traits::mask_compare(mask, valuesR[i], comparator2,
-                                            OperatorTraits<op2, AtomType>::AvxOp);
-        }
-
-        if constexpr(countMatches)
-            matches += __builtin_popcountll(mask);
-        if constexpr(bitmapAction != BITMAP_NOOP)
-            bitmapTyped[i] = mask;
+#define AVX_FILTER_LOOP_BODY(i) \
+    { \
+        MaskType mask; \
+        if constexpr(bitmapAction == BITMAP_AND) \
+        { \
+            mask = Traits::mask_compare(bitmapTyped[i], valuesR[i], comparator, OpTraits::AvxOp); \
+            if constexpr (fusedOp != FilterClause::INVALID) \
+                mask = Traits::mask_compare(mask, valuesR[i], comparator2, \
+                                            OperatorTraits<fusedOp, AtomType>::AvxOp); \
+        } \
+        else \
+        { \
+            mask = Traits::compare(valuesR[i], comparator, OpTraits::AvxOp); \
+            if constexpr (fusedOp != FilterClause::INVALID) \
+                mask = Traits::mask_compare(mask, valuesR[i], comparator2, \
+                                            OperatorTraits<fusedOp, AtomType>::AvxOp); \
+        } \
+\
+        if constexpr(countMatches) \
+            matches += __builtin_popcountll(mask); \
+        if constexpr(bitmapAction != BITMAP_NOOP) \
+            bitmapTyped[i] = mask; \
     }
-    int processed = (REGW / N) * avxCnt;
 
+    int i;
+    for (i = 0; i + 8 <= avxCnt; i+=8) {
+        AVX_FILTER_LOOP_BODY(i);
+        AVX_FILTER_LOOP_BODY(i + 1);
+        AVX_FILTER_LOOP_BODY(i + 2);
+        AVX_FILTER_LOOP_BODY(i + 3);
+        AVX_FILTER_LOOP_BODY(i + 4);
+        AVX_FILTER_LOOP_BODY(i + 5);
+        AVX_FILTER_LOOP_BODY(i + 6);
+        AVX_FILTER_LOOP_BODY(i + 7);
+    }
+
+    for (;i < avxCnt; i++) {
+        AVX_FILTER_LOOP_BODY(i);
+    }
+
+    int processed = (REGW / N) * avxCnt;
     matches +=
        FilterMatchesRaw<AtomType, countMatches, bitmapAction>(
         buf + (processed * (N / 8)), size - processed,
-        value, op, value2, op2,
+        value, op, fusedVal, fusedOp,
         bitmap == nullptr ? nullptr : bitmap + (processed / 8),
         false);
 
@@ -154,16 +171,16 @@ template<class storageType,
          bool returnCount,
          BitmapAction bitmapAction,
          FilterClause::Op op,
-         FilterClause::Op op2>
+         FilterClause::Op fusedOp>
 int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                      storageType value,
-                     storageType value2,
+                     storageType fusedVal,
                      uint8_t *bitmap,
                      bool useAvx)
 {
-    static_assert(op2 == FilterClause::INVALID ||
-                  op2 == FilterClause::FILTER_LT ||
-                  op2 == FilterClause::FILTER_LTE);
+    static_assert(fusedOp == FilterClause::INVALID ||
+                  fusedOp == FilterClause::FILTER_LT ||
+                  fusedOp == FilterClause::FILTER_LTE);
 
     if (useAvx)
     {
@@ -172,8 +189,8 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
             return FilterMatchesRawAVX< \
                     512 /* reg width */, 8 * N /* bits per value */, \
                     std::is_signed<storageType>::value, \
-                    returnCount, bitmapAction, op, op2> \
-                (valueBuffer, size, value, value2, bitmap);
+                    returnCount, bitmapAction, op, fusedOp> \
+                (valueBuffer, size, value, fusedVal, bitmap);
 
         FilterMatchesRawCase(1);
         FilterMatchesRawCase(2);
@@ -188,8 +205,8 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
     for (int i = 0; i < size; i++) {
 
         bool eval = OpTraits::compare(values[i], value);
-        if constexpr(op2 != FilterClause::INVALID)
-            eval = eval && OperatorTraits<op2, storageType>::compare(values[i], value2);
+        if constexpr(fusedOp != FilterClause::INVALID)
+            eval = eval && OperatorTraits<fusedOp, storageType>::compare(values[i], fusedVal);
 
         if constexpr (bitmapAction == BITMAP_NOOP)
         {
@@ -234,24 +251,24 @@ template<class storageType,
          FilterClause::Op op>
 int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                      storageType value,
-                     storageType value2,
-                     FilterClause::Op op2,
+                     storageType fusedVal,
+                     FilterClause::Op fusedOp,
                      uint8_t *bitmap,
                      bool useAvx)
 {
-    switch (op2)
+    switch (fusedOp)
     {
         case FilterClause::FILTER_LT:
             return FilterMatchesRaw<storageType, returnCount, bitmapAction, op, FilterClause::FILTER_LT>( \
-                valueBuffer, size, value, value2, bitmap, useAvx);
+                valueBuffer, size, value, fusedVal, bitmap, useAvx);
 
         case FilterClause::FILTER_LTE:
             return FilterMatchesRaw<storageType, returnCount, bitmapAction, op, FilterClause::FILTER_LTE>( \
-                valueBuffer, size, value, value2, bitmap, useAvx);
+                valueBuffer, size, value, fusedVal, bitmap, useAvx);
 
         default:
             return FilterMatchesRaw<storageType, returnCount, bitmapAction, op, FilterClause::INVALID>( \
-                valueBuffer, size, value, value2, bitmap, useAvx);
+                valueBuffer, size, value, fusedVal, bitmap, useAvx);
     }
 }
 
@@ -259,8 +276,8 @@ template<class storageType, bool returnCount, BitmapAction bitmapAction>
 int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
                      storageType value,
                      FilterClause::Op op,
-                     storageType value2,
-                     FilterClause::Op op2,
+                     storageType fusedVal,
+                     FilterClause::Op fusedOp,
                      uint8_t *bitmap,
                      bool useAvx)
 {
@@ -269,7 +286,7 @@ int FilterMatchesRaw(const uint8_t *valueBuffer, int size,
     #define FILTER_MATCHES_RAW_DISPATCH_CASE(op) \
         case op: \
             return FilterMatchesRaw<storageType, returnCount, bitmapAction, op>( \
-                valueBuffer, size, value, value2, op2, bitmap, useAvx);
+                valueBuffer, size, value, fusedVal, fusedOp, bitmap, useAvx);
 
         FILTER_MATCHES_RAW_DISPATCH_CASE(FilterClause::FILTER_EQ);
         FILTER_MATCHES_RAW_DISPATCH_CASE(FilterClause::FILTER_NE);
@@ -319,7 +336,7 @@ enum SkipAction {
 template<typename T>
 static SkipAction
 ComputeSkipAction(T value, FilterClause::Op op,
-                  T value2, FilterClause::Op op2,
+                  T fusedVal, FilterClause::Op fusedOp,
                   T minValue, T maxValue)
 {
     switch (op)
@@ -331,7 +348,7 @@ ComputeSkipAction(T value, FilterClause::Op op,
         
         case FilterClause::FILTER_LT:
         case FilterClause::FILTER_LTE:
-            if (op2 == FilterClause::INVALID)
+            if (fusedOp == FilterClause::INVALID)
             {
                 if (value < minValue)
                     return FILTER_NONE;
@@ -344,11 +361,11 @@ ComputeSkipAction(T value, FilterClause::Op op,
                 // filter range starts before vector range, should check end
 
                 // case 1: filter range ends before vector range. no overlaps
-                if (value2 < minValue)
+                if (fusedVal < minValue)
                     return FILTER_NONE;
 
                 // case 2: filter range ends after vector range. full overlap.
-                if (value2 > maxValue)
+                if (fusedVal > maxValue)
                     return FILTER_ALL;
             }
             else if (value > maxValue)
@@ -380,20 +397,20 @@ template<class AccelTy, bool countMatches, BitmapAction bitmapAction>
 int FilterMatchesDict(const DictColumnData<AccelTy> &columnData, 
                       typename AccelTy::c_type value,
                       FilterClause::Op op,
-                      typename AccelTy::c_type value2,
-                      FilterClause::Op op2,
+                      typename AccelTy::c_type fusedVal,
+                      FilterClause::Op fusedOp,
                       uint8_t *bitmap,
                       bool useAvx)
 {
     /*
-     * We assume op2 is not INVALID only for BETWEEN cases.
+     * We assume fusedOp is not INVALID only for BETWEEN cases.
      */
 
     int dictIdx = DictIndex(columnData, value, op);
-    int dictIdx2 = op2 == FilterClause::INVALID ? -1 : DictIndex(columnData, value, op2);
+    int dictIdx2 = fusedOp == FilterClause::INVALID ? -1 : DictIndex(columnData, fusedVal, fusedOp);
     int dictSize = columnData.dict.size();
 
-    switch (ComputeSkipAction(dictIdx, op, dictIdx2, op2, 0, dictSize - 1))
+    switch (ComputeSkipAction(dictIdx, op, dictIdx2, fusedOp, 0, dictSize - 1))
     {
         case FILTER_NONE:
             return FilterNone<bitmapAction>(columnData.size, bitmap);
@@ -408,14 +425,14 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
             return FilterMatchesRaw<uint8_t, countMatches, bitmapAction>(
                 columnData.values, columnData.size,
                 (uint8_t) dictIdx, op,
-                (uint8_t) dictIdx2, op2,
+                (uint8_t) dictIdx2, fusedOp,
                 bitmap, useAvx);
 
         case 2:
             return FilterMatchesRaw<uint16_t, countMatches, bitmapAction>(
                 columnData.values, columnData.size,
                 (uint16_t) dictIdx, op,
-                (uint16_t) dictIdx2, op2,
+                (uint16_t) dictIdx2, fusedOp,
                 bitmap, useAvx);
     }
 
@@ -426,12 +443,12 @@ template<class AccelTy, bool returnCount, BitmapAction bitmapAction>
 int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
                      const typename AccelTy::c_type &value,
                      FilterClause::Op op,
-                     const typename AccelTy::c_type &value2,
-                     FilterClause::Op op2,
+                     const typename AccelTy::c_type &fusedVal,
+                     FilterClause::Op fusedOp,
                      uint8_t *bitmap,
                      bool useAvx)
 {
-    switch (ComputeSkipAction(value, op, value2, op2, columnData.minValue, columnData.maxValue))
+    switch (ComputeSkipAction(value, op, fusedVal, fusedOp, columnData.minValue, columnData.maxValue))
     {
         case FILTER_NONE:
             return FilterNone<bitmapAction>(columnData.size, bitmap);
@@ -444,7 +461,7 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
     #define FILTER_MATCHES_RAW_DISPATCH_BY_SIZE(SIZE, TYPE) \
         case SIZE: \
             return FilterMatchesRaw<TYPE, returnCount, bitmapAction>( \
-                columnData.values, columnData.size, value, op, value2, op2, bitmap, useAvx);
+                columnData.values, columnData.size, value, op, fusedVal, fusedOp, bitmap, useAvx);
 
         FILTER_MATCHES_RAW_DISPATCH_BY_SIZE(1, int8_t);
         FILTER_MATCHES_RAW_DISPATCH_BY_SIZE(2, int16_t);
@@ -484,39 +501,39 @@ class FilterRawDataNode: public CompareFilterNode {
 public:
     FilterRawDataNode(const typename AccelTy::c_type &value,
                       FilterClause::Op op,
-                      const typename AccelTy::c_type &value2,
-                      FilterClause::Op op2,
+                      const typename AccelTy::c_type &fusedVal,
+                      FilterClause::Op fusedOp,
                       bool useAvx): 
         value(value),
         op(op),
-        value2(value2),
-        op2(op2),
+        fusedVal(fusedVal),
+        fusedOp(fusedOp),
         useAvx(useAvx) {}
 
     int ExecuteCount(ColumnDataBase *columnData) const
     {
         auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
         return FilterMatchesRaw<AccelTy, true, BITMAP_NOOP>(
-            *typedColumnData, value, op, value2, op2, nullptr, useAvx);
+            *typedColumnData, value, op, fusedVal, fusedOp, nullptr, useAvx);
     }
 
     int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const
     {
         auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
         return FilterMatchesRaw<AccelTy, true, BITMAP_SET>(
-            *typedColumnData, value, op, value2, op2, bitmask, useAvx);
+            *typedColumnData, value, op, fusedVal, fusedOp, bitmask, useAvx);
     }
 
     int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) const
     {
         auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
         return FilterMatchesRaw<AccelTy, true, BITMAP_AND>(
-            *typedColumnData, value, op, value2, op2, bitmask, useAvx);
+            *typedColumnData, value, op, fusedVal, fusedOp, bitmask, useAvx);
     }
 
 private:
-    typename AccelTy::c_type value, value2;
-    FilterClause::Op op, op2;
+    typename AccelTy::c_type value, fusedVal;
+    FilterClause::Op op, fusedOp;
     bool useAvx;
 };
 
@@ -525,39 +542,39 @@ class FilterDictDataNode: public CompareFilterNode {
 public:
     FilterDictDataNode(const typename AccelTy::c_type &value,
                        FilterClause::Op op,
-                       const typename AccelTy::c_type &value2,
-                       FilterClause::Op op2,
+                       const typename AccelTy::c_type &fusedVal,
+                       FilterClause::Op fusedOp,
                        bool useAvx): 
         value(value),
         op(op),
-        value2(value2),
-        op2(op2),
+        fusedVal(fusedVal),
+        fusedOp(fusedOp),
         useAvx(useAvx) {}
 
     int ExecuteCount(ColumnDataBase *columnData) const
     {
         auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
         return FilterMatchesDict<AccelTy, true, BITMAP_NOOP>(
-            *typedColumnData, value, op, value2, op2, nullptr, useAvx);
+            *typedColumnData, value, op, fusedVal, fusedOp, nullptr, useAvx);
     }
 
     int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const
     {
         auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
         return FilterMatchesDict<AccelTy, true, BITMAP_SET>(
-            *typedColumnData, value, op, value2, op2, bitmask, useAvx);
+            *typedColumnData, value, op, fusedVal, fusedOp, bitmask, useAvx);
     }
 
     int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) const
     {
         auto typedColumnData = static_cast<DictColumnData<AccelTy> *>(columnData);
         return FilterMatchesDict<AccelTy, true, BITMAP_AND>(
-            *typedColumnData, value, op, value2, op2, bitmask, useAvx);
+            *typedColumnData, value, op, fusedVal, fusedOp, bitmask, useAvx);
     }
 
 private:
-    typename AccelTy::c_type value, value2;
-    FilterClause::Op op, op2;
+    typename AccelTy::c_type value, fusedVal;
+    FilterClause::Op op, fusedOp;
     bool useAvx;
 };
 
@@ -566,7 +583,7 @@ CreateRawFilterNode(const ColumnDesc &columnDesc,
                     const std::string &valueStr,
                     FilterClause::Op op,
                     const std::string &value2Str,
-                    FilterClause::Op op2,
+                    FilterClause::Op fusedOp,
                     bool useAvx)
 {
     switch (columnDesc.type->type_num())
@@ -575,27 +592,27 @@ CreateRawFilterNode(const ColumnDesc &columnDesc,
             return std::make_unique<FilterRawDataNode<Int32Type>>(
                 columnDesc.type->asInt32Type()->Parse(valueStr),
                 op,
-                op2 == FilterClause::INVALID ? 
+                fusedOp == FilterClause::INVALID ? 
                     0 : columnDesc.type->asInt32Type()->Parse(value2Str),
-                op2,
+                fusedOp,
                 useAvx);
 
         case INT64_TYPE:
             return std::make_unique<FilterRawDataNode<Int64Type>>(
                 columnDesc.type->asInt64Type()->Parse(valueStr),
                 op,
-                op2 == FilterClause::INVALID ? 
+                fusedOp == FilterClause::INVALID ? 
                     0 : columnDesc.type->asInt64Type()->Parse(value2Str),
-                op2,
+                fusedOp,
                 useAvx);
 
         case DECIMAL_TYPE:
             return std::make_unique<FilterRawDataNode<DecimalType>>(
                 columnDesc.type->asDecimalType()->Parse(valueStr),
                 op,
-                op2 == FilterClause::INVALID ? 
+                fusedOp == FilterClause::INVALID ? 
                     0 : columnDesc.type->asDecimalType()->Parse(value2Str),
-                op2,
+                fusedOp,
                 useAvx);
     }
 
@@ -607,7 +624,7 @@ CreateDictFilterNode(const ColumnDesc &columnDesc,
                      const std::string &valueStr,
                      FilterClause::Op op,
                      const std::string &value2Str,
-                     FilterClause::Op op2,
+                     FilterClause::Op fusedOp,
                      bool useAvx)
 {
     switch (columnDesc.type->type_num())
@@ -616,18 +633,18 @@ CreateDictFilterNode(const ColumnDesc &columnDesc,
             return std::make_unique<FilterDictDataNode<StringType>>(
                 columnDesc.type->asStringType()->Parse(valueStr),
                 op,
-                op2 == FilterClause::INVALID ? 
+                fusedOp == FilterClause::INVALID ? 
                     std::string() : columnDesc.type->asStringType()->Parse(value2Str),
-                op2,
+                fusedOp,
                 useAvx);
 
         case DATE_TYPE:
             return std::make_unique<FilterDictDataNode<DateType>>(
                 columnDesc.type->asDateType()->Parse(valueStr),
                 op,
-                op2 == FilterClause::INVALID ? 
+                fusedOp == FilterClause::INVALID ? 
                     0 : columnDesc.type->asDateType()->Parse(value2Str),
-                op2,
+                fusedOp,
                 useAvx);
     }
 
@@ -638,6 +655,8 @@ std::unique_ptr<FilterNode>
 FilterNode::CreateSimpleCompare(const ColumnRef &colRef,
                                 const std::string &valueStr,
                                 FilterClause::Op op,
+                                const std::string &fusedValueStr,
+                                FilterClause::Op fusedOp,
                                 bool useAvx)
 {
     std::unique_ptr<CompareFilterNode> result;
@@ -646,11 +665,13 @@ FilterNode::CreateSimpleCompare(const ColumnRef &colRef,
     switch (columnDesc.layout)
     {
         case ColumnDataBase::DICT_COLUMN_DATA:
-            result = CreateDictFilterNode(columnDesc, valueStr, op, "", FilterClause::INVALID, useAvx);
+            result = CreateDictFilterNode(
+                        columnDesc, valueStr, op, fusedValueStr, fusedOp, useAvx);
             break;
 
-        case  ColumnDataBase::RAW_COLUMN_DATA:
-            result = CreateRawFilterNode(columnDesc, valueStr, op, "", FilterClause::INVALID, useAvx);
+        case ColumnDataBase::RAW_COLUMN_DATA:
+            result = CreateRawFilterNode(
+                        columnDesc, valueStr, op, fusedValueStr, fusedOp, useAvx);
             break;
     }
 

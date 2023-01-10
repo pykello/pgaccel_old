@@ -100,14 +100,47 @@ CreateFilterNode(const QueryDesc &query, bool useAvx)
 {
     std::vector<FilterNodeP> filterNodes;
 
-    for (const auto &filterClause: query.filterClauses)
-    {
-        const std::string &value = filterClause.value[0];
-        ColumnRef col = filterClause.columnRef;
-        auto columnarTable = query.tables[col.tableIdx];
+    std::vector<FilterClause> filterClauses = query.filterClauses;
+    sort(filterClauses.begin(), filterClauses.end(),
+         [](const FilterClause &a, const FilterClause &b) -> bool
+         {
+            if (a.columnRef != b.columnRef)
+                return a.columnRef < b.columnRef;
+            return a.op < b.op;
+         });
 
-        filterNodes.push_back(
-            FilterNode::CreateSimpleCompare(col, value, filterClause.op, useAvx));
+    for (int i = 0; i < filterClauses.size(); i++)
+    {
+        if (i + 1 < filterClauses.size() &&
+            filterClauses[i + 1].columnRef == filterClauses[i].columnRef &&
+            (filterClauses[i].op == FilterClause::FILTER_GT ||
+             filterClauses[i].op == FilterClause::FILTER_GTE) &&
+            (filterClauses[i + 1].op == FilterClause::FILTER_LT ||
+             filterClauses[i + 1].op == FilterClause::FILTER_LTE))
+        {
+            filterNodes.push_back(
+                FilterNode::CreateSimpleCompare(
+                    filterClauses[i].columnRef,
+                    filterClauses[i].value,
+                    filterClauses[i].op,
+                    filterClauses[i + 1].value,
+                    filterClauses[i + 1].op,
+                    useAvx
+                )
+            );
+
+            i++;
+        }
+        else
+        {
+            filterNodes.push_back(
+                FilterNode::CreateSimpleCompare(
+                    filterClauses[i].columnRef,
+                    filterClauses[i].value,
+                    filterClauses[i].op,
+                    "", FilterClause::INVALID,
+                    useAvx));
+        }
     }
 
     if (filterNodes.size() == 1)

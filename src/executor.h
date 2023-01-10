@@ -28,6 +28,8 @@ public:
     static FilterNodeP CreateSimpleCompare(const ColumnRef &colRef,
                                            const std::string &valueStr,
                                            FilterClause::Op op,
+                                           const std::string &fusedValueStr,
+                                           FilterClause::Op fusedOp,
                                            bool useAvx);
     static FilterNodeP CreateAndNode(std::vector<FilterNodeP>&& children);
 

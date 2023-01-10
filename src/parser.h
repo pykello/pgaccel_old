@@ -18,6 +18,18 @@ struct ColumnRef {
     int columnIdx;
     AccelType *type;
 
+    bool operator<(const ColumnRef &b) const
+    {
+        if (tableIdx != b.tableIdx)
+            return tableIdx < b.tableIdx;
+        return columnIdx < b.columnIdx;
+    }
+
+    bool operator==(const ColumnRef &b) const
+    {
+        return tableIdx == b.tableIdx && columnIdx == b.columnIdx;
+    }
+
     std::string ToString() const;
 };
 
@@ -25,19 +37,15 @@ struct FilterClause {
     enum Op {
         FILTER_EQ,
         FILTER_NE,
-        FILTER_LT,
-        FILTER_LTE,
         FILTER_GT,
         FILTER_GTE,
-        FILTER_BETWEEN_00,
-        FILTER_BETWEEN_01,
-        FILTER_BETWEEN_10,
-        FILTER_BETWEEN_11,
+        FILTER_LT,
+        FILTER_LTE,
         INVALID
     } op;
 
     ColumnRef columnRef;
-    std::string value[2];
+    std::string value;
 
     std::string ToString() const;
 };

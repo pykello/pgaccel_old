@@ -120,21 +120,9 @@ std::string FilterClause::ToString() const
         case FilterClause::FILTER_GTE:
             sout << ">=";
             break;
-        case FilterClause::FILTER_BETWEEN_00:
-            sout << "between()";
-            break;
-        case FilterClause::FILTER_BETWEEN_01:
-            sout << "between(]";
-            break;
-        case FilterClause::FILTER_BETWEEN_10:
-            sout << "between[)";
-            break;
-        case FilterClause::FILTER_BETWEEN_11:
-            sout << "between[]";
-            break;
     }
     sout << "',columnRef=" << columnRef.ToString();
-    sout << ",value=(" << value[0] << "," << value[1] << ")";
+    sout << ",value='" << value << "'";
     sout << ")";
     return sout.str();
 }
@@ -419,7 +407,7 @@ ParseFilterAtom(QueryDesc &queryDesc,
         if (ParseToken(ops[i].token, tokens, currentIdx).ok())
         {
             result.op = ops[i].op;
-            ASSIGN_OR_RAISE(result.value[0], ParseValue(columnType, tokens, currentIdx));
+            ASSIGN_OR_RAISE(result.value, ParseValue(columnType, tokens, currentIdx));
             return result;
         }
 
