@@ -105,44 +105,28 @@ int FilterMatchesRawAVX(
     int matches = 0;
     MaskType *bitmapTyped = (MaskType *) bitmap;
 
-#define AVX_FILTER_LOOP_BODY(i) \
-    { \
-        MaskType mask; \
-        if constexpr(bitmapAction == BITMAP_AND) \
-        { \
-            mask = Traits::mask_compare(bitmapTyped[i], valuesR[i], comparator, OpTraits::AvxOp); \
-            if constexpr (fusedOp != FilterClause::INVALID) \
-                mask &= Traits::compare(valuesR[i], comparator2, \
-                                        OperatorTraits<fusedOp, AtomType>::AvxOp); \
-        } \
-        else \
-        { \
-            mask = Traits::compare(valuesR[i], comparator, OpTraits::AvxOp); \
-            if constexpr (fusedOp != FilterClause::INVALID) \
-                mask &= Traits::compare(valuesR[i], comparator2, \
-                                        OperatorTraits<fusedOp, AtomType>::AvxOp); \
-        } \
-\
-        if constexpr(countMatches) \
-            matches += __builtin_popcountll(mask); \
-        if constexpr(bitmapAction != BITMAP_NOOP) \
-            bitmapTyped[i] = mask; \
-    }
+    for (int i = 0; i < avxCnt; i++)
+    {
+        MaskType mask;
+        if constexpr(bitmapAction == BITMAP_AND)
+        {
+            mask = Traits::mask_compare(bitmapTyped[i], valuesR[i], comparator, OpTraits::AvxOp);
+            if constexpr (fusedOp != FilterClause::INVALID)
+                mask &= Traits::compare(valuesR[i], comparator2,
+                                        OperatorTraits<fusedOp, AtomType>::AvxOp);
+        }
+        else
+        {
+            mask = Traits::compare(valuesR[i], comparator, OpTraits::AvxOp);
+            if constexpr (fusedOp != FilterClause::INVALID)
+                mask &= Traits::compare(valuesR[i], comparator2,
+                                        OperatorTraits<fusedOp, AtomType>::AvxOp);
+        }
 
-    int i;
-    for (i = 0; i + 8 <= avxCnt; i+=8) {
-        AVX_FILTER_LOOP_BODY(i);
-        AVX_FILTER_LOOP_BODY(i + 1);
-        AVX_FILTER_LOOP_BODY(i + 2);
-        AVX_FILTER_LOOP_BODY(i + 3);
-        AVX_FILTER_LOOP_BODY(i + 4);
-        AVX_FILTER_LOOP_BODY(i + 5);
-        AVX_FILTER_LOOP_BODY(i + 6);
-        AVX_FILTER_LOOP_BODY(i + 7);
-    }
-
-    for (;i < avxCnt; i++) {
-        AVX_FILTER_LOOP_BODY(i);
+        if constexpr(countMatches)
+            matches += __builtin_popcountll(mask);
+        if constexpr(bitmapAction != BITMAP_NOOP)
+            bitmapTyped[i] = mask;
     }
 
     int processed = (REGW / N) * avxCnt;
