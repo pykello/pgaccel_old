@@ -46,6 +46,10 @@ int papi_events[papi_event_count] = {
 
 struct ReplState {
     TableRegistry tables;
+
+    // how many times run each query. useful when we want to benchmark.
+    int repeats = 1;
+
     bool done = false;
     int papiEventSet = PAPI_NULL;
     bool papiAvailable = false;
@@ -115,6 +119,10 @@ static Result<bool> ProcessForget(ReplState &state,
                                   const std::string &commandName,
                                   const vector<std::string> &args,
                                   const std::string &commandText);
+static Result<bool> ProcessRepeat(ReplState &state,
+                                  const std::string &commandName,
+                                  const vector<std::string> &args,
+                                  const std::string &commandText);
 
 std::vector<ReplCommand> commands = {
     { "help", ProcessHelp },
@@ -124,6 +132,7 @@ std::vector<ReplCommand> commands = {
     { "save", ProcessSave },
     { "load_parquet", ProcessLoadParquet },
     { "forget", ProcessForget },
+    { "repeat", ProcessRepeat },
     { "select", ProcessSelect },
     { "schema", ProcessSchema }
 };
@@ -345,12 +354,16 @@ ProcessSelect(ReplState &state,
     if (state.showQueryDesc)
         std::cout << queryDesc.ToString() << std::endl;
 
+    if (state.repeats != 1)
+        std::cout << "repeating " << state.repeats << " times." << std::endl;
+
     Result<QueryOutput> queryOutput(Status::Invalid(""));
 
     StartPAPI(state);
 
     auto durationMs = MeasureDurationMs([&]() {
-       queryOutput = ExecuteQuery(queryDesc, state.useAvx, state.useParallelism);
+        for (int i = 0; i < state.repeats; i++)
+            queryOutput = ExecuteQuery(queryDesc, state.useAvx, state.useParallelism);
     });
 
     StopPAPI(state);
@@ -500,6 +513,21 @@ ProcessForget(ReplState &state,
         return Status::Invalid("Table not found: ", tableName);
 
     state.tables.erase(tableName);
+
+    return true;
+}
+
+static Result<bool>
+ProcessRepeat(ReplState &state,
+              const std::string &commandName,
+              const vector<std::string> &args,
+              const std::string &commandText)
+{
+    REQUIRED_ARGS(1, 1);
+
+    std::string repeatStr = args[0];
+
+    state.repeats = std::max(1, std::stoi(repeatStr));
 
     return true;
 }
