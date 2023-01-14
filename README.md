@@ -26,3 +26,16 @@ CREATE TABLE LINEITEM ( L_ORDERKEY    INTEGER NOT NULL,
 
 cat /home/hadi/disk1/data/tpch/16/parquet/lineitem.parquet | clickhouse-client --query="INSERT INTO LINEITEM FORMAT Parquet"
 ```
+
+## Performance Notes
+
+### Operator fusing
+Q6 count, 1000 runs on 16gb:
+* Fusing:
+    * Without fusing: 7.0
+    * With fusing: 7.2
+* Loop unrolling: no effect
+* Fused op anding:
+    * mask/mask/&: 7.000
+    * mask/mask_compare: 6.98
+
