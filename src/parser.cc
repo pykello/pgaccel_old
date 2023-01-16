@@ -45,6 +45,9 @@ static Result<bool> ParseFiltersConj(QueryDesc &queryDesc,
 static Result<FilterClause> ParseFilterAtom(QueryDesc &queryDesc,
                                             const std::vector<std::string> &tokens,
                                             int &currentIdx);
+static Result<bool> ParseGroupBy(QueryDesc &queryDesc,
+                                 const std::vector<std::string> &tokens,
+                                 int &currentIdx);
 static Result<ColumnRef> ParseColumnRef(QueryDesc &queryDesc,
                                         const std::vector<std::string> &tokens,
                                         int &currentIdx);
@@ -76,7 +79,7 @@ ParseSelect(const std::string &query, const TableRegistry &registry)
     if (ParseToken("GROUP", tokens, idx).ok())
     {
         RAISE_IF_FAILS(ParseToken("BY", tokens, idx));
-        // TODO: parse group by columns
+        RAISE_IF_FAILS(ParseGroupBy(queryDesc, tokens, idx));
     }
 
     if (idx != tokens.size())
@@ -412,6 +415,25 @@ ParseFilterAtom(QueryDesc &queryDesc,
         }
 
     return Status::Invalid("Invalid operator: ", tokens[currentIdx]);
+}
+
+static Result<bool> ParseGroupBy(QueryDesc &queryDesc,
+                                 const std::vector<std::string> &tokens,
+                                 int &currentIdx)
+{
+    while (true)
+    {
+        ColumnRef columnRef;
+        ASSIGN_OR_RAISE(columnRef, ParseColumnRef(queryDesc, tokens, currentIdx));
+        queryDesc.groupBy.push_back(std::move(columnRef));
+
+        if (!ParseToken(",", tokens, currentIdx).ok())
+        {
+            break;
+        }
+    }
+
+    return true;
 }
 
 static Result<ColumnRef>

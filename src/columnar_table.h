@@ -18,6 +18,7 @@ struct ColumnDesc {
 
 struct RowGroup {
     std::vector<ColumnDataP> columns;
+    int size;
 };
 
 class ColumnarTable;

@@ -135,4 +135,23 @@ Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
     }
 }
 
+void
+DictColumnDataBase::to_16(uint16_t *out)
+{
+    switch (bytesPerValue())
+    {
+        case 1:
+        {
+            for (int i = 0; i < size; i++)
+                out[i] = values[i];
+            break;
+        }
+        case 2:
+        {
+            memcpy(out, values, 2 * size);
+            break;
+        }
+    }
+}
+
 };

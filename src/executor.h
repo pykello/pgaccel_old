@@ -104,7 +104,7 @@ int DictIndex(const DictColumnData<AccelTy> &columnData,
 template<typename PartialResult>
 Rows
 ExecuteAgg(const std::function<PartialResult(const RowGroup&, uint8_t *)> &ProcessRowgroupF,
-           const std::function<PartialResult(const PartialResult&, const PartialResult&)> &CombineF,
+           const std::function<void(PartialResult&, PartialResult&&)> &CombineF,
            const std::function<Rows(const PartialResult&)> &FinalizeF,
            const ColumnarTable &table,
            bool useParallelism)
@@ -126,8 +126,7 @@ ExecuteAgg(const std::function<PartialResult(const RowGroup&, uint8_t *)> &Proce
                         if (j % numThreads == m)
                         {
                             const RowGroup &rowGroup = table.GetRowGroup(j);
-                            localResult =
-                                CombineF(localResult, ProcessRowgroupF(rowGroup, bitmap));
+                            CombineF(localResult, ProcessRowgroupF(rowGroup, bitmap));
                         }
                     }
                     return localResult;
@@ -136,7 +135,7 @@ ExecuteAgg(const std::function<PartialResult(const RowGroup&, uint8_t *)> &Proce
 
         PartialResult globalResult {};
         for (auto &f: futureResults)
-            globalResult = CombineF(globalResult, f.get());
+            CombineF(globalResult, std::move(f.get()));
 
         return FinalizeF(globalResult);
     }
@@ -148,7 +147,7 @@ ExecuteAgg(const std::function<PartialResult(const RowGroup&, uint8_t *)> &Proce
         for (int groupIdx = 0; groupIdx < rowGroupCnt; groupIdx++)
         {
             const RowGroup &rowGroup = table.GetRowGroup(groupIdx);
-            partialResult = CombineF(partialResult, ProcessRowgroupF(rowGroup, bitmap));
+            CombineF(partialResult, ProcessRowgroupF(rowGroup, bitmap));
         }
 
         return FinalizeF(partialResult);

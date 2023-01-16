@@ -36,11 +36,19 @@ struct ColumnDataBase {
     static Result<ColumnDataP> Load(std::istream &in, AccelType *type);
 };
 
+struct DictColumnDataBase: public ColumnDataBase {
+    uint8_t *values = NULL;
+    virtual int bytesPerValue() const = 0;
+    virtual int dictSize() const = 0;
+    virtual std::vector<std::string> labels() const = 0;
+
+    void to_16(uint16_t *out);
+};
+
 template<class Ty>
-struct DictColumnData: public ColumnDataBase {
+struct DictColumnData: public DictColumnDataBase {
     using DictTy = typename Ty::c_type;
     std::vector<DictTy> dict;
-    uint8_t *values = NULL;
 
     virtual Result<bool> Save(std::ostream &out) const;
 
@@ -49,8 +57,19 @@ struct DictColumnData: public ColumnDataBase {
             free(values);
     }
 
-    int bytesPerValue() const {
+    virtual int bytesPerValue() const {
         return dict.size() < 256 ? 1 : 2;
+    }
+
+    virtual int dictSize() const {
+        return dict.size();
+    }
+
+    virtual std::vector<std::string> labels() const {
+        std::vector<std::string> result;
+        for (const auto& v: dict)
+            result.push_back(Ty::ToString(v));
+        return result;
     }
 
 private:

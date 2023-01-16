@@ -222,8 +222,10 @@ LoadParquetRowGroup(parquet::RowGroupReader& rowGroupReader,
         while (result.size() < columnDataVec.size())
             result.push_back({});
 
-        for (int i = 0; i < columnDataVec.size(); i++)
+        for (int i = 0; i < columnDataVec.size(); i++) {
             result[i].columns.push_back(std::move(columnDataVec[i]));
+            result[i].size = result[i].columns.back()->size;
+        }
     }
 
     return std::move(result);

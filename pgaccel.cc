@@ -371,7 +371,35 @@ ProcessSelect(ReplState &state,
     if (!queryOutput.ok())
         return queryOutput.status();
 
-    std::cout << queryOutput->values[0][0] << std::endl;
+    std::vector<size_t> widths;
+    for (auto field: queryOutput->fieldNames)
+        widths.push_back(field.length());
+    for (auto row: queryOutput->values)
+        for (int i = 0; i < row.size(); i++)
+            widths[i] = std::max(widths[i], row[i].length());
+
+    auto printRow = [&](const Row& row) {
+        for (int i = 0; i < row.size(); i++)
+            std::cout << std::left
+                    << std::setw(widths[i] + 3)
+                    << row[i];
+        std::cout << std::endl;
+    };
+
+    printRow(queryOutput->fieldNames);
+ 
+    for (int i = 0; i < queryOutput->fieldNames.size(); i++) {
+        std::string s;
+        for (int j = 0; j < widths[i]; j++)
+            s += "=";
+        std::cout << std::left
+                  << std::setw(widths[i] + 3)
+                  << s;
+    }
+    std::cout << std::endl;
+
+    for (auto row: queryOutput->values)
+        printRow(row);
 
     if (state.timingEnabled)
         std::cout << "Duration: " << durationMs << "ms" << std::endl;

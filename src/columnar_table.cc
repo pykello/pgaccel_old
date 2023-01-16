@@ -176,6 +176,7 @@ ColumnarTable::Load(const std::string &tableName,
             auto columnData = ColumnDataBase::Load(dataStream, columnDesc.type.get());
             RAISE_IF_FAILS(columnData);
             rowGroup.columns.push_back(std::move(columnData).ValueUnsafe());
+            rowGroup.size = rowGroup.columns.back()->size;
         }
 
         columnDesc.layout = result->row_groups_[0].columns.back()->type;
