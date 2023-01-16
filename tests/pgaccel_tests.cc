@@ -11,7 +11,7 @@ using namespace pgaccel;
 
 static void VerifyQuery(const TableRegistry &registry,
                         const string &query,
-                        const vector<string> &expectedResult);
+                        const vector<vector<string>> &expectedResult);
 static void VerifyLineitemBasic(const TableRegistry &registry);
 
 static std::string TestsDir()
@@ -66,108 +66,118 @@ VerifyLineitemBasic(const TableRegistry &registry)
     // total count
     VerifyQuery(registry,
                 "SELECT count(*) from lineitem;",
-                { "200000" });
+                {{ "200000" }});
 
     // unfiltered sum
     VerifyQuery(registry,
                 "SELECT sum(l_quantity) FROM lineitem;",
-                { "5103301.00" });
+                {{ "5103301.00" }});
 
     // filter on one column
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_ORDERKEY=1;",
-                { "6" });
+                {{ "6" }});
 
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_SHIPMODE='AIR';",
-                { "28551" });
+                {{ "28551" }});
 
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_SHIPDATE='1996-02-12';",
-                { "94" });
+                {{ "94" }});
 
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_QUANTITY=2;",
-                { "4004" });
+                {{ "4004" }});
 
     // filter on two columns
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_QUANTITY=3 "
                 "AND L_SHIPDATE='1996-02-11';",
-                { "1" });
+                {{ "1" }});
 
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_SHIPMODE='AIR' "
                 "AND L_SHIPDATE='1996-02-11';",
-                { "14" });
+                {{ "14" }});
     
     VerifyQuery(registry,
                 "SELECT count(*) FROM lineitem WHERE L_SHIPMODE='AIR' "
                 "AND L_SHIPDATE='1996-02-11' and L_QUANTITY=10;",
-                { "2" });
+                {{ "2" }});
 
     // non-eq filters
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE L_SHIPMODE='AIR' "
             "AND L_SHIPDATE>'1996-02-11' and L_QUANTITY<=10;",
-            { "2404" });
+            {{ "2404" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE L_SHIPMODE='SHIP' "
             "AND L_SHIPDATE>='1996-02-11' and L_QUANTITY<10;",
-            { "2047" });
+            {{ "2047" }});
 
     // != operator
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPMODE != 'AIR' and L_QUANTITY != 3;",
-            { "168109" });
+            {{ "168109" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE L_ORDERKEY != 6;",
-            { "199999" });
+            {{ "199999" }});
 
     // not found in dict cases
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPMODE='AIR' and L_SHIPDATE > '1980-01-01';",
-            { "28551" });
+            {{ "28551" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPDATE > '1980-01-01' and L_SHIPMODE='AIR';",
-            { "28551" });
+            {{ "28551" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPDATE > '1980-01-01';",
-            { "200000" });
+            {{ "200000" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPMODE != 'xyz' AND L_SHIPDATE > '1996-02-01';",
-            { "80915" });
+            {{ "80915" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPMODE='AIR' and L_SHIPDATE < '2022-01-01';",
-            { "28551" });
+            {{ "28551" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPDATE < '2022-01-01' and L_SHIPMODE='AIR';",
-            { "28551" });
+            {{ "28551" }});
 
     VerifyQuery(registry,
             "SELECT count(*) FROM lineitem WHERE "
             "L_SHIPDATE < '2022-01-01';",
-            { "200000" });
+            {{ "200000" }});
+
+    VerifyQuery(registry,
+            "SELECT L_SHIPMODE, count(*) FROM LINEITEM GROUP BY L_SHIPMODE;",
+            { { "AIR", "28551" },
+              { "FOB", "28528" },
+              { "MAIL", "28657" },
+              { "RAIL", "28518" },
+              { "REG AIR", "28422" },
+              { "SHIP", "28656" },
+              { "TRUCK", "28668" }});
 }
 
 static void
 VerifyQuery(const TableRegistry &registry,
             const string &query,
-            const vector<string> &expectedResult,
+            const vector<vector<string>> &expectedResult,
             bool useAvx,
             bool useParallel)
 {
@@ -179,14 +189,13 @@ VerifyQuery(const TableRegistry &registry,
     auto result = ExecuteQuery(*parsed, useAvx, useParallel);
     ASSERT_TRUE(result.ok());
 
-    ASSERT_EQ(result->values.size(), 1);
-    ASSERT_EQ(result->values[0], expectedResult);
+    ASSERT_EQ(result->values, expectedResult);
 }
 
 static void
 VerifyQuery(const TableRegistry &registry,
             const string &query,
-            const vector<string> &expectedResult)
+            const vector<vector<string>> &expectedResult)
 {
     VerifyQuery(registry, query, expectedResult, true, true);
     VerifyQuery(registry, query, expectedResult, false, true);
