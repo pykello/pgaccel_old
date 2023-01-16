@@ -277,19 +277,19 @@ ColumnarTable::ImportParquet(const std::string &tableName,
 
         switch (phyType) {
             case parquet::Type::BYTE_ARRAY:
-                columnDesc.type = std::make_unique<pgaccel::StringType>();
+                columnDesc.type = std::make_shared<pgaccel::StringType>();
                 columnDesc.layout = ColumnDataBase::DICT_COLUMN_DATA;
                 break;
 
             case parquet::Type::INT32:
                 if (logicalType->is_date())
                 {
-                    columnDesc.type = std::make_unique<pgaccel::DateType>();
+                    columnDesc.type = std::make_shared<pgaccel::DateType>();
                     columnDesc.layout = ColumnDataBase::DICT_COLUMN_DATA;
                 }
                 else
                 {
-                    columnDesc.type = std::make_unique<pgaccel::Int32Type>();
+                    columnDesc.type = std::make_shared<pgaccel::Int32Type>();
                     columnDesc.layout = ColumnDataBase::RAW_COLUMN_DATA;
                 }
                 break;
@@ -299,14 +299,14 @@ ColumnarTable::ImportParquet(const std::string &tableName,
                 {
                     auto parquetDecimalType =
                         static_cast<const parquet::DecimalLogicalType *>(logicalType.get());
-                    auto accelDecimalType = std::make_unique<pgaccel::DecimalType>();
+                    auto accelDecimalType = std::make_shared<pgaccel::DecimalType>();
                     accelDecimalType->scale = parquetDecimalType->scale();
                     columnDesc.type = std::move(accelDecimalType);
                     columnDesc.layout = ColumnDataBase::RAW_COLUMN_DATA;
                 }
                 else
                 {
-                    columnDesc.type = std::make_unique<pgaccel::Int64Type>();
+                    columnDesc.type = std::make_shared<pgaccel::Int64Type>();
                     columnDesc.layout = ColumnDataBase::RAW_COLUMN_DATA;
                 }
                 break;

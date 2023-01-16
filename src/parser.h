@@ -16,7 +16,7 @@ struct ColumnRef {
 
     int tableIdx;
     int columnIdx;
-    AccelType *type;
+    std::shared_ptr<AccelType> type;
 
     bool operator<(const ColumnRef &b) const
     {

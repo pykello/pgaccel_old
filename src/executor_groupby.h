@@ -44,9 +44,13 @@ private:
 };
 
 struct SumAggState: public AggState {
-    SumAggState(int64_t value = 0): value(value) { }
+    SumAggState(int64_t value,
+                std::shared_ptr<AccelType> valueType):
+                    value(value),
+                    valueType(valueType) { }
 
     int64_t value;
+    std::shared_ptr<AccelType> valueType;
 };
 
 class SumAgg: public Aggregator {

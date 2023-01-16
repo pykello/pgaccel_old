@@ -12,7 +12,7 @@ namespace pgaccel {
 
 struct ColumnDesc {
     std::string name;
-    std::unique_ptr<AccelType> type;
+    std::shared_ptr<AccelType> type;
     ColumnDataBase::Type layout;
 };
 

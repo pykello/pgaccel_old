@@ -164,7 +164,8 @@ SumAgg::LocalAggregate(const RowGroup& rowGroup,
 
     AggStateVec result;
     for (int i = 0; i < groups.labels.size(); i++)
-        result.push_back(std::make_unique<SumAggState>(sumsPerGroup[i]));
+        result.push_back(
+            std::make_unique<SumAggState>(sumsPerGroup[i], columnRef.type));
 
     return result;
 }
@@ -182,7 +183,7 @@ std::string
 SumAgg::Finalize(const AggState *state)
 {
     auto sumState = static_cast<const SumAggState *>(state);
-    return std::to_string(sumState->value);
+    return ToString(sumState->valueType.get(), sumState->value);
 }
 
 };

@@ -77,4 +77,11 @@ ToString(const AccelType *type, int64_t value)
     }
 }
 
+std::string
+ToString(const AccelType *type, const std::string &value)
+{
+    return value;
+}
+
+
 };

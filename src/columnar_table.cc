@@ -125,24 +125,24 @@ ColumnarTable::Load(const std::string &tableName,
         switch (typeNum)
         {
             case TypeNum::INT32_TYPE:
-                columnDesc.type = std::make_unique<Int32Type>();
+                columnDesc.type = std::make_shared<Int32Type>();
                 break;
             case TypeNum::INT64_TYPE:
-                columnDesc.type = std::make_unique<Int64Type>();
+                columnDesc.type = std::make_shared<Int64Type>();
                 break;
             case TypeNum::STRING_TYPE:
-                columnDesc.type = std::make_unique<StringType>();
+                columnDesc.type = std::make_shared<StringType>();
                 break;
             case TypeNum::DATE_TYPE:
-                columnDesc.type = std::make_unique<DateType>();
+                columnDesc.type = std::make_shared<DateType>();
                 break;
             case TypeNum::DECIMAL_TYPE:
             {
-                auto decimalType = std::make_unique<DecimalType>();
+                auto decimalType = std::make_shared<DecimalType>();
                 int scale;
                 metadataStream >> scale;
                 decimalType->scale = scale;
-                columnDesc.type = std::move(decimalType);
+                columnDesc.type = decimalType;
                 break;
             }
             default:

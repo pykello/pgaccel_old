@@ -74,11 +74,6 @@ struct StringType: public AccelType {
     virtual std::string ToString() const {
         return "String";
     }
-
-    static std::string ToString(const c_type &v)
-    {
-        return v;
-    }
 };
 
 struct Int32Type: public AccelType {
@@ -99,11 +94,6 @@ struct Int32Type: public AccelType {
     virtual std::string ToString() const {
         return "Int32";
     }
-
-    static std::string ToString(const c_type &v)
-    {
-        return "todo";
-    }
 };
 
 struct Int64Type: public AccelType {
@@ -123,11 +113,6 @@ struct Int64Type: public AccelType {
 
     virtual std::string ToString() const {
         return "Int64";
-    }
-
-    static std::string ToString(const c_type &v)
-    {
-        return "todo";
     }
 };
 
@@ -152,11 +137,6 @@ struct DecimalType: public AccelType {
         return value;
     }
 
-    static std::string ToString(const c_type &v)
-    {
-        return "todo";
-    }
-
     // fields
     int scale;
 };
@@ -179,13 +159,9 @@ struct DateType: public AccelType {
     virtual std::string ToString() const {
         return "Date";
     }
-
-    static std::string ToString(const c_type &v)
-    {
-        return "todo";
-    }
 };
 
 std::string ToString(const AccelType *type, int64_t value);
+std::string ToString(const AccelType *type, const std::string &value);
 
 };

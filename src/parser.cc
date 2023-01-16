@@ -481,7 +481,7 @@ ResolveColumn(QueryDesc &queryDesc,
         if (maybeFieldIdx.has_value())
         {
             int fieldIdx = *maybeFieldIdx;
-            AccelType *type = table->Schema()[fieldIdx].type.get();
+            auto type = table->Schema()[fieldIdx].type;
             maybeRef = ColumnRef { table, tableIdx, fieldIdx, type };
         }
     }

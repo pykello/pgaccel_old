@@ -135,12 +135,12 @@ ExecuteAggNoGroupByNoFilter(const QueryDesc &query,
             output.values = ExecuteAgg<int64_t>(
                 [&](const RowGroup& r, uint8_t *bitmap) {
                     return SumAll(r.columns[colRef.columnIdx],
-                                  colRef.type,
+                                  colRef.type.get(),
                                   useAvx);
                 },
                 [](int64_t& a, int64_t b) { a += b; },
                 [&](int64_t totalSum) {
-                    return Rows({{ ToString(colRef.type, totalSum) }});
+                    return Rows({{ ToString(colRef.type.get(), totalSum) }});
                 },
                 *columnarTable,
                 useParallelism

@@ -38,6 +38,7 @@ struct ColumnDataBase {
 
 struct DictColumnDataBase: public ColumnDataBase {
     uint8_t *values = NULL;
+    std::shared_ptr<AccelType> valueType;
     virtual int bytesPerValue() const = 0;
     virtual int dictSize() const = 0;
     virtual std::vector<std::string> labels() const = 0;
@@ -68,7 +69,7 @@ struct DictColumnData: public DictColumnDataBase {
     virtual std::vector<std::string> labels() const {
         std::vector<std::string> result;
         for (const auto& v: dict)
-            result.push_back(Ty::ToString(v));
+            result.push_back(ToString(valueType.get(), v));
         return result;
     }
 
