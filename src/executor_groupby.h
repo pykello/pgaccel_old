@@ -75,14 +75,17 @@ public:
                   const std::vector<ColumnRef> &groupBy,
                   bool useAvx);
 
-    LocalAggResult ProcessRowGroup(const RowGroup &rowGroup);
-    void Combine(LocalAggResult &left, LocalAggResult &&right);
+    LocalAggResult ProcessRowGroup(const RowGroup &rowGroup) const;
+    void Combine(LocalAggResult &left, LocalAggResult &&right) const;
+    Rows Finalize(const LocalAggResult &localResult) const;
 
-    Rows Finalize(const LocalAggResult &localResult);
+    Row FieldNames() const;
 
 private:
     std::vector<AggregatorP> aggregators;
     std::vector<ColumnRef> groupBy;
+    std::vector<int> projection;
+    Row fieldNames;
 };
 
 typedef std::unique_ptr<AggregateNode> AggregateNodeP;

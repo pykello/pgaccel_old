@@ -25,13 +25,29 @@ AggregateNode::AggregateNode(
             default:
                 break;
         }
+
+        if (aggClause.type != AggregateClause::AGGREGATE_PROJECT)
+        {
+            projection.push_back(groupBy.size() + aggregators.size() - 1);
+            fieldNames.push_back(aggClause.ToString());
+        }
+        else
+        {
+            for (int i = 0; i < groupBy.size(); i++)
+                if (groupBy[i].columnIdx == aggClause.columnRef->columnIdx)
+                {
+                    projection.push_back(i);
+                    break;
+                }
+            fieldNames.push_back(aggClause.columnRef->Name());
+        }
     }
 
     this->groupBy = groupBy;
 }
 
 LocalAggResult
-AggregateNode::ProcessRowGroup(const RowGroup &rowGroup)
+AggregateNode::ProcessRowGroup(const RowGroup &rowGroup) const
 {
     LocalAggResult localResult;
 
@@ -56,7 +72,7 @@ AggregateNode::ProcessRowGroup(const RowGroup &rowGroup)
 }
 
 void
-AggregateNode::Combine(LocalAggResult &left, LocalAggResult &&right)
+AggregateNode::Combine(LocalAggResult &left, LocalAggResult &&right) const
 {
     for (auto &group: right.groupAggStates)
     {
@@ -79,20 +95,32 @@ AggregateNode::Combine(LocalAggResult &left, LocalAggResult &&right)
 }
 
 Rows
-AggregateNode::Finalize(const LocalAggResult &localResult)
+AggregateNode::Finalize(const LocalAggResult &localResult) const
 {
     Rows result;
     for (const auto &group: localResult.groupAggStates)
     {
-        result.push_back(group.first);
+        Row row = group.first;
         for (int i = 0; i < aggregators.size(); i++)
         {
-            result.back().push_back(
+            row.push_back(
                 aggregators[i]->Finalize(group.second[i].get()));
         }
+
+        Row projectedRow;
+        for (auto idx: projection)
+            projectedRow.push_back(row[idx]);
+
+        result.push_back(projectedRow);
     }
 
     return result;
+}
+
+Row
+AggregateNode::FieldNames() const
+{
+    return fieldNames;
 }
 
 AggStateVec

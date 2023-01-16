@@ -654,18 +654,4 @@ StopPAPI(ReplState &state)
 
 int main() {
     return repl();
-    // std::vector<std::pair<std::string, std::string>> queries = {
-    //     {"L_SHIPMODE", "AIR"},          // 858104
-    //     {"L_SHIPDATE", "1996-02-12"},   // 2441
-    //     {"L_QUANTITY", "1"},            // 120401
-    //     {"L_ORDERKEY", "1"},            // 6
-    // };
-
-    // TODO:
-    //  1. boolean flag to enable/disable query desc output.
-    //  2. task based executor.
-    //  3. select count(*) without filters.
-    //  4. sum() aggregates
-
-    return 0;
 }

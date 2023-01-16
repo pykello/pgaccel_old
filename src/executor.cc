@@ -14,7 +14,7 @@ static Rows SingleFilterCount(const QueryDesc &query,
                               const FilterNodeP &filterNode,
                               bool useParallelism);
 static Rows ExecuteGroupBy(const QueryDesc &query,
-                           const AggregateNodeP &aggNode,
+                           const AggregateNode &aggNode,
                            bool useParallelism);
 
 Result<QueryOutput>
@@ -34,16 +34,10 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
     }
     else
     {
+        AggregateNode aggNode(query.aggregateClauses, query.groupBy, useAvx);
         QueryOutput result;
-        result.fieldNames.push_back("group");
-        result.fieldNames.push_back("count");
-        result.values = ExecuteGroupBy(
-            query,
-            std::make_unique<AggregateNode>(
-                query.aggregateClauses,
-                query.groupBy,
-                useAvx),
-            useParallelism);
+        result.fieldNames = aggNode.FieldNames();
+        result.values = ExecuteGroupBy(query, aggNode, useParallelism);
         return result;
     }
 }
@@ -211,19 +205,19 @@ SingleFilterCount(const QueryDesc &query,
 
 static Rows
 ExecuteGroupBy(const QueryDesc &query,
-               const AggregateNodeP &aggNode,
+               const AggregateNode &aggNode,
                bool useParallelism)
 {
     return
     ExecuteAgg<LocalAggResult>(
         [&](const RowGroup& r, uint8_t *bitmap) {
-                return aggNode->ProcessRowGroup(r);
+                return aggNode.ProcessRowGroup(r);
             },
         [&](LocalAggResult& a, LocalAggResult&& b) {
-            aggNode->Combine(a, std::move(b));
+            aggNode.Combine(a, std::move(b));
         },
         [&](const LocalAggResult &a) {
-            return aggNode->Finalize(a);
+            return aggNode.Finalize(a);
         },
         *query.tables[0],
         useParallelism);

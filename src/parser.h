@@ -30,6 +30,11 @@ struct ColumnRef {
         return tableIdx == b.tableIdx && columnIdx == b.columnIdx;
     }
 
+    std::string Name() const
+    {
+        return table->Schema()[columnIdx].name;
+    }
+
     std::string ToString() const;
 };
 
@@ -58,6 +63,7 @@ struct AggregateClause {
         AGGREGATE_AVG,
         AGGREGATE_MIN,
         AGGREGATE_MAX,
+        AGGREGATE_PROJECT
     } type;
 
     std::optional<ColumnRef> columnRef;

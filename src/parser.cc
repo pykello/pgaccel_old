@@ -133,7 +133,6 @@ std::string FilterClause::ToString() const
 std::string AggregateClause::ToString() const
 {
     std::ostringstream sout;
-    sout << "(type=";
     switch(type)
     {
         case AggregateClause::AGGREGATE_COUNT:
@@ -154,12 +153,14 @@ std::string AggregateClause::ToString() const
         case AggregateClause::AGGREGATE_AVG:
             sout << "avg";
             break;
+        case AggregateClause::AGGREGATE_PROJECT:
+            sout << "project";
+            break;
     }
     if (columnRef.has_value())
     {
-        sout << ",columnRef=" << columnRef->ToString();
+        sout << " " << columnRef->Name();
     }
-    sout << ")";
     return sout.str();
 }
 
@@ -297,19 +298,39 @@ ParseAggregates(QueryDesc &queryDesc,
         }
         else
         {
-            // TODO: sum(...), max(...), min(...)
-            ENSURE_TOKEN("aggregate name");
-            std::string aggName = ToLower(tokens[currentIdx++]);
-            if (aggName == "sum")
+            std::vector<std::pair<std::string, AggregateClause::Type>> supportedAggs =
+                { 
+                    {"sum", AggregateClause::AGGREGATE_SUM}
+                };
+            bool parsed = false;
+
+            for (auto agg: supportedAggs)
             {
+                auto aggName = agg.first;
+                auto aggType = agg.second;
+
+                if (ParseToken(aggName, tokens, currentIdx).ok())
+                {
+                    UnresolvedAggregate agg;
+                    agg.type = aggType;
+
+                    RAISE_IF_FAILS(ParseToken("(", tokens, currentIdx));
+                    ENSURE_TOKEN("col name");
+                    agg.col = tokens[currentIdx++];
+                    RAISE_IF_FAILS(ParseToken(")", tokens, currentIdx));
+
+                    result.push_back(agg);
+                    parsed = true;
+                    break;
+                }
+            }
+
+            if (!parsed)
+            {
+                ENSURE_TOKEN("column name");
                 UnresolvedAggregate agg;
-                agg.type = AggregateClause::AGGREGATE_SUM;
-
-                RAISE_IF_FAILS(ParseToken("(", tokens, currentIdx));
-                ENSURE_TOKEN("col name");
+                agg.type = AggregateClause::AGGREGATE_PROJECT;
                 agg.col = tokens[currentIdx++];
-                RAISE_IF_FAILS(ParseToken(")", tokens, currentIdx));
-
                 result.push_back(agg);
             }
         }
