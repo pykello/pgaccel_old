@@ -17,7 +17,8 @@ typedef std::vector<AggStateP> AggStateVec;
 class Aggregator {
 public:
     virtual AggStateVec LocalAggregate(const RowGroup& rowGroup,
-                                       const ColumnDataGroups& groups) = 0;
+                                       const ColumnDataGroups& groups,
+                                       uint8_t *bitmap) = 0;
     virtual void Combine(AggState *result1, const AggState *result2) = 0;
     virtual std::string Finalize(const AggState *result) = 0;
 };
@@ -35,7 +36,8 @@ public:
     CountAgg(bool useAvx): useAvx(useAvx) { }
 
     virtual AggStateVec LocalAggregate(const RowGroup& rowGroup,
-                                       const ColumnDataGroups& groups);
+                                       const ColumnDataGroups& groups,
+                                       uint8_t *bitmap);
     virtual void Combine(AggState *result1, const AggState *result2);
     virtual std::string Finalize(const AggState *result);
 
@@ -60,7 +62,8 @@ public:
         columnRef(columnRef) { }
 
     virtual AggStateVec LocalAggregate(const RowGroup& rowGroup,
-                                       const ColumnDataGroups& groups);
+                                       const ColumnDataGroups& groups,
+                                       uint8_t *bitmap);
     virtual void Combine(AggState *result1, const AggState *result2);
     virtual std::string Finalize(const AggState *result);
 

@@ -60,10 +60,19 @@ AggregateNode::ProcessRowGroup(const RowGroup &rowGroup) const
         groups.labels.push_back({ label });
     }
 
+    uint8_t bitmap[1<<13];
+    bool filtered = false;
+    if (filterNode)
+    {
+        filtered = true;
+        filterNode->ExecuteSet(rowGroup, bitmap);
+    }
+
     dictData->to_16(groups.groups);
 
     for (const auto &agg: aggregators) {
-        auto localAggResult = agg->LocalAggregate(rowGroup, groups);
+        auto localAggResult = agg->LocalAggregate(rowGroup, groups,
+                                                  filtered ? bitmap : nullptr);
         for (int i = 0; i < groups.labels.size(); i++)
             localResult.groupAggStates[{ groups.labels[i] }].push_back(
                 std::move(localAggResult[i]));
@@ -126,11 +135,19 @@ AggregateNode::FieldNames() const
 
 AggStateVec
 CountAgg::LocalAggregate(const RowGroup& rowGroup,
-                         const ColumnDataGroups& groups)
+                         const ColumnDataGroups& groups,
+                         uint8_t *bitmap)
 {
     std::vector<int> countsPerGroup(groups.labels.size(), 0);
-    for (int i = 0; i < rowGroup.size; i++)
-        countsPerGroup[groups.groups[i]]++;
+
+    if (bitmap) {
+        for (int i = 0; i < rowGroup.size; i++)
+            if (bitmap[i >> 3] & (1 << (i & 7)))
+                countsPerGroup[groups.groups[i]]++;
+    } else {
+        for (int i = 0; i < rowGroup.size; i++)
+            countsPerGroup[groups.groups[i]]++;
+    }
 
     AggStateVec result;
     for (int i = 0; i < groups.labels.size(); i++)
@@ -157,7 +174,8 @@ CountAgg::Finalize(const AggState *state)
 
 AggStateVec
 SumAgg::LocalAggregate(const RowGroup& rowGroup,
-                       const ColumnDataGroups& groups)
+                       const ColumnDataGroups& groups,
+                       uint8_t *bitmap)
 {
     std::vector<int> sumsPerGroup(groups.labels.size(), 0);
     for (int i = 0; i < rowGroup.size; i++)
