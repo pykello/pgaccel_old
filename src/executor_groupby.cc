@@ -6,7 +6,8 @@ namespace pgaccel
 AggregateNode::AggregateNode(
     const std::vector<AggregateClause> &aggregateClauses,
     const std::vector<ColumnRef> &groupBy,
-    bool useAvx)
+    FilterNodeP &&filterNode,
+    bool useAvx): filterNode(std::move(filterNode))
 {
     for(const auto &aggClause: aggregateClauses)
     {

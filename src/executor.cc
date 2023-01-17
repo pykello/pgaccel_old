@@ -34,7 +34,14 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
     }
     else
     {
-        AggregateNode aggNode(query.aggregateClauses, query.groupBy, useAvx);
+        FilterNodeP filterNode = nullptr;
+        if (query.filterClauses.size() != 0)
+            filterNode = CreateFilterNode(query, useAvx);
+
+        AggregateNode aggNode(query.aggregateClauses,
+                              query.groupBy,
+                              std::move(filterNode),
+                              useAvx);
         QueryOutput result;
         result.fieldNames = aggNode.FieldNames();
         result.values = ExecuteGroupBy(query, aggNode, useParallelism);

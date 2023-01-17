@@ -77,6 +77,7 @@ class AggregateNode {
 public:
     AggregateNode(const std::vector<AggregateClause> &aggregateClauses,
                   const std::vector<ColumnRef> &groupBy,
+                  FilterNodeP &&filterNode,
                   bool useAvx);
 
     LocalAggResult ProcessRowGroup(const RowGroup &rowGroup) const;
@@ -90,6 +91,7 @@ private:
     std::vector<ColumnRef> groupBy;
     std::vector<int> projection;
     Row fieldNames;
+    FilterNodeP filterNode;
 };
 
 typedef std::unique_ptr<AggregateNode> AggregateNodeP;
