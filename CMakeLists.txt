@@ -1,9 +1,19 @@
 project(PgAccel)
 
 cmake_minimum_required(VERSION 3.18)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
+
+include(FetchContent)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
+
+FetchContent_Declare(
+    touca
+    GIT_REPOSITORY https://github.com/trytouca/trytouca
+    GIT_TAG        v1.8.0
+    SOURCE_SUBDIR  sdk/cpp
+)
+FetchContent_MakeAvailable(touca)
 
 find_package(PAPI REQUIRED)
 find_package(Arrow REQUIRED)
@@ -61,3 +71,21 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(run_tests)
+
+file(GLOB pgaccel_touca_tests_SRC
+     "touca_tests/*.h"
+     "touca_tests/*.cc"
+     "touca_tests/*.hpp"
+)
+
+add_executable(
+  run_touca_tests
+  ${pgaccel_touca_tests_SRC}
+)
+
+target_include_directories(run_touca_tests PRIVATE "src" "touca_tests")
+target_link_libraries(
+  run_touca_tests
+  touca
+  pgaccel_static
+)

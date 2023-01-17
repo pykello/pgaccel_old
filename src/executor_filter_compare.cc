@@ -90,9 +90,9 @@ int FilterMatchesRawAVX(
     uint8_t *bitmap)
 {
     using Traits = AvxTraits<REGW, N, sign>;
-    using RegType = Traits::register_type;
-    using MaskType = Traits::mask_type;
-    using AtomType = Traits::atom_type;
+    using RegType = typename Traits::register_type;
+    using MaskType = typename Traits::mask_type;
+    using AtomType = typename Traits::atom_type;
     using OpTraits = OperatorTraits<op, AtomType>;
     RegType comparator = Traits::set1(value);
     auto valuesR = reinterpret_cast<const RegType *>(buf);

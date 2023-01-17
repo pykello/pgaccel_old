@@ -30,6 +30,12 @@ struct ColumnRef {
         return tableIdx == b.tableIdx && columnIdx == b.columnIdx;
     }
 
+    bool operator!=(const ColumnRef &b) const
+    {
+        return !operator==(b);
+    }
+
+
     std::string Name() const
     {
         return table->Schema()[columnIdx].name;
