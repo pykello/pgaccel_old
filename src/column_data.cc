@@ -43,7 +43,7 @@ static Result<ColumnDataP>
 LoadDictColumnData(std::istream &in)
 {
     int dictSize;
-    auto result = std::make_unique<DictColumnData<AccelTy>>();
+    auto result = std::make_shared<DictColumnData<AccelTy>>();
     result->type = ColumnDataBase::DICT_COLUMN_DATA;
     in.read((char *) &dictSize, sizeof(dictSize));
     for (int i = 0; i < dictSize; i++)
@@ -86,7 +86,7 @@ template<class AccelTy>
 static Result<ColumnDataP>
 LoadRawColumnData(std::istream &in)
 {
-    auto result = std::make_unique<RawColumnData<AccelTy>>();
+    auto result = std::make_shared<RawColumnData<AccelTy>>();
     result->type = ColumnDataBase::RAW_COLUMN_DATA;
 
     in.read((char *) &result->size, sizeof (result->size));
@@ -99,7 +99,8 @@ LoadRawColumnData(std::istream &in)
     in.read((char *) result->values, result->bytesPerValue * result->size);
 
     ColumnDataP resultCasted = std::move(result);
-    return resultCasted;}
+    return resultCasted;
+}
 
 static Result<ColumnDataP>
 LoadRawColumnData(std::istream &in, AccelType *dataType)

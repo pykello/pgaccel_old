@@ -16,10 +16,10 @@ typedef std::vector<Row> Rows;
 
 // nodes
 
-class FilterNode;
-typedef std::unique_ptr<FilterNode> FilterNodeP;
+class FilterNodeImpl;
+typedef std::unique_ptr<FilterNodeImpl> FilterNodeP;
 
-class FilterNode {
+class FilterNodeImpl {
 public:
     virtual int ExecuteCount(const RowGroup &rowGroup) const = 0;
     virtual int ExecuteSet(const RowGroup &rowGroup, uint8_t *bitmask) const = 0;

@@ -95,7 +95,7 @@ ParseSelect(const std::string &query, const TableRegistry &registry)
 std::string ColumnRef::ToString() const
 {
     std::ostringstream sout;
-    sout << "(table=" << tableIdx << ",col=" << columnIdx << ",type=" << type->ToString() << ")";
+    sout << "(table=" << tableIdx << ",col=" << columnIdx << ",type=" << Type()->ToString() << ")";
     return sout.str();
 }
 
@@ -425,7 +425,7 @@ ParseFilterAtom(QueryDesc &queryDesc,
 
     FilterClause result;
     ASSIGN_OR_RAISE(result.columnRef, ParseColumnRef(queryDesc, tokens, currentIdx));
-    const auto &columnType = *result.columnRef.type;
+    const auto &columnType = *result.columnRef.Type();
 
     for (int i = 0; i < opCount; i++)
         if (ParseToken(ops[i].token, tokens, currentIdx).ok())
@@ -481,8 +481,9 @@ ResolveColumn(QueryDesc &queryDesc,
         if (maybeFieldIdx.has_value())
         {
             int fieldIdx = *maybeFieldIdx;
-            auto type = table->Schema()[fieldIdx].type;
-            maybeRef = ColumnRef { table, tableIdx, fieldIdx, type };
+            auto desc = table->Schema()[fieldIdx];
+            auto type = desc.type;
+            maybeRef = ColumnRef { desc, tableIdx, fieldIdx };
         }
     }
 

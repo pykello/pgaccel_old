@@ -20,7 +20,7 @@ namespace pgaccel
 const int RowGroupSize = 1 << 16;
 
 struct ColumnDataBase;
-typedef std::unique_ptr<ColumnDataBase> ColumnDataP;
+typedef std::shared_ptr<ColumnDataBase> ColumnDataP;
 
 struct ColumnDataBase {
     enum Type {

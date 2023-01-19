@@ -12,11 +12,10 @@ namespace pgaccel
 {
 
 struct ColumnRef {
-    ColumnarTable *table;
+    ColumnDesc columnDesc;
 
     int tableIdx;
     int columnIdx;
-    std::shared_ptr<AccelType> type;
 
     bool operator<(const ColumnRef &b) const
     {
@@ -38,7 +37,12 @@ struct ColumnRef {
 
     std::string Name() const
     {
-        return table->Schema()[columnIdx].name;
+        return columnDesc.name;
+    }
+
+    const std::shared_ptr<AccelType>& Type() const
+    {
+        return columnDesc.type;
     }
 
     std::string ToString() const;

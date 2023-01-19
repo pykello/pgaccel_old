@@ -3,7 +3,7 @@
 namespace pgaccel
 {
 
-AggregateNode::AggregateNode(
+AggregateNodeImpl::AggregateNodeImpl(
     const std::vector<AggregateClause> &aggregateClauses,
     const std::vector<ColumnRef> &groupBy,
     FilterNodeP &&filterNode,
@@ -48,7 +48,7 @@ AggregateNode::AggregateNode(
 }
 
 LocalAggResult
-AggregateNode::ProcessRowGroup(const RowGroup &rowGroup) const
+AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup) const
 {
     LocalAggResult localResult;
 
@@ -82,7 +82,7 @@ AggregateNode::ProcessRowGroup(const RowGroup &rowGroup) const
 }
 
 void
-AggregateNode::Combine(LocalAggResult &left, LocalAggResult &&right) const
+AggregateNodeImpl::Combine(LocalAggResult &left, LocalAggResult &&right) const
 {
     for (auto &group: right.groupAggStates)
     {
@@ -105,7 +105,7 @@ AggregateNode::Combine(LocalAggResult &left, LocalAggResult &&right) const
 }
 
 Rows
-AggregateNode::Finalize(const LocalAggResult &localResult) const
+AggregateNodeImpl::Finalize(const LocalAggResult &localResult) const
 {
     Rows result;
     for (const auto &group: localResult.groupAggStates)
@@ -128,7 +128,7 @@ AggregateNode::Finalize(const LocalAggResult &localResult) const
 }
 
 Row
-AggregateNode::FieldNames() const
+AggregateNodeImpl::FieldNames() const
 {
     return fieldNames;
 }
@@ -184,7 +184,7 @@ SumAgg::LocalAggregate(const RowGroup& rowGroup,
     AggStateVec result;
     for (int i = 0; i < groups.labels.size(); i++)
         result.push_back(
-            std::make_unique<SumAggState>(sumsPerGroup[i], columnRef.type));
+            std::make_unique<SumAggState>(sumsPerGroup[i], columnRef.Type()));
 
     return result;
 }

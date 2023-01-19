@@ -76,9 +76,11 @@ struct LocalAggResult {
     std::map<Row, std::vector<AggStateP>> groupAggStates;
 };
 
-class AggregateNode {
+typedef std::unique_ptr<LocalAggResult> LocalAggResultP;
+
+class AggregateNodeImpl {
 public:
-    AggregateNode(const std::vector<AggregateClause> &aggregateClauses,
+    AggregateNodeImpl(const std::vector<AggregateClause> &aggregateClauses,
                   const std::vector<ColumnRef> &groupBy,
                   FilterNodeP &&filterNode,
                   bool useAvx);
@@ -97,6 +99,6 @@ private:
     FilterNodeP filterNode;
 };
 
-typedef std::unique_ptr<AggregateNode> AggregateNodeP;
+typedef std::unique_ptr<AggregateNodeImpl> AggregateNodeP;
 
 };

@@ -3,7 +3,7 @@
 namespace pgaccel
 {
 
-class AndFilterNode: public FilterNode {
+class AndFilterNode: public FilterNodeImpl {
 public:
     AndFilterNode(std::vector<FilterNodeP> &&children):
         children(std::move(children)) {}
@@ -46,7 +46,7 @@ private:
 };
 
 FilterNodeP
-FilterNode::CreateAndNode(std::vector<FilterNodeP>&& children)
+FilterNodeImpl::CreateAndNode(std::vector<FilterNodeP>&& children)
 {
     return std::make_unique<AndFilterNode>(std::move(children));
 }

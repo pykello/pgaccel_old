@@ -14,7 +14,7 @@ static Rows SingleFilterCount(const QueryDesc &query,
                               const FilterNodeP &filterNode,
                               bool useParallelism);
 static Rows ExecuteGroupBy(const QueryDesc &query,
-                           const AggregateNode &aggNode,
+                           const AggregateNodeImpl &aggNode,
                            bool useParallelism);
 
 Result<QueryOutput>
@@ -38,7 +38,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if (query.filterClauses.size() != 0)
             filterNode = CreateFilterNode(query, useAvx);
 
-        AggregateNode aggNode(query.aggregateClauses,
+        AggregateNodeImpl aggNode(query.aggregateClauses,
                               query.groupBy,
                               std::move(filterNode),
                               useAvx);
@@ -73,7 +73,7 @@ CreateFilterNode(const QueryDesc &query, bool useAvx)
              filterClauses[i + 1].op == FilterClause::FILTER_LTE))
         {
             filterNodes.push_back(
-                FilterNode::CreateSimpleCompare(
+                FilterNodeImpl::CreateSimpleCompare(
                     filterClauses[i].columnRef,
                     filterClauses[i].value,
                     filterClauses[i].op,
@@ -88,7 +88,7 @@ CreateFilterNode(const QueryDesc &query, bool useAvx)
         else
         {
             filterNodes.push_back(
-                FilterNode::CreateSimpleCompare(
+                FilterNodeImpl::CreateSimpleCompare(
                     filterClauses[i].columnRef,
                     filterClauses[i].value,
                     filterClauses[i].op,
@@ -100,7 +100,7 @@ CreateFilterNode(const QueryDesc &query, bool useAvx)
     if (filterNodes.size() == 1)
         return std::move(filterNodes[0]);
 
-    return FilterNode::CreateAndNode(std::move(filterNodes));
+    return FilterNodeImpl::CreateAndNode(std::move(filterNodes));
 }
 
 static Result<QueryOutput>
@@ -142,12 +142,12 @@ ExecuteAggNoGroupByNoFilter(const QueryDesc &query,
             output.values = ExecuteAgg<int64_t>(
                 [&](const RowGroup& r, uint8_t *bitmap) {
                     return SumAll(r.columns[colRef.columnIdx],
-                                  colRef.type.get(),
+                                  colRef.Type().get(),
                                   useAvx);
                 },
                 [](int64_t& a, int64_t b) { a += b; },
                 [&](int64_t totalSum) {
-                    return Rows({{ ToString(colRef.type.get(), totalSum) }});
+                    return Rows({{ ToString(colRef.Type().get(), totalSum) }});
                 },
                 *columnarTable,
                 useParallelism
@@ -212,7 +212,7 @@ SingleFilterCount(const QueryDesc &query,
 
 static Rows
 ExecuteGroupBy(const QueryDesc &query,
-               const AggregateNode &aggNode,
+               const AggregateNodeImpl &aggNode,
                bool useParallelism)
 {
     return

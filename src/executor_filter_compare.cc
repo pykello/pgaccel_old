@@ -456,7 +456,7 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
     return 0;
 }
 
-class CompareFilterNode: public FilterNode {
+class CompareFilterNode: public FilterNodeImpl {
 public:
     virtual int ExecuteCount(ColumnDataBase *columnData) const = 0;
     virtual int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const = 0;
@@ -635,8 +635,8 @@ CreateDictFilterNode(const ColumnDesc &columnDesc,
     return {};
 }
 
-std::unique_ptr<FilterNode>
-FilterNode::CreateSimpleCompare(const ColumnRef &colRef,
+std::unique_ptr<FilterNodeImpl>
+FilterNodeImpl::CreateSimpleCompare(const ColumnRef &colRef,
                                 const std::string &valueStr,
                                 FilterClause::Op op,
                                 const std::string &fusedValueStr,
@@ -645,7 +645,7 @@ FilterNode::CreateSimpleCompare(const ColumnRef &colRef,
 {
     std::unique_ptr<CompareFilterNode> result;
 
-    const auto &columnDesc = colRef.table->Schema()[colRef.columnIdx];
+    const auto &columnDesc = colRef.columnDesc;
     switch (columnDesc.layout)
     {
         case ColumnDataBase::DICT_COLUMN_DATA:
