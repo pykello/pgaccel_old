@@ -1,5 +1,6 @@
 #include "executor.h"
 #include "executor_groupby.h"
+#include "nodes.h"
 #include <functional>
 
 namespace pgaccel
@@ -9,13 +10,12 @@ static Result<QueryOutput> ExecuteAggNoGroupByNoFilter(
     const QueryDesc &query, bool useAvx, bool useParallelism);
 static Result<QueryOutput> ExecuteAggNoGroupByWithFilter(
     const QueryDesc &query, bool useAvx, bool useParallelism);
-static FilterNodeP CreateFilterNode(const QueryDesc &query, bool useAvx);
 static Rows SingleFilterCount(const QueryDesc &query,
                               const FilterNodeP &filterNode,
                               bool useParallelism);
-static Rows ExecuteGroupBy(const QueryDesc &query,
-                           const AggregateNodeImpl &aggNode,
+static Rows ExecuteGroupBy(const AggregateNode &aggNode,
                            bool useParallelism);
+static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
@@ -34,73 +34,30 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
     }
     else
     {
-        FilterNodeP filterNode = nullptr;
-        if (query.filterClauses.size() != 0)
-            filterNode = CreateFilterNode(query, useAvx);
+        ExecutionParams params { useAvx };
+        PartitionedNodeP partitionedNode =
+            std::make_unique<ScanNode>(
+                query.tables[0],
+                FieldNames(query.tables[0]->Schema()));
+        if (query.filterClauses.size())
+        {
+            partitionedNode =
+                std::make_unique<FilterNode>(
+                    std::move(partitionedNode),
+                    query.filterClauses,
+                    params
+                );
+        }
+        auto aggNode = std::make_unique<AggregateNode>(
+            std::move(partitionedNode),
+            query.aggregateClauses,
+            query.groupBy, params);
 
-        AggregateNodeImpl aggNode(query.aggregateClauses,
-                              query.groupBy,
-                              std::move(filterNode),
-                              useAvx);
         QueryOutput result;
-        result.fieldNames = aggNode.FieldNames();
-        result.values = ExecuteGroupBy(query, aggNode, useParallelism);
+        result.fieldNames = FieldNames(aggNode->Schema());
+        result.values = ExecuteGroupBy(*aggNode, useParallelism);
         return result;
     }
-}
-
-static FilterNodeP
-CreateFilterNode(const QueryDesc &query, bool useAvx)
-{
-    std::vector<FilterNodeP> filterNodes;
-
-    std::vector<FilterClause> filterClauses = query.filterClauses;
-    sort(filterClauses.begin(), filterClauses.end(),
-         [](const FilterClause &a, const FilterClause &b) -> bool
-         {
-            if (a.columnRef != b.columnRef)
-                return a.columnRef < b.columnRef;
-            return a.op < b.op;
-         });
-
-    for (int i = 0; i < filterClauses.size(); i++)
-    {
-        if (i + 1 < filterClauses.size() &&
-            filterClauses[i + 1].columnRef == filterClauses[i].columnRef &&
-            (filterClauses[i].op == FilterClause::FILTER_GT ||
-             filterClauses[i].op == FilterClause::FILTER_GTE) &&
-            (filterClauses[i + 1].op == FilterClause::FILTER_LT ||
-             filterClauses[i + 1].op == FilterClause::FILTER_LTE))
-        {
-            filterNodes.push_back(
-                FilterNodeImpl::CreateSimpleCompare(
-                    filterClauses[i].columnRef,
-                    filterClauses[i].value,
-                    filterClauses[i].op,
-                    filterClauses[i + 1].value,
-                    filterClauses[i + 1].op,
-                    useAvx
-                )
-            );
-
-            i++;
-        }
-        else
-        {
-            filterNodes.push_back(
-                FilterNodeImpl::CreateSimpleCompare(
-                    filterClauses[i].columnRef,
-                    filterClauses[i].value,
-                    filterClauses[i].op,
-                    "", FilterClause::INVALID,
-                    useAvx));
-        }
-    }
-
-    if (filterNodes.size() == 1)
-        return std::move(filterNodes[0]);
-
-    return FilterNodeImpl::CreateAndNode(std::move(filterNodes));
 }
 
 static Result<QueryOutput>
@@ -171,7 +128,7 @@ ExecuteAggNoGroupByWithFilter(const QueryDesc &query,
     if (aggregateCount != 1)
         return Status::Invalid(aggregateCount, " aggregates not suppprted yet");
 
-    auto filterNode = CreateFilterNode(query, useAvx);
+    auto filterNode = CreateFilterNode(query.filterClauses, useAvx);
     switch (query.aggregateClauses[0].type)
     {
         case AggregateClause::AGGREGATE_COUNT:
@@ -210,24 +167,45 @@ SingleFilterCount(const QueryDesc &query,
         );
 }
 
-static Rows
-ExecuteGroupBy(const QueryDesc &query,
-               const AggregateNodeImpl &aggNode,
-               bool useParallelism)
+static Rows ExecuteGroupBy(const AggregateNode &aggNode,
+                           bool useParallelism)
 {
-    return
-    ExecuteAgg<LocalAggResult>(
-        [&](const RowGroup& r, uint8_t *bitmap) {
-                return aggNode.ProcessRowGroup(r);
-            },
-        [&](LocalAggResult& a, LocalAggResult&& b) {
-            aggNode.Combine(a, std::move(b));
-        },
-        [&](const LocalAggResult &a) {
-            return aggNode.Finalize(a);
-        },
-        *query.tables[0],
-        useParallelism);
+    int partitionCount = aggNode.LocalPartitionCount();
+
+    if (!useParallelism)
+    {
+        std::vector<std::future<LocalAggResultP>> localResults;
+        std::promise<LocalAggResultP> promise;
+        localResults.push_back(promise.get_future());
+        promise.set_value(aggNode.LocalTask([](int){ return true; }));
+
+        return aggNode.GlobalTask(localResults);
+    }
+    else
+    {
+        int numThreads = 8;
+        std::vector<std::future<LocalAggResultP>> localResults;
+        for (int i = 0; i < numThreads; i++)
+        {
+            localResults.push_back(
+                std::async([&](int m) {
+                    return aggNode.LocalTask(
+                        [&](int idx) {
+                            return idx % numThreads == m;
+                        });
+                }, i));
+        }
+
+        return aggNode.GlobalTask(localResults);
+    }
+}
+
+static Row FieldNames(const std::vector<ColumnDesc> &schema)
+{
+    Row fieldNames;
+    for (const auto & columnDesc: schema)
+        fieldNames.push_back(columnDesc.name);
+    return fieldNames;
 }
 
 };

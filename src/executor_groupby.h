@@ -85,7 +85,8 @@ public:
                   FilterNodeP &&filterNode,
                   bool useAvx);
 
-    LocalAggResult ProcessRowGroup(const RowGroup &rowGroup) const;
+    LocalAggResult ProcessRowGroup(const RowGroup &rowGroup,
+                                   uint8_t *selectionBitmap = nullptr) const;
     void Combine(LocalAggResult &left, LocalAggResult &&right) const;
     Rows Finalize(const LocalAggResult &localResult) const;
 

@@ -22,9 +22,13 @@ public:
     virtual std::vector<ColumnDesc> Schema() const = 0;
 };
 
+struct ExecutionParams {
+    bool useAvx = true;
+};
+
 class PartitionedNode: public Node {
 public:
-    virtual std::optional<RowGroup> Execute(int partition) const = 0;
+    virtual std::unique_ptr<RowGroup> Execute(int partition) const = 0;
     virtual int PartitionCount() const = 0;
 };
 
@@ -44,7 +48,7 @@ public:
         return SCAN_NODE;
     }
 
-    virtual std::optional<RowGroup> Execute(int partition) const;
+    virtual std::unique_ptr<RowGroup> Execute(int partition) const;
     virtual int PartitionCount() const;
     virtual std::vector<ColumnDesc> Schema() const;
 
@@ -66,7 +70,7 @@ public:
         return EXTEND_NODE;
     }
 
-    virtual std::optional<RowGroup> Execute(int partition) const;
+    virtual std::unique_ptr<RowGroup> Execute(int partition) const;
     virtual int PartitionCount() const;
     virtual std::vector<ColumnDesc> Schema() const;
 };
@@ -78,18 +82,20 @@ public:
 class FilterNode: public PartitionedNode {
 public:
     FilterNode(PartitionedNodeP child,
-               const std::vector<FilterClause> filterClauses);
+               const std::vector<FilterClause> filterClauses,
+               const ExecutionParams &params);
 
     virtual Type GetType() const {
         return FILTER_NODE;
     }
 
-    virtual std::optional<RowGroup> Execute(int partition) const;
+    virtual std::unique_ptr<RowGroup> Execute(int partition) const;
     virtual int PartitionCount() const;
     virtual std::vector<ColumnDesc> Schema() const;
 
 private:
     PartitionedNodeP child;
+    FilterNodeP impl;
 };
 
 /*
@@ -100,14 +106,15 @@ class AggregateNode: public Node {
 public:
     AggregateNode(PartitionedNodeP child,
                   const std::vector<AggregateClause> &aggregateClauses,
-                  const std::vector<ColumnRef> &groupBy);
+                  const std::vector<ColumnRef> &groupBy,
+                  const ExecutionParams &params);
 
     virtual Type GetType() const {
         return AGGREGATE_NODE;
     }
 
-    LocalAggResult LocalTask(std::function<bool(int)> selectPartitionF);
-    Rows GlobalTask(std::vector<std::future<LocalAggResultP>> localResults);
+    LocalAggResultP LocalTask(std::function<bool(int)> selectPartitionF) const;
+    Rows GlobalTask(std::vector<std::future<LocalAggResultP>> &localResults) const;
 
     virtual int LocalPartitionCount() const;
     virtual std::vector<ColumnDesc> Schema() const;

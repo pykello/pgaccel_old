@@ -163,6 +163,7 @@ VerifyLineitemBasic(const TableRegistry &registry)
             "L_SHIPDATE < '2022-01-01';",
             {{ "200000" }});
 
+    // group by
     VerifyQuery(registry,
             "SELECT L_SHIPMODE, count(*) FROM LINEITEM GROUP BY L_SHIPMODE;",
             { { "AIR", "28551" },
@@ -172,6 +173,13 @@ VerifyLineitemBasic(const TableRegistry &registry)
               { "REG AIR", "28422" },
               { "SHIP", "28656" },
               { "TRUCK", "28668" }});
+
+    VerifyQuery(registry,
+            "SELECT L_SHIPMODE, count(*) FROM LINEITEM "
+            "WHERE L_SHIPMODE > 'REG AIR' AND L_QUANTITY > 5 "
+            "GROUP BY L_SHIPMODE;",
+            { { "SHIP", "25810" },
+              { "TRUCK", "25851" }});
 }
 
 static void

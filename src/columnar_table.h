@@ -10,6 +10,8 @@
 
 namespace pgaccel {
 
+const int BITMAP_SIZE = 1 << 13;
+
 struct ColumnDesc {
     std::string name;
     std::shared_ptr<AccelType> type;
@@ -19,6 +21,7 @@ struct ColumnDesc {
 struct RowGroup {
     std::vector<ColumnDataP> columns;
     int size;
+    std::unique_ptr<std::array<uint8_t, BITMAP_SIZE>> selectionBitmap;
 };
 
 class ColumnarTable;

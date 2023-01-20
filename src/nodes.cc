@@ -20,7 +20,7 @@ ScanNode::ScanNode(ColumnarTable *table,
         std::string columnNameLc = ToLower(columnName);
         for (size_t i = 0; i < tableSchema.size(); i++)
         {
-            if (tableSchema[i].name == columnNameLc)
+            if (ToLower(tableSchema[i].name) == columnNameLc)
             {
                 schema.push_back(tableSchema[i]);
                 selectedColumnIndexes.push_back(i);
@@ -30,17 +30,17 @@ ScanNode::ScanNode(ColumnarTable *table,
     }
 }
 
-std::optional<RowGroup>
+std::unique_ptr<RowGroup>
 ScanNode::Execute(int partition) const
 {
     const auto &tableRowGroup = table->GetRowGroup(partition);
 
-    RowGroup resultRowGroup;
+    auto resultRowGroup = std::make_unique<RowGroup>();
     for (auto columnIdx: selectedColumnIndexes)
-        resultRowGroup.columns.push_back(tableRowGroup.columns[columnIdx]);
-    resultRowGroup.size = tableRowGroup.size;
+        resultRowGroup->columns.push_back(tableRowGroup.columns[columnIdx]);
+    resultRowGroup->size = tableRowGroup.size;
 
-    return resultRowGroup;
+    return std::move(resultRowGroup);
 }
 
 std::vector<ColumnDesc>
@@ -62,16 +62,24 @@ ScanNode::PartitionCount() const
  */
 
 FilterNode::FilterNode(PartitionedNodeP child,
-                       const std::vector<FilterClause> filterClauses)
-    : child(std::move(child))
+                       const std::vector<FilterClause> filterClauses,
+                       const ExecutionParams &params)
+    : child(std::move(child)),
+      impl(CreateFilterNode(filterClauses, params.useAvx))
 {
-    // todo
 }
 
-std::optional<RowGroup>
+std::unique_ptr<RowGroup>
 FilterNode::Execute(int partition) const
 {
-    return child->Execute(partition);
+    auto result = child->Execute(partition);
+    if (impl)
+    {
+        result->selectionBitmap =
+            std::make_unique<std::array<uint8_t, BITMAP_SIZE>>();
+        int x = impl->ExecuteSet(*result, result->selectionBitmap->data());
+    }
+    return std::move(result);
 }
 
 int
@@ -94,9 +102,10 @@ FilterNode::Schema() const
 
 AggregateNode::AggregateNode(PartitionedNodeP child,
                              const std::vector<AggregateClause> &aggregateClauses,
-                             const std::vector<ColumnRef> &groupBy)
+                             const std::vector<ColumnRef> &groupBy,
+                             const ExecutionParams &params)
     : child(std::move(child)),
-      impl(aggregateClauses, groupBy, nullptr, true)
+      impl(aggregateClauses, groupBy, nullptr, params.useAvx)
 {
     for (const auto &fieldName: impl.FieldNames())
         schema.push_back({
@@ -106,23 +115,27 @@ AggregateNode::AggregateNode(PartitionedNodeP child,
         }); 
 }
 
-LocalAggResult
-AggregateNode::LocalTask(std::function<bool(int)> selectPartitionF)
+LocalAggResultP
+AggregateNode::LocalTask(std::function<bool(int)> selectPartitionF) const
 {
-    LocalAggResult result;
+    LocalAggResultP result = std::make_unique<LocalAggResult>();
     int partitionCount = LocalPartitionCount();
     for (int i = 0; i < partitionCount; i++)
         if (selectPartitionF(i))
         {
             auto childRowGroup = child->Execute(i);
-            if (childRowGroup.has_value())
-                impl.Combine(result, impl.ProcessRowGroup(*childRowGroup));
+            uint8_t *selectionBitmap = nullptr;
+            if (childRowGroup->selectionBitmap)
+                selectionBitmap = childRowGroup->selectionBitmap->data();
+            impl.Combine(
+                *result,
+                impl.ProcessRowGroup(*childRowGroup, selectionBitmap));
         }
-    return result;
+    return std::move(result);
 }
 
 Rows
-AggregateNode::GlobalTask(std::vector<std::future<LocalAggResultP>> localResults)
+AggregateNode::GlobalTask(std::vector<std::future<LocalAggResultP>> &localResults) const
 {
     LocalAggResult result;
     for (auto &localResult: localResults)

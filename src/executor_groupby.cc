@@ -1,4 +1,5 @@
 #include "executor_groupby.h"
+#include "util.h"
 
 namespace pgaccel
 {
@@ -48,7 +49,7 @@ AggregateNodeImpl::AggregateNodeImpl(
 }
 
 LocalAggResult
-AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup) const
+AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup, uint8_t *selectionBitmap) const
 {
     LocalAggResult localResult;
 
@@ -61,21 +62,33 @@ AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup) const
     }
 
     uint8_t bitmap[1<<13];
-    bool filtered = false;
     if (filterNode)
     {
-        filtered = true;
         filterNode->ExecuteSet(rowGroup, bitmap);
+        selectionBitmap = bitmap;
     }
 
     dictData->to_16(groups.groups);
 
+    std::vector<bool> groupVisited(groups.labels.size(), false);
+    int setGroups = 0;
+    for (int i = 0; i < rowGroup.size && setGroups < groups.labels.size(); i++)
+        if (selectionBitmap == nullptr ||
+            IsBitSet(selectionBitmap[i >> 3], (i & 7)))
+        {
+            if (!groupVisited[groups.groups[i]])
+            {
+                groupVisited[groups.groups[i]] = true;
+                setGroups++;
+            }
+        }
+
     for (const auto &agg: aggregators) {
-        auto localAggResult = agg->LocalAggregate(rowGroup, groups,
-                                                  filtered ? bitmap : nullptr);
+        auto localAggResult = agg->LocalAggregate(rowGroup, groups, selectionBitmap);
         for (int i = 0; i < groups.labels.size(); i++)
-            localResult.groupAggStates[{ groups.labels[i] }].push_back(
-                std::move(localAggResult[i]));
+            if (groupVisited[i])
+                localResult.groupAggStates[{ groups.labels[i] }].push_back(
+                    std::move(localAggResult[i]));
     }
 
     return localResult;

@@ -22,4 +22,4 @@ TESTS=$(ls queries/ -1p | grep -v / | xargs echo | sed 's/ /,/g')
 echo $TESTS
 
 export PATH=$PATH:../build/
-run_touca_tests --revision v1.0 --testcase $TESTS
+run_touca_tests --revision v2.0 --testcase $TESTS

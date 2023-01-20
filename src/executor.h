@@ -45,10 +45,13 @@ Result<QueryOutput> ExecuteQuery(
     bool useAvx,
     bool useParallelism);
 
-// sum
 int64_t SumAll(const ColumnDataP& columnData,
                const pgaccel::AccelType *type,
                bool useAvx);
+
+FilterNodeP CreateFilterNode(
+    const std::vector<FilterClause> &filterClauses,
+    bool useAvx);
 
 template<class AccelTy>
 int DictIndex(const DictColumnData<AccelTy> &columnData, 
