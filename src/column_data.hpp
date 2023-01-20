@@ -42,6 +42,7 @@ struct DictColumnDataBase: public ColumnDataBase {
     virtual int bytesPerValue() const = 0;
     virtual int dictSize() const = 0;
     virtual std::vector<std::string> labels() const = 0;
+    virtual std::string label(int) const = 0;
 
     void to_16(uint16_t *out);
 };
@@ -71,6 +72,10 @@ struct DictColumnData: public DictColumnDataBase {
         for (const auto& v: dict)
             result.push_back(ToString(valueType.get(), v));
         return result;
+    }
+
+    virtual std::string label(int idx) const {
+        return ToString(valueType.get(), dict[idx]);
     }
 
 private:

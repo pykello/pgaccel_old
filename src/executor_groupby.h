@@ -6,7 +6,7 @@ namespace pgaccel
 {
 
 struct ColumnDataGroups {
-    Rows labels;
+    int groupCount;
     uint16_t groups[1 << 16] __attribute__ ((aligned (512)));
 };
 
