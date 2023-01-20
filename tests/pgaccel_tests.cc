@@ -180,6 +180,13 @@ VerifyLineitemBasic(const TableRegistry &registry)
             "GROUP BY L_SHIPMODE;",
             { { "SHIP", "25810" },
               { "TRUCK", "25851" }});
+
+    VerifyQuery(registry,
+            "SELECT count(*) FROM LINEITEM "
+            "WHERE L_SHIPDATE < '1992-01-05' "
+            "GROUP BY L_SHIPDATE;",
+            { { "1" },
+              { "3" }});
 }
 
 static void

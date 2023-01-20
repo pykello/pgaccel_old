@@ -22,6 +22,7 @@ struct RowGroup {
     std::vector<ColumnDataP> columns;
     int size;
     std::unique_ptr<std::array<uint8_t, BITMAP_SIZE>> selectionBitmap;
+    int selectedSize;
 };
 
 class ColumnarTable;

@@ -8,7 +8,9 @@ AggregateNodeImpl::AggregateNodeImpl(
     const std::vector<AggregateClause> &aggregateClauses,
     const std::vector<ColumnRef> &groupBy,
     FilterNodeP &&filterNode,
-    bool useAvx): filterNode(std::move(filterNode))
+    bool useAvx)
+        : filterNode(std::move(filterNode)),
+          useAvx(useAvx)
 {
     for(const auto &aggClause: aggregateClauses)
     {

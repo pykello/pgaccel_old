@@ -45,6 +45,7 @@ LoadDictColumnData(std::istream &in)
     int dictSize;
     auto result = std::make_shared<DictColumnData<AccelTy>>();
     result->type = ColumnDataBase::DICT_COLUMN_DATA;
+    result->valueType = std::make_unique<AccelTy>();
     in.read((char *) &dictSize, sizeof(dictSize));
     for (int i = 0; i < dictSize; i++)
     {

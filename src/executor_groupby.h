@@ -7,7 +7,7 @@ namespace pgaccel
 
 struct ColumnDataGroups {
     Rows labels;
-    uint16_t groups[1 << 16];
+    uint16_t groups[1 << 16] __attribute__ ((aligned (512)));
 };
 
 class AggState {};
@@ -98,6 +98,7 @@ private:
     std::vector<int> projection;
     Row fieldNames;
     FilterNodeP filterNode;
+    bool useAvx;
 };
 
 typedef std::unique_ptr<AggregateNodeImpl> AggregateNodeP;

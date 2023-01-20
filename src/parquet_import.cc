@@ -122,6 +122,7 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
         int rowGroupSize = std::min((int) convertedValues.size() - offset, RowGroupSize);
         auto columnData = std::make_unique<DictColumnData<AccelTy>>();
         columnData->type = ColumnDataBase::DICT_COLUMN_DATA;
+        columnData->valueType = std::make_unique<AccelTy>();
         std::unordered_set<DictTy> distinctValues;
 
         // ordered map: 5.3s, 5.4s

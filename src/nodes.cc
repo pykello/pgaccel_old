@@ -39,6 +39,7 @@ ScanNode::Execute(int partition) const
     for (auto columnIdx: selectedColumnIndexes)
         resultRowGroup->columns.push_back(tableRowGroup.columns[columnIdx]);
     resultRowGroup->size = tableRowGroup.size;
+    resultRowGroup->selectedSize = tableRowGroup.size;
 
     return std::move(resultRowGroup);
 }
@@ -77,7 +78,8 @@ FilterNode::Execute(int partition) const
     {
         result->selectionBitmap =
             std::make_unique<std::array<uint8_t, BITMAP_SIZE>>();
-        int x = impl->ExecuteSet(*result, result->selectionBitmap->data());
+        result->selectedSize =
+            impl->ExecuteSet(*result, result->selectionBitmap->data());
     }
     return std::move(result);
 }
@@ -124,6 +126,8 @@ AggregateNode::LocalTask(std::function<bool(int)> selectPartitionF) const
         if (selectPartitionF(i))
         {
             auto childRowGroup = child->Execute(i);
+            if (childRowGroup->selectedSize == 0)
+                continue;
             uint8_t *selectionBitmap = nullptr;
             if (childRowGroup->selectionBitmap)
                 selectionBitmap = childRowGroup->selectionBitmap->data();
