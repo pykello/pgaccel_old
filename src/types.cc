@@ -72,6 +72,19 @@ ToString(const AccelType *type, int64_t value)
                 decimalStr = std::string("0") + decimalStr;
             return std::to_string(whole) + "." + decimalStr;
         }
+
+        case DATE_TYPE:
+        {
+            int64_t seconds = value * 60 * 60 * 24;
+            auto time = localtime(&seconds);
+            char result[50];
+            sprintf(result, "%d-%02d-%02d",
+                    time->tm_year + 1900,
+                    time->tm_mon + 1,
+                    time->tm_mday);
+            return result;
+        }
+
         default:
             return std::to_string(value);
     }

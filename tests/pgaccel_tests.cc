@@ -182,11 +182,11 @@ VerifyLineitemBasic(const TableRegistry &registry)
               { "TRUCK", "25851" }});
 
     VerifyQuery(registry,
-            "SELECT count(*) FROM LINEITEM "
+            "SELECT L_SHIPDATE, count(*) FROM LINEITEM "
             "WHERE L_SHIPDATE < '1992-01-05' "
             "GROUP BY L_SHIPDATE;",
-            { { "1" },
-              { "3" }});
+            { { "1992-01-03", "1" },
+              { "1992-01-04", "3" }});
 }
 
 static void
