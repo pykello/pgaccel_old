@@ -1,5 +1,6 @@
 #include "executor_groupby.h"
 #include "util.h"
+#include "nodes.h"
 
 namespace pgaccel
 {
@@ -8,9 +9,9 @@ AggregateNodeImpl::AggregateNodeImpl(
     const std::vector<AggregateClause> &aggregateClauses,
     const std::vector<ColumnRef> &groupBy,
     FilterNodeP &&filterNode,
-    bool useAvx)
+    const ExecutionParams &params)
         : filterNode(std::move(filterNode)),
-          useAvx(useAvx)
+          params(params)
 {
     for(const auto &aggClause: aggregateClauses)
     {
@@ -18,12 +19,12 @@ AggregateNodeImpl::AggregateNodeImpl(
         {
             case AggregateClause::AGGREGATE_COUNT:
                 aggregators.push_back(
-                    std::make_unique<CountAgg>(useAvx));
+                    std::make_unique<CountAgg>(params.useAvx));
                 break;
 
             case AggregateClause::AGGREGATE_SUM:
                 aggregators.push_back(
-                    std::make_unique<SumAgg>(*aggClause.columnRef, useAvx));
+                    std::make_unique<SumAgg>(*aggClause.columnRef, params.useAvx));
                 break;
             
             default:
@@ -50,6 +51,14 @@ AggregateNodeImpl::AggregateNodeImpl(
     this->groupBy = groupBy;
 }
 
+void
+SetFilteredOut(int size, uint16_t *groups, uint8_t *bitmap, uint16_t v)
+{
+    for (int i = 0; i < size; i++)
+        if (!IsBitSet(bitmap, i))
+            groups[i] = v;
+}
+
 LocalAggResult
 AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup, uint8_t *selectionBitmap) const
 {
@@ -69,11 +78,19 @@ AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup, uint8_t *selectionB
 
     dictData->to_16(groups.groups);
 
+    int resultGroupCount = groups.groupCount;
+    if (selectionBitmap && params.groupByEliminateBranches)
+    {
+        SetFilteredOut(rowGroup.size, groups.groups, selectionBitmap, groups.groupCount);
+        groups.groupCount += 1;
+        selectionBitmap = nullptr;
+    }
+
     std::vector<bool> groupVisited(groups.groupCount, false);
     int setGroups = 0;
     for (int i = 0; i < rowGroup.size && setGroups < groups.groupCount; i++)
         if (selectionBitmap == nullptr ||
-            IsBitSet(selectionBitmap[i >> 3], (i & 7)))
+            IsBitSet(selectionBitmap, i))
         {
             if (!groupVisited[groups.groups[i]])
             {
@@ -84,7 +101,7 @@ AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup, uint8_t *selectionB
 
     for (const auto &agg: aggregators) {
         auto localAggResult = agg->LocalAggregate(rowGroup, groups, selectionBitmap);
-        for (int i = 0; i < groups.groupCount; i++)
+        for (int i = 0; i < resultGroupCount; i++)
             if (groupVisited[i])
                 localResult.groupAggStates[{ dictData->label(i) }].push_back(
                     std::move(localAggResult[i]));

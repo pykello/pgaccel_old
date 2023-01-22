@@ -22,10 +22,6 @@ public:
     virtual std::vector<ColumnDesc> Schema() const = 0;
 };
 
-struct ExecutionParams {
-    bool useAvx = true;
-};
-
 class PartitionedNode: public Node {
 public:
     virtual std::unique_ptr<RowGroup> Execute(int partition) const = 0;

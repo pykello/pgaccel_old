@@ -107,7 +107,7 @@ AggregateNode::AggregateNode(PartitionedNodeP child,
                              const std::vector<ColumnRef> &groupBy,
                              const ExecutionParams &params)
     : child(std::move(child)),
-      impl(aggregateClauses, groupBy, nullptr, params.useAvx)
+      impl(aggregateClauses, groupBy, nullptr, params)
 {
     for (const auto &fieldName: impl.FieldNames())
         schema.push_back({

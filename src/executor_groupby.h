@@ -5,6 +5,11 @@
 namespace pgaccel
 {
 
+struct ExecutionParams {
+    bool useAvx = true;
+    bool groupByEliminateBranches = true;
+};
+
 struct ColumnDataGroups {
     int groupCount;
     uint16_t groups[1 << 16] __attribute__ ((aligned (512)));
@@ -81,9 +86,9 @@ typedef std::unique_ptr<LocalAggResult> LocalAggResultP;
 class AggregateNodeImpl {
 public:
     AggregateNodeImpl(const std::vector<AggregateClause> &aggregateClauses,
-                  const std::vector<ColumnRef> &groupBy,
-                  FilterNodeP &&filterNode,
-                  bool useAvx);
+                     const std::vector<ColumnRef> &groupBy,
+                     FilterNodeP &&filterNode,
+                     const ExecutionParams &params);
 
     LocalAggResult ProcessRowGroup(const RowGroup &rowGroup,
                                    uint8_t *selectionBitmap = nullptr) const;
@@ -98,7 +103,7 @@ private:
     std::vector<int> projection;
     Row fieldNames;
     FilterNodeP filterNode;
-    bool useAvx;
+    ExecutionParams params;
 };
 
 typedef std::unique_ptr<AggregateNodeImpl> AggregateNodeP;
