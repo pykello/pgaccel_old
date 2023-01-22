@@ -17,6 +17,29 @@ enum TypeNum {
     INVALID_TYPE
 };
 
+#define COMMA ,
+#define DISPATCH_RAW_TYPE(type_num, S) \
+    switch (type_num) { \
+        case INT32_TYPE: \
+        { \
+            using AccelTy = Int32Type; \
+            S; \
+            break; \
+        } \
+        case INT64_TYPE: \
+        { \
+            using AccelTy = Int64Type; \
+            S; \
+            break; \
+        } \
+        case DECIMAL_TYPE: \
+        { \
+            using AccelTy = DecimalType; \
+            S; \
+            break; \
+        } \
+    }
+
 int64_t ParseDecimal(int scale, const std::string &valueStr);
 int32_t ParseDate(const std::string &s);
 

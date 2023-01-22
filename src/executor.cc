@@ -96,6 +96,8 @@ ExecuteAggNoGroupByNoFilter(const QueryDesc &query,
             auto columnarTable = query.tables[colRef.tableIdx];
 
             QueryOutput output;
+
+            output.fieldNames.push_back("sum");
             output.values = ExecuteAgg<int64_t>(
                 [&](const RowGroup& r, uint8_t *bitmap) {
                     return SumAll(r.columns[colRef.columnIdx],

@@ -11,6 +11,18 @@
 namespace pgaccel
 {
 
+union Value {
+    std::string strValue;
+    int64_t int64Value;
+};
+
+typedef std::vector<Value> RowX;
+
+struct RowsX {
+    std::vector<ColumnDesc> schema;
+    std::vector<RowX> rows;
+};
+
 typedef std::vector<std::string> Row;
 typedef std::vector<Row> Rows;
 

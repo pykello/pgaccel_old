@@ -52,7 +52,7 @@ int main(int argc, char* argv[]) {
     TableRegistry registry;
     registry.insert ({ "lineitem", std::move(lineitem).ValueUnsafe() });
 
-    touca::workflow("query_test", [&](const std::string& testcaseName) {
+    touca::workflow("queries", [&](const std::string& testcaseName) {
         auto testcase = ReadTestcase(testcaseName);
 
         auto parsed = ParseSelect(testcase.query, registry);

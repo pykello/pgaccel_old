@@ -185,14 +185,92 @@ CountAgg::Finalize(const AggState *state)
     return std::to_string(countState->value);
 }
 
+template<class storageType, bool hasBitmap>
+void
+CalculateRawDataSum(
+    uint8_t *data,
+    int size,
+    uint8_t *bitmap,
+    std::vector<int64_t> &sumsPerGroup,
+    const uint16_t *groups)
+{
+    auto values = (storageType *) data;
+    for (int i = 0; i < size; i++)
+        if constexpr(hasBitmap)
+        {
+            if (IsBitSet(bitmap, i))
+                sumsPerGroup[groups[i]] += values[i];
+        }
+        else
+        {
+            sumsPerGroup[groups[i]] += values[i];
+        }
+}
+
+template<class AccelTy, bool hasBitmap>
+void
+CalculateRawDataSum(
+    RawColumnData<AccelTy> *columnData,
+    uint8_t *bitmap,
+    std::vector<int64_t> &sumsPerGroup,
+    const uint16_t *groups)
+{
+    switch (columnData->bytesPerValue)
+    {
+        #define CalculateRawDataSum_DISPATCH(width, storageType) \
+            case width: \
+                return CalculateRawDataSum<storageType, hasBitmap>( \
+                        columnData->values, columnData->size, bitmap, sumsPerGroup, groups);
+        CalculateRawDataSum_DISPATCH(1, int8_t);
+        CalculateRawDataSum_DISPATCH(2, int16_t);
+        CalculateRawDataSum_DISPATCH(4, int32_t);
+        CalculateRawDataSum_DISPATCH(8, int64_t);
+    }
+}
+
+template<bool hasBitmap>
+void
+CalculateRawDataSum(
+    ColumnDataBase *columnData,
+    uint8_t *bitmap,
+    std::vector<int64_t> &sumsPerGroup,
+    const uint16_t *groups,
+    AccelType *type)
+{
+    DISPATCH_RAW_TYPE(
+        type->type_num(),
+        return CalculateRawDataSum<AccelTy COMMA hasBitmap>(
+                    (RawColumnData<AccelTy> *) columnData,
+                    bitmap,
+                    sumsPerGroup,
+                    groups));
+}
+
 AggStateVec
 SumAgg::LocalAggregate(const RowGroup& rowGroup,
                        const ColumnDataGroups& groups,
                        uint8_t *bitmap)
 {
-    std::vector<int> sumsPerGroup(groups.groupCount, 0);
-    for (int i = 0; i < rowGroup.size; i++)
-        sumsPerGroup[groups.groups[i]] += 5; // todo
+    std::vector<int64_t> sumsPerGroup(groups.groupCount, 0);
+
+    auto dataType = this->columnRef.Type().get();
+    auto columnData = rowGroup.columns[this->columnRef.columnIdx].get();
+
+    switch (columnData->type)
+    {
+        case ColumnDataBase::DICT_COLUMN_DATA:
+            // not supported yet
+            break;
+
+        case ColumnDataBase::RAW_COLUMN_DATA:
+            if (bitmap == NULL)
+                CalculateRawDataSum<false>(
+                    columnData, bitmap, sumsPerGroup, groups.groups, dataType);
+            else
+                CalculateRawDataSum<true>(
+                    columnData, bitmap, sumsPerGroup, groups.groups, dataType);
+            break;
+    }
 
     AggStateVec result;
     for (int i = 0; i < groups.groupCount; i++)

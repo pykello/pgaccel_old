@@ -67,6 +67,7 @@ public:
         const std::string &tableName,
         const std::string &path,
         std::optional<std::set<std::string>> fields = std::nullopt);
+
     static Result<ColumnarTableP> Load(
         const std::string &tableName,
         std::istream& metadataStream,
