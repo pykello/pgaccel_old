@@ -6,6 +6,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <filesystem>
 
 using namespace std;
 using namespace pgaccel;
@@ -36,6 +37,29 @@ static Testcase ReadTestcase(string name)
     while (getline(fin, line))
         result.query += "\n" + line;
     return result;
+}
+
+std::string exec(const char* cmd) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    return result;
+}
+
+void ToucaOptions(touca::WorkflowOptions &options)
+{
+    for (const auto & entry : filesystem::directory_iterator(QueriesDir())) {
+        auto path = entry.path();
+        std::string filename = path.filename();
+        options.testcases.push_back(filename);
+    }
+    options.version = exec("git describe --tags --abbrev=8");
 }
 
 int main(int argc, char* argv[]) {
@@ -78,7 +102,7 @@ int main(int argc, char* argv[]) {
 
         touca::stop_timer("execution_timer");
         touca::check("output", result->values);
-    });
+    }, ToucaOptions);
 
     return touca::run(argc, argv);
 }

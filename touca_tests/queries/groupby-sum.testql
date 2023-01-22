@@ -1,0 +1,11 @@
+100
+SELECT
+   L_SHIPMODE,
+   sum(L_QUANTITY),
+   count(*)
+from
+  LINEITEM
+where
+  L_QUANTITY > 5
+group by
+  L_SHIPMODE;
