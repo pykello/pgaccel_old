@@ -52,9 +52,26 @@ AggregateNodeImpl::AggregateNodeImpl(
 }
 
 void
-SetFilteredOut(int size, uint16_t *groups, uint8_t *bitmap, uint16_t v)
+SetFilteredOut(int size, uint16_t *groups, uint8_t *bitmap, uint16_t v, bool useAvx)
 {
-    for (int i = 0; i < size; i++)
+    if (!useAvx)
+    {
+        for (int i = 0; i < size; i++)
+            if (!IsBitSet(bitmap, i))
+                groups[i] = v;
+        return;
+    }
+
+    __m512i *groupsAvx = (__m512i *) groups;
+    int avxCnt = size / 32;
+    uint32_t *bitmap32 = (uint32_t *) bitmap;
+
+    for (int i = 0; i < avxCnt; i++)
+    {
+        groupsAvx[i] = _mm512_mask_set1_epi16(groupsAvx[i], ~bitmap32[i], v);
+    }
+
+    for (int i = avxCnt * 32; i < size; i++)
         if (!IsBitSet(bitmap, i))
             groups[i] = v;
 }
@@ -81,7 +98,11 @@ AggregateNodeImpl::ProcessRowGroup(const RowGroup &rowGroup, uint8_t *selectionB
     int resultGroupCount = groups.groupCount;
     if (selectionBitmap && params.groupByEliminateBranches)
     {
-        SetFilteredOut(rowGroup.size, groups.groups, selectionBitmap, groups.groupCount);
+        SetFilteredOut(rowGroup.size,
+                       groups.groups,
+                       selectionBitmap,
+                       groups.groupCount,
+                       params.useAvx);
         groups.groupCount += 1;
         selectionBitmap = nullptr;
     }
