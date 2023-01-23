@@ -11,7 +11,7 @@
 namespace pgaccel
 {
 
-union Value {
+struct Value {
     std::string strValue;
     int64_t int64Value;
 };

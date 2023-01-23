@@ -120,7 +120,9 @@ AggregateNode::AggregateNode(PartitionedNodeP child,
 LocalAggResultP
 AggregateNode::LocalTask(std::function<bool(int)> selectPartitionF) const
 {
-    LocalAggResultP result = std::make_unique<LocalAggResult>();
+    LocalAggResultP result =
+        std::make_unique<LocalAggResult>(impl.GroupBySchema());
+
     int partitionCount = LocalPartitionCount();
     for (int i = 0; i < partitionCount; i++)
         if (selectPartitionF(i))
@@ -135,17 +137,22 @@ AggregateNode::LocalTask(std::function<bool(int)> selectPartitionF) const
                 *result,
                 impl.ProcessRowGroup(*childRowGroup, selectionBitmap));
         }
+
     return std::move(result);
 }
 
 Rows
 AggregateNode::GlobalTask(std::vector<std::future<LocalAggResultP>> &localResults) const
 {
-    LocalAggResult result;
-    for (auto &localResult: localResults)
-        impl.Combine(result, std::move(*(localResult.get())));
+    LocalAggResultP result;
+    for (auto &localResult: localResults) {
+        if (!result)
+            result = std::move(localResult.get());
+        else
+            impl.Combine(*result, std::move(*(localResult.get())));
+    }
 
-    return impl.Finalize(result);
+    return impl.Finalize(*result);
 }
 
 int

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "executor.h"
+#include <functional>
 
 namespace pgaccel
 {
@@ -23,9 +24,9 @@ class Aggregator {
 public:
     virtual AggStateVec LocalAggregate(const RowGroup& rowGroup,
                                        const ColumnDataGroups& groups,
-                                       uint8_t *bitmap) = 0;
-    virtual void Combine(AggState *result1, const AggState *result2) = 0;
-    virtual std::string Finalize(const AggState *result) = 0;
+                                       uint8_t *bitmap) const = 0;
+    virtual void Combine(AggState *result1, const AggState *result2) const = 0;
+    virtual std::string Finalize(const AggState *result) const = 0;
 };
 
 typedef std::unique_ptr<Aggregator> AggregatorP;
@@ -42,9 +43,9 @@ public:
 
     virtual AggStateVec LocalAggregate(const RowGroup& rowGroup,
                                        const ColumnDataGroups& groups,
-                                       uint8_t *bitmap);
-    virtual void Combine(AggState *result1, const AggState *result2);
-    virtual std::string Finalize(const AggState *result);
+                                       uint8_t *bitmap) const;
+    virtual void Combine(AggState *result1, const AggState *result2) const;
+    virtual std::string Finalize(const AggState *result) const;
 
 private:
     bool useAvx;
@@ -68,9 +69,9 @@ public:
 
     virtual AggStateVec LocalAggregate(const RowGroup& rowGroup,
                                        const ColumnDataGroups& groups,
-                                       uint8_t *bitmap);
-    virtual void Combine(AggState *result1, const AggState *result2);
-    virtual std::string Finalize(const AggState *result);
+                                       uint8_t *bitmap) const;
+    virtual void Combine(AggState *result1, const AggState *result2) const;
+    virtual std::string Finalize(const AggState *result) const;
 
 private:
     bool useAvx;
@@ -78,7 +79,37 @@ private:
 };
 
 struct LocalAggResult {
-    std::map<Row, std::vector<AggStateP>> groupAggStates;
+    typedef std::vector<std::shared_ptr<AccelType>> Schema;
+
+    struct TypedCmp {
+        TypedCmp(const Schema &schema): schema(schema) {}
+
+        bool operator()(const RowX& a,
+                        const RowX& b) const {
+            for (int i = 0; i < a.size() && i < b.size(); i++)
+                if (schema[i]->type_num() == STRING_TYPE)
+                {
+                    if (a[i].strValue != b[i].strValue)
+                        return a[i].strValue < b[i].strValue;
+                }
+                else
+                {
+                    if (a[i].int64Value != b[i].int64Value)
+                        return a[i].int64Value < b[i].int64Value;
+                }
+            return false;
+        }
+
+        Schema schema;
+    };
+
+    LocalAggResult(const Schema & schema):
+        schema(schema),
+        groupAggStates(TypedCmp(schema)) {}
+
+    Schema schema;
+    std::map<RowX, std::vector<AggStateP>,
+             std::function<bool(const RowX&, const RowX&)>> groupAggStates;
 };
 
 typedef std::unique_ptr<LocalAggResult> LocalAggResultP;
@@ -95,6 +126,10 @@ public:
     void Combine(LocalAggResult &left, LocalAggResult &&right) const;
     Rows Finalize(const LocalAggResult &localResult) const;
 
+    LocalAggResult::Schema GroupBySchema() const {
+        return groupBySchema;
+    }
+
     Row FieldNames() const;
 
 private:
@@ -104,6 +139,7 @@ private:
     Row fieldNames;
     FilterNodeP filterNode;
     ExecutionParams params;
+    LocalAggResult::Schema groupBySchema;
 };
 
 typedef std::unique_ptr<AggregateNodeImpl> AggregateNodeP;
