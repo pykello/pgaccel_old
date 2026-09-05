@@ -102,7 +102,7 @@ try:
             for trial in range(a.repeats):
                 result = execute(sql)
                 result.pop('id',None)
-                if a.engine == 'pgaccel' and result['status'] == 'success':
+                if result['status'] == 'success':
                     oracle = oracles.get(qid)
                     if not oracle or oracle['status'] != 'success':
                         result['status'] = 'unverified'
