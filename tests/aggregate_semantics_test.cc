@@ -38,7 +38,7 @@ TEST(Aggregation, MaximumDateDictionaryHasNoDiscardSentinel) {
 }
 TEST(Parser, UnsupportedAndMalformedQueriesFail) {
     auto t=test::Table({{test::Raw({1}),test::Raw({2})}},{{"v",std::make_shared<Int64Type>()},{"w",std::make_shared<Int64Type>()}});
-    for(auto sql:{"SELECT count(*) FROM t WHERE v=1 AND", "SELECT count(*) FROM t WHERE", "SELECT sum(v) FROM t GROUP BY v,w", "SELECT v,count(*) FROM t", "SELECT count(*) FROM t WHERE v=1 garbage", "SELECT sum(v) FROM t LIMIT -1"}) EXPECT_FALSE(ParseSelect(sql,t).ok())<<sql;
+    for(auto sql:{"SELECT count(*) FROM t WHERE v=1 AND", "SELECT count(*) FROM t WHERE", "SELECT v,count(*) FROM t", "SELECT count(*) FROM t WHERE v=1 garbage", "SELECT sum(v) FROM t LIMIT -1"}) EXPECT_FALSE(ParseSelect(sql,t).ok())<<sql;
 }
 
 TEST(Aggregation, OffsetBoundaries) {
@@ -53,4 +53,14 @@ TEST(Aggregation, OffsetBoundaries) {
     Check(t,"SELECT v FROM t LIMIT 2 OFFSET 10",{});
     EXPECT_FALSE(ParseSelect("SELECT v FROM t LIMIT 18446744073709551615 OFFSET 1",t).ok());
     EXPECT_FALSE(ParseSelect("SELECT v FROM t OFFSET -1",t).ok());
+}
+
+TEST(Aggregation, CompositeLogicalKeys) {
+    auto t=test::Table({{test::Raw({1,1,2}),test::Dict<StringType>({"a","c","a"})},
+                        {test::Raw({2,3,3}),test::Dict<StringType>({"c","a","b"})}},
+                       {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    Check(t,"SELECT s,v,count(*) FROM t GROUP BY v,s ORDER BY s,v",{{"a","1","1"},{"a","2","1"},{"a","3","1"},{"b","3","1"},{"c","1","1"},{"c","2","1"}});
+    Check(t,"SELECT v,s,sum(v),avg(v),count(*) FROM t GROUP BY v,s ORDER BY v,s LIMIT 2 OFFSET 2",{{"2","a","2","2","1"},{"2","c","2","2","1"}});
+    Check(t,"SELECT v,s,count(distinct v),min(v) FROM t GROUP BY v,s ORDER BY v,s LIMIT 1",{{"1","a","1","1"}});
+    EXPECT_FALSE(ParseSelect("SELECT s,count(*) FROM t GROUP BY v",t).ok());
 }

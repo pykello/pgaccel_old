@@ -21,6 +21,7 @@ std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bo
 std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
+std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
@@ -34,6 +35,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
             return ExecuteAggNoGroupByWithFilter(query,useAvx,useParallelism);
         }
         if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) return std::move(*fast);
+        if (auto composite = ExecuteComposite(query,useAvx,useParallelism)) return std::move(*composite);
         if (auto counts = ExecuteGroupedCount(query,useAvx,useParallelism)) return std::move(*counts);
         if (auto distinct = ExecuteDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
         auto result = ExecuteModern(query,useAvx,useParallelism);

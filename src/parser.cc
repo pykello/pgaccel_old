@@ -331,11 +331,8 @@ struct Parser
                 auto e = expr();
                 if (e->kind == Expression::COLUMN)
                 {
-                    if (q.groupBy.empty())
+                    if (std::find(q.groupBy.begin(),q.groupBy.end(),*e->column)==q.groupBy.end())
                         q.groupBy.push_back(*e->column);
-                    else if (!(q.groupBy[0] == *e->column))
-                        throw std::invalid_argument(
-                            "Multiple nonconstant GROUP BY keys are not supported");
                 }
                 else if (e->kind != Expression::CONSTANT)
                     throw std::invalid_argument("GROUP BY requires a column or constant");
@@ -407,7 +404,7 @@ struct Parser
             if (a.type == AggregateClause::AGGREGATE_PROJECT && (hasAgg || q.grouped))
             {
                 if (a.expression->kind != Expression::CONSTANT &&
-                    !(a.columnRef && !q.groupBy.empty() && *a.columnRef == q.groupBy[0]))
+                    !(a.columnRef && std::find(q.groupBy.begin(),q.groupBy.end(),*a.columnRef)!=q.groupBy.end()))
                     throw std::invalid_argument(
                         "Selected expression must be grouped or aggregated");
             }

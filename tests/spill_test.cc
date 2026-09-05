@@ -40,5 +40,12 @@ TEST(Spill, ExactSortedAggregationWithinSmallBudget) {
     EXPECT_GT(output->spillBytes,0);Rows expected;
     for(int i=30000;i<30010;++i)expected.push_back({std::to_string(i),"2"});
     EXPECT_EQ(output->values,expected);
+    auto composite=ParseSelect("SELECT g,v,count(*) AS n FROM t GROUP BY g,v ORDER BY n DESC,v LIMIT 10",table);
+    ASSERT_TRUE(composite.ok());auto compositeQuery=std::move(composite).ValueUnsafe();compositeQuery.memoryBudgetBytes=1<<20;
+    auto compositeOutput=ExecuteQuery(compositeQuery,true,true);
+    ASSERT_TRUE(compositeOutput.ok())<<compositeOutput.status().Message();
+    EXPECT_GT(compositeOutput->spillBytes,0);
+    for(auto &row:expected)row.insert(row.begin(),"7");
+    EXPECT_EQ(compositeOutput->values,expected);
     EXPECT_EQ(SpillDirectories(), directories);
 }

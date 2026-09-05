@@ -1,4 +1,5 @@
 #include "executor_result.hpp"
+#include "executor_group_key.hpp"
 #include <filesystem>
 #include <fstream>
 #include <queue>
@@ -74,10 +75,8 @@ Result<QueryOutput> ExecuteExternal(const QueryDesc &q, bool avx)
         Scratch fixed(budget, 1 << 18); // bounded stream buffers, merge cursors, and run paths
         SpillFiles files(q.spillByteBudget);
         auto &table = *q.tables[0];
-        auto key = [&](RowPosition row) {
-            return q.groupBy.empty() ? Cell{}
-                                     : Read(table.GetRowGroup(row.group), q.groupBy[0], row.row);
-        };
+        GroupKeys keys{q};
+        auto key = [&](RowPosition row) { return GroupKey{0,row.group,row.row}; };
         auto distinct = [&](RowPosition row)
         {
             return Evaluate(*q.aggregateClauses[distinctIndex].expression,
@@ -85,9 +84,9 @@ Result<QueryOutput> ExecuteExternal(const QueryDesc &q, bool avx)
         };
         auto less = [&](RowPosition a, RowPosition b)
         {
-            Cell left = key(a), right = key(b);
-            if (!(left == right))
-                return Less(left, right);
+            auto left = key(a), right = key(b);
+            if (!keys.equal(left,right))
+                return keys.less(left,right);
             return distinctIndex >= 0 && Less(distinct(a), distinct(b));
         };
         constexpr size_t fanIn = 16;
@@ -195,7 +194,8 @@ Result<QueryOutput> ExecuteExternal(const QueryDesc &q, bool avx)
         QueryResults result(q, budget);
         States state(q.aggregateClauses.size(), &budget);
         bool haveGroup = false, haveDistinct = false;
-        Cell groupKey, lastDistinct;
+        GroupKey groupKey{};
+        Cell lastDistinct;
         auto finish = [&]
         {
             FinalRow row;
@@ -208,7 +208,9 @@ Result<QueryOutput> ExecuteExternal(const QueryDesc &q, bool avx)
                 switch (a.type)
                 {
                 case AggregateClause::AGGREGATE_PROJECT:
-                    cell.value = a.columnRef ? groupKey : Evaluate(*a.expression, RowGroup{}, 0);
+                    cell.value = a.expression->kind==Expression::CONSTANT
+                        ? Evaluate(*a.expression,RowGroup{},0)
+                        : Evaluate(*a.expression,table.GetRowGroup(groupKey.group),groupKey.row);
                     break;
                 case AggregateClause::AGGREGATE_COUNT:
                 case AggregateClause::AGGREGATE_COUNT_DISTINCT:
@@ -242,7 +244,7 @@ Result<QueryOutput> ExecuteExternal(const QueryDesc &q, bool avx)
             while (ReadPosition(input, row))
             {
                 auto currentKey = key(row);
-                if (!haveGroup || !(currentKey == groupKey))
+                if (!haveGroup || !keys.equal(currentKey,groupKey))
                 {
                     if (haveGroup)
                         finish();
