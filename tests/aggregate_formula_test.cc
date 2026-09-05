@@ -21,3 +21,17 @@ TEST(AggregateFormula, HiddenStatesRatiosAveragesAndGroupedOrdering) {
         "SELECT CASE WHEN sum(v)>0 THEN 1 ELSE 0 END FROM t"})
         EXPECT_FALSE(ParseSelect(sql, registry).ok()) << sql;
 }
+TEST(AggregateFormula, HavingUsesAggregateScaleAndRejectsNullComparisons) {
+    auto decimal = std::make_shared<DecimalType>(); decimal->scale = 2;
+    auto registry = test::Table({{test::Raw({1, 1, 2}), test::Raw({125, 225, 300})}},
+        {{"k", std::make_shared<Int64Type>()}, {"v", decimal}});
+    for (const auto &[sql, expected] : std::vector<std::pair<std::string, Rows>>{
+        {"SELECT k FROM t GROUP BY k HAVING sum(v)>3.00 ORDER BY k", {{"1"}}},
+        {"SELECT k FROM t GROUP BY k HAVING min(v)>=3.00 ORDER BY k", {{"2"}}},
+        {"SELECT k FROM t GROUP BY k HAVING count(DISTINCT v)>1 ORDER BY k", {{"1"}}},
+        {"SELECT sum(v) FROM t WHERE k=99 HAVING sum(v)<>0", {}}}) {
+        auto q = ParseSelect(sql, registry); ASSERT_TRUE(q.ok()) << q.status().Message();
+        auto result = ExecuteQuery(*q, true, true); ASSERT_TRUE(result.ok()) << result.status().Message();
+        EXPECT_EQ(result->values, expected);
+    }
+}

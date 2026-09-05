@@ -836,8 +836,13 @@ struct Parser
             do
             {
                 auto a=aggregate(3);
-                if (a.type!=AggregateClause::AGGREGATE_COUNT)
-                    throw std::invalid_argument("HAVING currently requires COUNT");
+                if (a.type != AggregateClause::AGGREGATE_COUNT && a.type != AggregateClause::AGGREGATE_COUNT_DISTINCT &&
+                    a.type != AggregateClause::AGGREGATE_SUM && a.type != AggregateClause::AGGREGATE_MIN && a.type != AggregateClause::AGGREGATE_MAX)
+                    throw std::invalid_argument("HAVING requires COUNT, SUM, MIN, or MAX");
+                auto boundType = aggregateType(a);
+                auto boundNum = boundType->type_num();
+                if (boundNum != INT32_TYPE && boundNum != INT64_TYPE && boundNum != DECIMAL_TYPE)
+                    throw std::invalid_argument("HAVING requires a numeric aggregate");
                 size_t index=0;
                 while (index<q.aggregateClauses.size() && q.aggregateClauses[index].sql!=a.sql) ++index;
                 if (index==q.aggregateClauses.size()) q.aggregateClauses.push_back(std::move(a));
@@ -849,10 +854,10 @@ struct Parser
                 else if(op=="=")comparison=FilterClause::FILTER_EQ;
                 else if(op=="<>" || op=="!=")comparison=FilterClause::FILTER_NE;
                 else throw std::invalid_argument("Unsupported HAVING comparison");
-                std::string sign=eat("-")?"-":""; auto literal=take(); size_t used;
-                if(literal.quoted)throw std::invalid_argument("HAVING requires an integer bound");
-                int64_t value=std::stoll(sign+literal.text,&used);
-                if(used!=sign.size()+literal.text.size())throw std::invalid_argument("Invalid HAVING bound");
+                ColumnRef bound{{"having", boundType, ColumnDataBase::RAW_COLUMN_DATA}, 0, 0};
+                auto literal = filterValue(bound);
+                int scale = boundNum == DECIMAL_TYPE ? static_cast<DecimalType *>(boundType.get())->scale : 0;
+                int64_t value = ParseDecimal(scale, literal);
                 q.having.push_back({index,comparison,value});
             } while(eat("and"));
         }

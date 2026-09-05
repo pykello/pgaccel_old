@@ -67,6 +67,7 @@ class QueryResults
     {
         for (const auto &h:q.having)
         {
+            if (row[h.output].null) return;
             auto value=row[h.output].value.number; bool keep=false;
             switch(h.op) {
             case FilterClause::FILTER_EQ:keep=value==h.value;break;
