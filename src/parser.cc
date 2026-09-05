@@ -2,6 +2,7 @@
 #include "util.h"
 #include <cctype>
 #include <stdexcept>
+#include <re2/re2.h>
 
 namespace pgaccel
 {
@@ -110,6 +111,20 @@ struct Parser
         {
             e = expr();
             need(")");
+        }
+        else if (eat("regexp_replace"))
+        {
+            e->kind=Expression::REGEXP_REPLACE;
+            need("("); e->left=expr(); need(","); auto pattern=take(); need(","); auto replacement=take(); need(")");
+            if (e->left->type->type_num()!=STRING_TYPE || !pattern.quoted || !replacement.quoted)
+                throw std::invalid_argument("REGEXP_REPLACE requires string input and literal pattern/replacement");
+            e->literal=pattern.text; e->replacement=replacement.text;
+            re2::RE2::Options options; options.set_log_errors(false);
+            e->regexp=std::make_shared<re2::RE2>(e->literal,options);
+            std::string error;
+            if (!e->regexp->ok() || !e->regexp->CheckRewriteString(e->replacement,&error))
+                throw std::invalid_argument("Invalid regular expression or replacement");
+            e->type=std::make_shared<StringType>();
         }
         else if (eat("extract"))
         {
@@ -303,7 +318,7 @@ struct Parser
     }
     bool same(const Expression &a,const Expression &b)
     {
-        if (a.kind!=b.kind || a.column!=b.column || a.literal!=b.literal) return false;
+        if (a.kind!=b.kind || a.column!=b.column || a.literal!=b.literal || a.replacement!=b.replacement) return false;
         if (bool(a.left)!=bool(b.left) || bool(a.right)!=bool(b.right)) return false;
         return (!a.left || same(*a.left,*b.left)) && (!a.right || same(*a.right,*b.right));
     }

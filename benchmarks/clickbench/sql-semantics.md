@@ -37,3 +37,16 @@ hour, and day and returns a timestamp. Truncation floors toward the earlier
 boundary, including negative epochs. Unsupported units and non-timestamp
 arguments fail at binding. No session timezone or daylight-saving conversion
 is applied.
+
+REGEXP_REPLACE accepts a string and literal RE2 pattern/replacement. It replaces
+the first match (the PostgreSQL default), with backreferences zero through nine
+and escaped backslashes. The ClickBench expression is anchored to the entire
+string, so first-match versus global replacement has no effect there. Invalid
+patterns or replacement references are rejected. Computed string ownership and
+allocations follow the query lifetime and memory budget; whole-string capture
+rewrites can reuse the original resident string view.
+
+SELECT star expands the declared schema. ORDER BY may bind hidden expressions,
+but these do not appear in output. HAVING currently supports COUNT comparisons
+against integer bounds, combined with AND; it runs before ORDER BY/LIMIT. Other
+HAVING expressions fail explicitly.

@@ -7,6 +7,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
     try
     {
         Budget budget(q.memoryBudgetBytes);
+    ScopedValueResource valuesMemory(budget);
         auto filter =
             q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
         auto &table = *q.tables[0];
@@ -59,6 +60,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
             using Partitions = std::vector<Groups>;
             auto task = [&](int thread)
             {
+                ScopedValueResource valuesMemory(budget);
                 Groups groups(&budget);
                 if (q.groupBy.empty() && !q.grouped)
                     Get(groups, {}, stateCount, budget);

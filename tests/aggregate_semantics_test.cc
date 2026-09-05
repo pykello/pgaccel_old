@@ -129,3 +129,13 @@ TEST(Aggregation, HavingBeforeOrderAndLimit) {
     Check(t,"SELECT count(*) FROM t HAVING count(*) = 6",{{"6"}});
     Check(t,"SELECT v,sum(v) FROM t GROUP BY v HAVING count(*) > 10",{});
 }
+
+TEST(Expressions, RegexReplacementOwnership) {
+    auto t=test::Table({{test::Dict<StringType>({"https://www.example.com/a","http://example.com/b","plain"})}},{{"s",std::make_shared<StringType>()}});
+    Check(t,R"(SELECT regexp_replace(s,'^https?://(?:www\.)?([^/]+)/.*$','\1') AS host,count(*) FROM t GROUP BY host ORDER BY host)",{{"example.com","2"},{"plain","1"}});
+    Check(t,"SELECT regexp_replace(s,'plain','a replacement longer than the original value') AS r FROM t ORDER BY r LIMIT 1",{{"a replacement longer than the original value"}});
+    Check(t,"SELECT min(regexp_replace(s,'plain','a replacement longer than the original value')) FROM t",{{"a replacement longer than the original value"}});
+    Check(t,"SELECT regexp_replace('aaa','a','xx') FROM t LIMIT 1",{{"xxaa"}});
+    EXPECT_FALSE(ParseSelect("SELECT regexp_replace(s,'[','x') FROM t",t).ok());
+    EXPECT_FALSE(ParseSelect(R"(SELECT regexp_replace(s,'(a)','\9') FROM t)",t).ok());
+}

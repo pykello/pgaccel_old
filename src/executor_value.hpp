@@ -7,17 +7,26 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <memory_resource>
+#include <re2/re2.h>
 
 namespace pgaccel
 {
 namespace
 {
 using Wide = __int128_t;
+thread_local std::pmr::memory_resource *valueResource=std::pmr::new_delete_resource();
+struct ScopedValueResource {
+    std::pmr::memory_resource *previous;
+    explicit ScopedValueResource(std::pmr::memory_resource &memory):previous(valueResource) {valueResource=&memory;}
+    ~ScopedValueResource(){valueResource=previous;}
+};
 struct Cell
 {
     Wide number = 0;
     std::string_view text;
     bool string = false;
+    std::shared_ptr<const std::pmr::string> owner;
     bool operator==(const Cell &b) const
     {
         return string == b.string && (string ? text == b.text : number == b.number);
@@ -106,6 +115,33 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
         if (e.type->type_num() == STRING_TYPE)
             return {0, e.literal, true};
         return {ParseDecimal(Scale(e.type.get()), e.literal)};
+    }
+    if (e.kind==Expression::REGEXP_REPLACE)
+    {
+        Cell input=Evaluate(*e.left,rg,row);
+        re2::StringPiece pieces[10];
+        if (!e.regexp->Match(re2::StringPiece(input.text.data(),input.text.size()),0,input.text.size(),
+                             re2::RE2::UNANCHORED,pieces,10)) return input;
+        const auto &rewrite=e.replacement;
+        if (rewrite.size()==2 && rewrite[0]=='\\' && rewrite[1]>='0' && rewrite[1]<='9' && pieces[0].size()==input.text.size())
+        {
+            auto capture=pieces[rewrite[1]-'0'];
+            return {0,std::string_view(capture.data(),capture.size()),true,input.owner};
+        }
+        auto output=std::allocate_shared<std::pmr::string>(std::pmr::polymorphic_allocator<std::pmr::string>(valueResource));
+        size_t begin=pieces[0].data()-input.text.data(),end=begin+pieces[0].size();
+        output->append(input.text.data(),begin);
+        for(size_t i=0;i<rewrite.size();++i)
+        {
+            if(rewrite[i]!='\\')output->push_back(rewrite[i]);
+            else {
+                char escaped=rewrite[++i];
+                if(escaped=='\\')output->push_back(escaped);
+                else if(pieces[escaped-'0'].size())output->append(pieces[escaped-'0'].data(),pieces[escaped-'0'].size());
+            }
+        }
+        output->append(input.text.data()+end,input.text.size()-end);
+        return {0,std::string_view(*output),true,output};
     }
     if (e.kind==Expression::EXTRACT || e.kind==Expression::DATE_TRUNC)
     {

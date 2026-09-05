@@ -10,6 +10,7 @@ using NumericStates = std::pmr::vector<NumericState>;
 template <class Values>
 Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   Budget budget(q.memoryBudgetBytes);
+    ScopedValueResource valuesMemory(budget);
   GroupKeys keys{q};
   using Map = std::pmr::unordered_map<GroupKey, Values, GroupHash, GroupEqual>;
   auto map = [&] { return Map(0, GroupHash{}, GroupEqual{&keys}, &budget); };
@@ -37,6 +38,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
                     : CreateFilterNode(q.filterClauses, avx);
   using Partitions = std::vector<Map>;
   auto scan = [&](int worker) {
+    ScopedValueResource valuesMemory(budget);
     Partitions maps;
     for (int i = 0; i < workers; ++i)
       maps.push_back(map());
@@ -77,6 +79,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   for (auto &scan : scans)
     partials.push_back(scan.get());
   auto merge = [&](int owner) {
+    ScopedValueResource valuesMemory(budget);
     auto groups = map();
     for (auto &worker : partials) {
       auto &source = worker[owner];

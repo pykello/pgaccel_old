@@ -72,6 +72,7 @@ Result<QueryOutput> ExecuteExternal(const QueryDesc &q, bool avx)
         if (!aggregate)
             return Status::Invalid("Row projection output exceeds query memory budget");
         Budget budget(q.memoryBudgetBytes);
+    ScopedValueResource valuesMemory(budget);
         Scratch fixed(budget, 1 << 18); // bounded stream buffers, merge cursors, and run paths
         SpillFiles files(q.spillByteBudget);
         auto &table = *q.tables[0];
