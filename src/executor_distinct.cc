@@ -1,9 +1,57 @@
 #include "executor_result.hpp"
 #include "executor_integer_set.hpp"
+#include "column_index.hpp"
+#include <bit>
 namespace pgaccel
 {
 namespace
 {
+Result<QueryOutput> IndexedDistinct(const QueryDesc &q, const GlobalDictionary &index,
+                                    bool avx, bool parallel)
+{
+    Budget budget(q.memoryBudgetBytes);
+    uint64_t total = index.size();
+    if (!q.filterClauses.empty()) {
+        const auto &table = *q.tables[0];
+        const auto &column = *q.aggregateClauses[0].columnRef;
+        auto filter = CreateFilterNode(q.filterClauses, avx);
+        int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
+        size_t words = (index.size() + 63) / 64;
+        Scratch metadata(budget, workers * sizeof(std::pmr::vector<uint64_t>));
+        auto partials = RunTasks(workers, [&](int worker) {
+            std::pmr::vector<uint64_t> seen(words, 0, &budget);
+            for (int g = worker; g < table.RowGroupCount(); g += workers) {
+                const auto &rg = table.GetRowGroup(g);
+                uint8_t bitmap[RowGroupSize / 8];
+                int count = filter->ExecuteSet(rg, bitmap);
+                if (!count) continue;
+                auto data = rg.columns[column.columnIdx].get();
+                auto codes = index.Codes(g);
+                auto dictionary = data->type == ColumnDataBase::DICT_COLUMN_DATA
+                    ? static_cast<const DictColumnDataBase *>(data) : nullptr;
+                Selected(rg, count == rg.size ? nullptr : bitmap, [&](int row) {
+                    uint32_t id = codes[dictionary ? Code(dictionary, row) : row];
+                    seen[id / 64] |= uint64_t(1) << (id % 64);
+                });
+            }
+            return seen;
+        });
+        auto counts = RunTasks(workers, [&](int worker) {
+            uint64_t count = 0;
+            for (size_t word = worker; word < words; word += workers) {
+                uint64_t bits = 0;
+                for (const auto &seen : partials) bits |= seen[word];
+                count += std::popcount(bits);
+            }
+            return count;
+        });
+        total = std::accumulate(counts.begin(), counts.end(), uint64_t(0));
+    }
+    QueryResults result(q, budget);
+    result.add({{Cell{Wide(total)}}});
+    return result.finish();
+}
+
 // Partition raw values before building exact sets so each final set fits a
 // smaller cache footprint and no worker-local set union is necessary.
 Result<QueryOutput> RadixIntegerDistinct(const QueryDesc &q, bool avx, bool parallel)
@@ -198,6 +246,8 @@ std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &q, bool avx,
         q.aggregateClauses[0].type != AggregateClause::AGGREGATE_COUNT_DISTINCT ||
         !q.aggregateClauses[0].columnRef)
         return {};
+    if (auto index = q.tables[0]->Dictionary(q.aggregateClauses[0].columnRef->columnIdx))
+        return IndexedDistinct(q, *index, avx, parallel);
     if (q.aggregateClauses[0].columnRef->Type()->type_num() != STRING_TYPE)
         return IntegerDistinct(q, avx, parallel);
     Budget budget(q.memoryBudgetBytes);
