@@ -50,9 +50,17 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         ScopedValueResource valuesMemory(budget);
         const size_t tables = q.tables.size(), outputs = q.aggregateClauses.size();
         uint64_t subquerySpillBytes = 0;
+        auto childPlan = [&](const QueryDesc &source) {
+            if (subquerySpillBytes > q.spillByteBudget) throw std::runtime_error("Subquery spill budget exceeded");
+            auto child = source;
+            child.memoryBudgetBytes = std::min(child.memoryBudgetBytes, budget.limit - budget.used.load());
+            child.allowSpill = q.allowSpill && child.allowSpill;
+            child.spillByteBudget = std::min(child.spillByteBudget, q.spillByteBudget - subquerySpillBytes);
+            return child;
+        };
         std::pmr::vector<std::optional<Cell>> scalarValues(&budget);
         for (const auto &scalar : q.scalarQueries) {
-            auto sub = *scalar.query; sub.memoryBudgetBytes = budget.limit - budget.used.load();
+            auto sub = childPlan(*scalar.query);
             auto result = ExecuteQuery(sub, avx, false);
             if (!result.ok()) return Status::Invalid("Scalar subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
@@ -71,7 +79,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             int sourceScale = Scale(membership.resultType.get());
             int scale = std::max(sourceScale, Scale(membership.column.Type().get()));
             memberships.emplace_back(budget, scale);
-            auto sub = *membership.query; sub.memoryBudgetBytes = budget.limit - budget.used.load();
+            auto sub = childPlan(*membership.query);
             auto result = ExecuteQuery(sub, avx, false);
             if (!result.ok()) return Status::Invalid("Membership subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
