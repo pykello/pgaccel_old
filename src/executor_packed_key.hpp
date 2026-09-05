@@ -24,6 +24,7 @@ class PackedGroupKey {
     };
     std::pmr::vector<Component> components;
     bool valid_ = false;
+    unsigned bits_ = 0;
     static int64_t raw(const Frame &f, int row) {
         switch (f.width) {
         case 1: return reinterpret_cast<const int8_t *>(f.values)[row];
@@ -102,9 +103,11 @@ class PackedGroupKey {
                 frames.push_back(frame);
             }
         }
+        bits_ = total;
         valid_ = true;
     }
     bool valid() const { return valid_; }
+    unsigned bits() const { return bits_; }
     uint64_t word(int group, int row) const {
         uint64_t result = 0;
         for (const auto &component : components) {
