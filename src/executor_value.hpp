@@ -1,5 +1,6 @@
 #pragma once
 #include "executor.h"
+#include "regex_capture_prefix.hpp"
 #include <atomic>
 #include <cstring>
 #include <iomanip>
@@ -144,6 +145,12 @@ Cell EvaluateWith(const Expression &e, const Reader &read)
     {
         Cell input=EvaluateWith(*e.left, read);
         re2::StringPiece pieces[10];
+        if (e.capturePrefix && IsAscii(input.text)) {
+            int capture = e.replacement[1] - '0';
+            if (!e.capturePrefix->Match(re2::StringPiece(input.text.data(), input.text.size()),
+                    0, input.text.size(), re2::RE2::ANCHOR_START, pieces, capture + 1)) return input;
+            return {0, std::string_view(pieces[capture].data(), pieces[capture].size()), true, input.owner};
+        }
         if (!e.regexp->Match(re2::StringPiece(input.text.data(),input.text.size()),0,input.text.size(),
                              re2::RE2::UNANCHORED,pieces,10)) return input;
         const auto &rewrite=e.replacement;

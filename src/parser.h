@@ -75,6 +75,7 @@ struct Expression {
     std::string literal = "0";
     std::string replacement;
     std::shared_ptr<const re2::RE2> regexp;
+    std::shared_ptr<const re2::RE2> capturePrefix;
     std::shared_ptr<Expression> left, right, condition;
     std::shared_ptr<AccelType> type;
 };
