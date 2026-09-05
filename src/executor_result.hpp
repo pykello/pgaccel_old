@@ -50,6 +50,9 @@ class QueryResults
             output.fieldNames.push_back(q.aggregateClauses[i].ToString());
     }
     size_t size() const { return rows.size(); }
+    const FinalCell *limitBoundary(size_t column) const {
+        return q.limit && capacity && rows.size() == capacity ? &rows.front()[column] : nullptr;
+    }
     std::vector<FinalRow> takeCandidates() { return std::move(rows); }
     template<class Get> void addLazy(Get get)
     {
