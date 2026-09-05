@@ -1,5 +1,6 @@
 #include "executor_group_key.hpp"
 #include "executor_result.hpp"
+#include "executor_flat_map.hpp"
 #include <array>
 #include <concepts>
 namespace pgaccel {
@@ -18,8 +19,8 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   Budget budget(q.memoryBudgetBytes);
   ScopedValueResource valuesMemory(budget);
   GroupKeys keys{q};
-  using Map = std::pmr::unordered_map<GroupKey, Values, GroupHash, GroupEqual>;
-  auto map = [&] { return Map(0, GroupHash{}, GroupEqual{&keys}, &budget); };
+  using Map = FlatMap<GroupKey, Values, GroupHash, GroupEqual>;
+  auto map = [&] { return Map(budget, GroupHash{}, GroupEqual{&keys}); };
   QueryDesc aggregates = q;
   aggregates.aggregateClauses.clear();
   std::vector<int> indexes;
@@ -58,11 +59,9 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
         continue;
       Selected(rg, count == rg.size ? nullptr : bitmap, [&](int row) {
         auto key = keys.make(g, row);
-        auto &groups = maps[key.hash % workers];
-        auto found = groups.find(key);
-        if (found == groups.end())
-          found = groups.emplace(key, initial()).first;
-        auto &values = found->second;
+        auto &groups = maps[(key.hash >> 32) % workers];
+        auto [index, added] = groups.get(key, initial);
+        auto &values = groups.at(index).second;
         if constexpr (std::is_same_v<Values, uint64_t>)
           ++values;
         else
@@ -87,7 +86,8 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
     if (q.limit)
       local.limit = *q.limit + q.offset;
     QueryResults results(local, budget);
-    for (const auto &[key, values] : groups) {
+    for (uint32_t index = 0; index < groups.size(); ++index) {
+      const auto &[key, values] = groups.at(index);
       auto get = [&](size_t i) {
         const auto &a = q.aggregateClauses[i];
         FinalCell cell;
@@ -141,12 +141,10 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
     auto groups = map();
     for (auto &worker : partials) {
       auto &source = worker[owner];
-      for (auto it = source.begin(); it != source.end();) {
-        auto found = groups.find(it->first);
-        if (found == groups.end())
-          groups.insert(source.extract(it++));
-        else {
-          auto &to = found->second, &from = it->second;
+      source.forEach([&](const GroupKey &key, Values &from) {
+        auto [index, added] = groups.get(key, [&] { return std::move(from); });
+        if (!added) {
+          auto &to = groups.at(index).second;
           if constexpr (std::is_same_v<Values, uint64_t>)
             to += from;
           else if constexpr (NumericValues<Values>) {
@@ -156,9 +154,9 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
             }
           } else
             Merge(to, from, aggregates, budget);
-          it = source.erase(it);
         }
-      }
+      });
+      source.release();
     }
     return finalize(groups);
   };
