@@ -1,6 +1,6 @@
-# Date execution and ClickBench stages 0–3
+# Date and ClickBench execution
 
-Build with CMake, Arrow/Parquet, TBB, readline, PAPI, and an AVX-512-capable
+Build with CMake, Arrow/Parquet, TBB, RE2, readline, PAPI, and an AVX-512-capable
 CPU. C++20 is required. The ordinary build runs local GoogleTests; optional
 Touca service tests require `-DPGACCEL_BUILD_TOUCA_TESTS=ON`.
 
@@ -12,19 +12,16 @@ ctest --test-dir build --output-on-failure
 python tests/parquet_schema_test.py build/pgaccel
 ```
 
-The branch supports typed numeric expressions; COUNT, SUM, AVG, MIN, MAX;
-row projection; one variable grouping key plus constants; output aliases;
-ORDER BY selected expressions or aliases; LIMIT; and exact COUNT(DISTINCT).
-Multiple variable grouping keys, joins, OR, LIKE, general SQL functions,
-OFFSET, and HAVING remain unsupported. Unsupported SQL returns an error.
+The branch executes the complete pinned 43-query ClickBench corpus. It supports
+typed composite/expression grouping, exact distinct, numeric aggregates,
+projection and SELECT star, aliases, hidden sort expressions, LIMIT/OFFSET,
+LIKE and literal membership, string length and regex replacement, UTC time
+functions, lazy CASE, and COUNT-based HAVING. The exact supported type and
+NULL rules and function limits are in [SQL semantics](clickbench/sql-semantics.md).
 
-Numeric SUM/AVG use checked 128-bit accumulators. SUM retains decimal scale;
-AVG formats the final wide sum divided by the count. Arithmetic division
-uses a fixed decimal scale of at least six digits and truncates excess
-fractional digits. Empty SUM/AVG/MIN/MAX return NULL; empty counts return zero.
-Input NULLs are rejected rather than silently removed. String comparison uses
-byte ordering. Dates use civil calendar days; timestamps use UTC epoch seconds.
-Subsecond timestamps are rejected.
+The complete full-file correctness checkpoint is recorded in
+[the stage-5 coverage report](clickbench/item4-results.md). It preserves the
+wide-average exception and independent evidence for tied LIMIT outputs.
 
 ## Load ClickBench
 
@@ -44,13 +41,15 @@ SELECT RegionID, COUNT(DISTINCT UserID) AS u FROM hits GROUP BY RegionID ORDER B
 The loader validates physical compatibility, timestamp units, missing values,
 and declared small-integer ranges. Eight import workers preserve source row-group
 order. Native loading validates column lengths, layouts, dictionary codes, and
-pruning bounds. The native format remains platform-dependent and unversioned.
+pruning bounds. New native snapshots carry version/ABI checks and data/metadata pair identities;
+legacy snapshots remain readable. Payloads remain platform-dependent.
 
 The default query budget is 8 GiB. The full-data audit explicitly uses 32 GiB.
 The budget conservatively accounts for query-owned groups, exact sets, scratch,
 and output; it excludes the resident input table and allocator/runtime overhead.
-It is not an operating-system RSS limit. There is no spill-to-disk fallback.
-Budget exhaustion returns an error and never substitutes an approximate count.
+It is not an operating-system RSS limit. A bounded external sort can preserve
+exact aggregation after budget exhaustion; its explicit limits and controls
+are in [memory and spill](clickbench/execution-memory.md).
 
 ## Reproduce the audit
 
@@ -62,13 +61,13 @@ contains 99,997,497 rows and 105 columns. Its SHA-256 is
 ```sh
 PGACCEL_QUERY_MEMORY_BYTES=34359738368 build/query_runner \
   native /absolute/path/hits.pgaccel hits - 1 1 3 \
-  < ../docs/clickbench/upstream/clickhouse-queries.sql > pg-results.jsonl
+  < benchmarks/clickbench/queries.sql > pg-results.jsonl
 python benchmarks/clickbench/compare.py \
-  --queries ../docs/clickbench/upstream/clickhouse-queries.sql \
-  --output ch-results.jsonl --database clickbench_audit --threads 8
+  --queries benchmarks/clickbench/queries.sql \
+  --output ch-results.jsonl --database clickbench_audit --threads 8 --ids all
 python benchmarks/clickbench/audit.py --runner build/query_runner \
   --native /absolute/path/hits.pgaccel \
-  --queries ../docs/clickbench/upstream/clickhouse-queries.sql \
+  --queries benchmarks/clickbench/queries.sql \
   --oracle ch-results.jsonl --output coverage.jsonl
 ```
 
@@ -76,7 +75,14 @@ python benchmarks/clickbench/audit.py --runner build/query_runner \
 rewriting SQL. Its parallel flag selects eight workers; zero selects one worker.
 `audit.py` applies a per-query deadline and reports parse failure, execution
 failure, timeout, answer mismatch, unverified result, or success. Ordered
-results compare in order; differing valid ties require separate review.
+results compare in order. `validate_ties.py` collects independent deterministic
+order refinements, and `gate.py` checks them along with the exact wide-average
+oracle. The fixture CI gate requires all 43 outcomes.
+
+For three client-timed resident trials, use `clickbench/warm.py` and validate
+all trials with `clickbench/validate_trials.py`. [Protocol evaluation](clickbench/protocol.md)
+explains the timing boundaries, hot-run statistic, and cold/submission gaps.
+Internal query-runner timings above remain useful for executor diagnostics.
 
 Q4 needs explicit interpretation: the installed ClickHouse 26.8.2.7 returns
 `-55945124888.916016` for unchanged `AVG(UserID)`. PgAccel returns approximately
@@ -96,4 +102,6 @@ using `tpch/compare_dates.py`. The detailed SF10 before/after results are in
 Filtering now checks both range endpoints before narrowing physical literals.
 Date grouping uses selected bitmap bits, compact dense count/sum arrays, and
 only active dictionary labels. High-cardinality grouping and distinct use
-bounded hash state; their merge and allocation costs still need optimization.
+bounded hash state and owner-partitioned merges. A reusable eight-worker arena
+also finalizes owner groups and returns bounded candidate sets to the caller.
+The current runtime comparison lives at `../docs/clickbench/06-current-comparison.md`.
