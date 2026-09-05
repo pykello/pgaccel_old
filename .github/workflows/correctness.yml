@@ -1,0 +1,26 @@
+name: Correctness gates
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  local:
+    runs-on: [self-hosted, linux, x64, pgaccel-avx512]
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash ci/check.sh
+        env:
+          PGACCEL_PYTHON: ${{ vars.PGACCEL_PYTHON }}
+  full-fixture:
+    if: vars.PGACCEL_FIXTURES != ''
+    runs-on: [self-hosted, linux, x64, pgaccel-clickbench]
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash ci/check.sh --full
+        env:
+          PGACCEL_PYTHON: ${{ vars.PGACCEL_PYTHON }}
+          PGACCEL_FIXTURES: ${{ vars.PGACCEL_FIXTURES }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-query-audit
+          path: build/ci-results/
