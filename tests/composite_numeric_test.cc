@@ -32,3 +32,29 @@ TEST(CompositeNumeric, InlineAritiesAndDynamicFallbackAcrossWorkers)
         }
     }
 }
+
+TEST(CompositeNumeric, DependentAffineKeysKeepWideResultsAndUnsafeErrors)
+{
+    auto registry = test::Table(
+        {{test::Raw({INT64_MIN, INT64_MAX, INT64_MIN})},
+         {test::Raw({INT64_MAX, 7, 7})}},
+        {{"v", std::make_shared<Int64Type>()}});
+    auto query = ParseSelect(
+        "SELECT v,v+1,v-1,count(*) FROM t GROUP BY v,v+1,v-1 ORDER BY v", registry);
+    ASSERT_TRUE(query.ok());
+    for (bool parallel : {false, true})
+    {
+        auto result = ExecuteQuery(*query, true, parallel);
+        ASSERT_TRUE(result.ok());
+        EXPECT_EQ(result->values, Rows({
+            {"-9223372036854775808", "-9223372036854775807", "-9223372036854775809", "2"},
+            {"7", "8", "6", "2"},
+            {"9223372036854775807", "9223372036854775808", "9223372036854775806", "2"}}));
+    }
+    auto unsafe = ParseSelect(
+        "SELECT v,count(*) FROM t GROUP BY v,v*9223372036854775807*9223372036854775807", registry);
+    ASSERT_TRUE(unsafe.ok());
+    auto result = ExecuteQuery(*unsafe, true, true);
+    ASSERT_FALSE(result.ok());
+    EXPECT_NE(result.status().Message().find("overflow"), std::string::npos);
+}
