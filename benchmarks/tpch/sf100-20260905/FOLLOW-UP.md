@@ -102,6 +102,20 @@ implementation. Profile build, probe, predicate evaluation, aggregation,
 and conversion separately after the baseline. Use observed cardinalities
 to choose build sides and test bounded partitioned joins when necessary.
 
+Before parallelizing, examine composite equality edges and fanout estimates.
+Q9 matches partsupp by both supplier and part, while the current index uses
+one equality and checks the other as a residual. A composite physical key
+could avoid unnecessary candidates. Sampling 4,096 apparently distinct keys
+also does not prove uniqueness in a much larger build relation. Record the
+chosen edge and actual candidate counts before diagnosing the SF100 slowdown.
+Validate composite-key duplicates and decimal normalization independently.
+
+Selection vectors currently retain 64-bit encoded row identities. Consider
+32-bit global ordinals when table cardinality permits, with explicit mapping
+to stripes and a 64-bit fallback. SF100 lineitem is below the 32-bit row-count
+limit, but stripe/row encoding cannot simply be truncated. Check whether hash
+node alignment would erase any saving before extending this to join entries.
+
 Add partition-local build/probe and aggregation in a separate change from
 spilling. Keep all worker allocations under one statement budget; multiplying
 a nominal per-worker budget would defeat the memory work. Preserve duplicate
