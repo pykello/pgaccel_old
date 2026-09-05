@@ -88,6 +88,54 @@ struct Parser
     Parser *parent = nullptr;
     int tableOffset = 0;
     size_t sourceCount = 0;
+    std::map<std::string, std::shared_ptr<QueryDesc>> ctes;
+    Parser nested(std::vector<Token> input) {
+        Parser sub{std::move(input), 0, {}, registry}; sub.ctes = ctes; return sub;
+    }
+    std::vector<Token> parenthesized() {
+        need("("); size_t start = at; int depth = 1;
+        while (at < tokens.size() && depth) {
+            if (!tokens[at].quoted) {
+                if (tokens[at].text == "(") ++depth;
+                if (tokens[at].text == ")") --depth;
+            }
+            if (depth) ++at;
+        }
+        if (depth) throw std::invalid_argument("Unclosed query source");
+        std::vector<Token> result(tokens.begin() + start, tokens.begin() + at); ++at;
+        return result;
+    }
+    std::vector<std::string> columnAliases() {
+        std::vector<std::string> names;
+        if (eat("(")) { do { names.push_back(ToLower(take().text)); } while (eat(",")); need(")"); }
+        return names;
+    }
+    void materialize(const std::string &name, std::shared_ptr<QueryDesc> inner,
+                     const std::vector<std::string> &aliases = {}) {
+        size_t count = inner->outputColumnCount.value_or(inner->aggregateClauses.size());
+        if (!aliases.empty() && aliases.size() != count)
+            throw std::invalid_argument("Derived column alias count mismatch");
+        std::vector<ColumnDesc> schema;
+        for (size_t i = 0; i < count; ++i) {
+            const auto &a = inner->aggregateClauses[i];
+            if (!inner->grouped && a.type != AggregateClause::AGGREGATE_PROJECT &&
+                a.type != AggregateClause::AGGREGATE_COUNT && a.type != AggregateClause::AGGREGATE_COUNT_DISTINCT)
+                throw std::invalid_argument("Nullable scalar aggregates cannot be materialized yet");
+            auto type = aggregateType(a);
+            if (type->type_num() == INT32_TYPE) type = std::make_shared<Int64Type>();
+            if (type->type_num() != INT64_TYPE && type->type_num() != DECIMAL_TYPE)
+                throw std::invalid_argument("Materialized sources currently require numeric outputs");
+            std::string column = !aliases.empty() ? aliases[i] :
+                ToLower(a.alias.empty() && a.columnRef ? a.columnRef->Name() : a.alias);
+            if (column.empty()) throw std::invalid_argument("Materialized expressions require aliases");
+            if (std::any_of(schema.begin(), schema.end(), [&](const auto &c) { return c.name == column; }))
+                throw std::invalid_argument("Duplicate materialized column: " + column);
+            schema.push_back({column, type, ColumnDataBase::RAW_COLUMN_DATA});
+        }
+        std::shared_ptr<ColumnarTable> placeholder = ColumnarTable::NumericIntermediate(name, schema, {});
+        q.materializedSources.push_back({q.tables.size(), std::move(inner), placeholder});
+        q.tables.push_back(placeholder.get());
+    }
     std::shared_ptr<Expression> binding(const std::string &text) {
         std::string name = ToLower(text);
         if (auto dot = name.find('.'); dot != std::string::npos) {
@@ -436,13 +484,13 @@ struct Parser
         QueryDesc inner;
         QueryDesc::ScalarQuery scalar;
         uint64_t dependencies = 0;
-        try { inner = Parser{subTokens, 0, {}, registry}.parse(); }
+        try { inner = nested(subTokens).parse(); }
         catch (const std::exception &) {
             if (parent) throw std::invalid_argument("Nested correlated scalar subqueries are unsupported");
-            Parser correlated{std::move(subTokens), 0, {}, registry};
+            Parser correlated = nested(std::move(subTokens));
             correlated.parent = this; correlated.tableOffset = q.tables.size();
             inner = correlated.parse();
-            if (!correlated.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
+            if (!correlated.derivedColumns.empty() || !inner.materializedSources.empty() || inner.grouped || inner.limit || inner.offset ||
                 !inner.having.empty() || !inner.orderBy.empty() || !inner.existenceJoins.empty())
                 throw std::invalid_argument("Correlated scalars require an ungrouped base-table aggregate");
             int offset = correlated.tableOffset;
@@ -525,7 +573,7 @@ struct Parser
         if (nesting) throw std::invalid_argument("Unclosed membership subquery");
         std::vector<Token> subTokens(tokens.begin() + start, tokens.begin() + at); ++at;
         QueryDesc inner;
-        try { inner = Parser{std::move(subTokens), 0, {}, registry}.parse(); }
+        try { inner = nested(std::move(subTokens)).parse(); }
         catch (const std::exception &) { at = begin; return existence(needle); }
         if (inner.outputColumnCount != 1 || inner.aggregateClauses[0].type != AggregateClause::AGGREGATE_PROJECT ||
             !inner.aggregateClauses[0].columnRef)
@@ -549,10 +597,10 @@ struct Parser
         }
         if (nesting) throw std::invalid_argument("Unclosed existence subquery");
         std::vector<Token> subTokens(tokens.begin() + start, tokens.begin() + at); ++at;
-        Parser sub{std::move(subTokens), 0, {}, registry};
+        Parser sub = nested(std::move(subTokens));
         sub.parent = this; sub.tableOffset = q.tables.size();
         auto inner = sub.parse();
-        if (inner.tables.size() != 1 || !inner.scalarQueries.empty() || !inner.membershipQueries.empty() || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
+        if (inner.tables.size() != 1 || !inner.materializedSources.empty() || !inner.scalarQueries.empty() || !inner.membershipQueries.empty() || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
             !inner.orderBy.empty() || !inner.having.empty() ||
             std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                 return a.type != AggregateClause::AGGREGATE_PROJECT;
@@ -859,6 +907,23 @@ struct Parser
     }
     QueryDesc parse()
     {
+        if (eat("with")) {
+            if (eat("recursive")) throw std::invalid_argument("Recursive CTEs are unsupported");
+            do {
+                auto name = ToLower(take().text);
+                auto aliases = columnAliases();
+                need("as");
+                auto inner = nested(parenthesized()).parse();
+                if (!aliases.empty()) {
+                    if (aliases.size() != inner.outputColumnCount.value_or(inner.aggregateClauses.size()))
+                        throw std::invalid_argument("CTE column alias count mismatch");
+                    for (size_t i = 0; i < aliases.size(); ++i) inner.aggregateClauses[i].alias = aliases[i];
+                }
+                if (!ctes.emplace(name, std::make_shared<QueryDesc>(std::move(inner))).second)
+                    throw std::invalid_argument("Duplicate CTE name: " + name);
+            } while (eat(","));
+            tokens.erase(tokens.begin(), tokens.begin() + at); at = 0;
+        }
         // Bind all source schemas before parsing SELECT expressions.
         size_t from = 0;
         int depth = 0;
@@ -888,11 +953,22 @@ struct Parser
             if (nesting) throw std::invalid_argument("Unclosed derived table");
             std::vector<Token> innerTokens(tokens.begin() + start, tokens.begin() + at);
             ++at; eat("as"); derivedAlias = ToLower(take().text);
-            auto inner = Parser{std::move(innerTokens), 0, {}, registry}.parse();
-            if (inner.grouped || inner.limit || inner.offset || !inner.having.empty() || !inner.orderBy.empty() ||
+            auto aliases = columnAliases();
+            auto inner = nested(std::move(innerTokens)).parse();
+            bool needsMaterialization = inner.grouped || inner.limit || inner.offset || !inner.having.empty() || !inner.orderBy.empty() ||
                 std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                     return a.type != AggregateClause::AGGREGATE_PROJECT;
-                })) throw std::invalid_argument("Derived tables currently require an unordered projection without LIMIT");
+                });
+            if (needsMaterialization) {
+                sources.emplace(derivedAlias, q.tables.size());
+                materialize(derivedAlias, std::make_shared<QueryDesc>(std::move(inner)), aliases);
+            } else {
+            if (!aliases.empty()) {
+                if (aliases.size() != inner.aggregateClauses.size())
+                    throw std::invalid_argument("Derived column alias count mismatch");
+                for (size_t i = 0; i < aliases.size(); ++i) inner.aggregateClauses[i].alias = aliases[i];
+            }
+            q.materializedSources = std::move(inner.materializedSources);
             q.tables = std::move(inner.tables);
             q.filterClauses = std::move(inner.filterClauses);
             q.predicates = std::move(inner.predicates);
@@ -906,11 +982,13 @@ struct Parser
                     throw std::invalid_argument("Ambiguous derived column: " + name);
                 derivedColumns.emplace_back(name, a.expression);
             }
+            }
         } else {
         do {
             auto name = ToLower(take().text);
             auto table = registry.find(name);
-            if (table == registry.end()) throw std::invalid_argument("Unknown table: " + name);
+            auto cte = ctes.find(name);
+            if (table == registry.end() && cte == ctes.end()) throw std::invalid_argument("Unknown table: " + name);
             std::string alias = name;
             if (eat("as")) alias = ToLower(take().text);
             else if (at < tokens.size() && !tokens[at].quoted) {
@@ -921,7 +999,8 @@ struct Parser
             }
             if (!sources.emplace(alias, q.tables.size()).second)
                 throw std::invalid_argument("Duplicate table alias: " + alias);
-            q.tables.push_back(table->second.get());
+            if (cte != ctes.end()) materialize(alias, cte->second);
+            else q.tables.push_back(table->second.get());
         } while (eat(","));
         }
         size_t afterSources = at;

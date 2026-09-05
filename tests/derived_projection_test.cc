@@ -17,6 +17,10 @@ TEST(DerivedProjection, SubstituteExpressionsAndPreserveInnerAndOuterFilters) {
     auto result = ExecuteQuery(*q, false, false); ASSERT_TRUE(result.ok());
     EXPECT_EQ(result->values, (Rows{{"4", "2"}}));
     EXPECT_FALSE(ParseSelect("SELECT x FROM (SELECT x AS y FROM t) d", registry).ok());
-    EXPECT_FALSE(ParseSelect("SELECT x FROM (SELECT x FROM t LIMIT 1) d", registry).ok());
+    auto limited = ParseSelect("SELECT x FROM (SELECT x FROM t LIMIT 1) d", registry);
+    ASSERT_TRUE(limited.ok());
+    auto first = ExecuteQuery(*limited, true, false);
+    ASSERT_TRUE(first.ok());
+    EXPECT_EQ(first->values, (Rows{{"1"}}));
     EXPECT_FALSE(ParseSelect("SELECT x FROM (SELECT x AS x,x AS x FROM t) d", registry).ok());
 }
