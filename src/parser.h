@@ -122,6 +122,11 @@ struct QueryDesc {
         bool anti = false;
     };
     std::vector<MembershipQuery> membershipQueries;
+    struct ScalarQuery {
+        std::shared_ptr<QueryDesc> query;
+        std::shared_ptr<AccelType> resultType;
+    };
+    std::vector<ScalarQuery> scalarQueries;
     std::vector<ColumnRef> groupBy;
     std::vector<std::shared_ptr<Expression>> groupExpressions;
     std::vector<AggregateClause> aggregateClauses;

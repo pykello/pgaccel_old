@@ -1,4 +1,5 @@
 #include "executor_result.hpp"
+#include "executor_result_number.hpp"
 #include "nodes.h"
 #include <functional>
 #include <cmath>
@@ -22,7 +23,7 @@ struct JoinedGroup {
         : states(n, &budget), representative(row, &budget) {}
 };
 uint64_t References(const Expression &e) {
-    uint64_t mask = e.column ? uint64_t(1) << e.column->tableIdx : 0;
+    uint64_t mask = e.column && e.column->tableIdx >= 0 ? uint64_t(1) << e.column->tableIdx : 0;
     for (const auto &child : {e.left, e.right, e.condition})
         if (child) mask |= References(*child);
     return mask;
@@ -49,6 +50,17 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         ScopedValueResource valuesMemory(budget);
         const size_t tables = q.tables.size(), outputs = q.aggregateClauses.size();
         uint64_t subquerySpillBytes = 0;
+        std::pmr::vector<std::optional<Cell>> scalarValues(&budget);
+        for (const auto &scalar : q.scalarQueries) {
+            auto sub = *scalar.query; sub.memoryBudgetBytes = budget.limit - budget.used.load();
+            auto result = ExecuteQuery(sub, avx, false);
+            if (!result.ok()) return Status::Invalid("Scalar subquery: " + result.status().Message());
+            subquerySpillBytes += result->spillBytes;
+            Scratch childMemory(budget, result->peakMemoryBytes);
+            if (result->values.size() > 1) return Status::Invalid("Scalar subquery returned multiple rows");
+            if (result->values.empty() || result->values[0][0] == "NULL") scalarValues.push_back(std::nullopt);
+            else scalarValues.push_back(Cell{ResultNumber(result->values[0][0], Scale(scalar.resultType.get()))});
+        }
         struct Membership {
             std::pmr::unordered_set<Cell, Hash> values;
             int scale;
@@ -81,9 +93,19 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             }
         }
         std::pmr::vector<RowId> bound(tables, 0, &budget);
+        struct MissingScalar {};
         auto read = [&](const ColumnRef &column) {
+            if (column.tableIdx == -2) {
+                if (!scalarValues.at(column.columnIdx)) throw MissingScalar{};
+                return *scalarValues[column.columnIdx];
+            }
+            if (column.tableIdx < 0) throw std::invalid_argument("Invalid relational column binding");
             RowId id = bound[column.tableIdx];
             return Read(q.tables[column.tableIdx]->GetRowGroup(id >> 32), column, uint32_t(id));
+        };
+        auto keep = [&](const Expression &predicate) {
+            try { return bool(EvaluateWith(predicate, read).number); }
+            catch (const MissingScalar &) { return false; }
         };
         std::vector<const QueryDesc::ExistenceJoin *> existence(tables, nullptr);
         for (const auto &join : q.existenceJoins) existence[join.table] = &join;
@@ -114,7 +136,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 Selected(rg, filter ? bitmap : nullptr, [&](int row) {
                     bound[table] = (uint64_t(g) << 32) | uint32_t(row);
                     for (const auto &predicate : local)
-                        if (!EvaluateWith(*predicate, read).number) return;
+                        if (!keep(*predicate)) return;
                     for (size_t i = 0; i < q.membershipQueries.size(); ++i) {
                         const auto &query = q.membershipQueries[i];
                         if (query.column.tableIdx != int(table)) continue;
@@ -168,6 +190,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 if (predicate->kind != Expression::EQ || !predicate->left->column || !predicate->right->column)
                     continue;
                 auto a = *predicate->left->column, b = *predicate->right->column;
+                if (a.tableIdx < 0 || b.tableIdx < 0) continue;
                 if (Scale(a.Type().get()) != Scale(b.Type().get())) continue;
                 if (joined & (uint64_t(1) << a.tableIdx)) std::swap(a, b);
                 if (ordinaryRemaining && existence[a.tableIdx]) continue;
@@ -232,18 +255,18 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 for (auto it = range.first; it != range.second && !matched; ++it) {
                     bound[join.table] = it->second; matched = true;
                     for (const auto &predicate : exists->predicates)
-                        if (!EvaluateWith(*predicate, read).number) { matched = false; break; }
+                        if (!keep(*predicate)) { matched = false; break; }
                 }
                 if (matched != exists->anti) visit(stage + 1, next);
                 return;
             }
             for (auto it = range.first; it != range.second; ++it) {
                 bound[join.table] = it->second;
-                bool keep = true;
-                for (size_t p = 0; p < masks.size() && keep; ++p)
+                bool selected = true;
+                for (size_t p = 0; p < masks.size() && selected; ++p)
                     if ((masks[p] & ~next) == 0 && (masks[p] & ~active) != 0)
-                        keep = EvaluateWith(*q.predicates[p], read).number;
-                if (keep) visit(stage + 1, next);
+                        selected = keep(*q.predicates[p]);
+                if (selected) visit(stage + 1, next);
             }
         };
         for (RowId id : rows[probe]) {

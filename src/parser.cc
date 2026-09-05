@@ -171,8 +171,9 @@ struct Parser
         }
         else if (eat("("))
         {
-            e = expr();
-            need(")");
+            if (at < tokens.size() && !tokens[at].quoted && ToLower(tokens[at].text) == "select") {
+                --at; e = scalar();
+            } else { e = expr(); need(")"); }
         }
         else if (eat("case"))
         {
@@ -399,6 +400,32 @@ struct Parser
             s += (tokens[i].quoted ? "'" + tokens[i].text + "'" : ToLower(tokens[i].text)) + " ";
         return s;
     }
+    bool containsScalar(const std::shared_ptr<Expression> &e) {
+        return e && ((e->column && e->column->tableIdx == -2) || containsScalar(e->left) ||
+                     containsScalar(e->right) || containsScalar(e->condition));
+    }
+    std::shared_ptr<Expression> scalar() {
+        need("("); size_t start = at; int nesting = 1;
+        while (at < tokens.size() && nesting) {
+            if (!tokens[at].quoted) {
+                if (tokens[at].text == "(") ++nesting;
+                if (tokens[at].text == ")") --nesting;
+            }
+            if (nesting) ++at;
+        }
+        if (nesting) throw std::invalid_argument("Unclosed scalar subquery");
+        std::vector<Token> subTokens(tokens.begin() + start, tokens.begin() + at); ++at;
+        auto inner = Parser{std::move(subTokens), 0, {}, registry}.parse();
+        if (inner.outputColumnCount != 1 || inner.aggregateClauses[0].type == AggregateClause::AGGREGATE_PROJECT)
+            throw std::invalid_argument("Scalar subqueries require one aggregate output");
+        auto type = aggregateType(inner.aggregateClauses[0]);
+        if (type->type_num() != INT32_TYPE && type->type_num() != INT64_TYPE && type->type_num() != DECIMAL_TYPE)
+            throw std::invalid_argument("Scalar subqueries currently require numeric output");
+        auto e = std::make_shared<Expression>(); e->kind = Expression::COLUMN; e->type = type;
+        e->column = ColumnRef{{"scalar", type, ColumnDataBase::RAW_COLUMN_DATA}, -2, int(q.scalarQueries.size())};
+        q.scalarQueries.push_back({std::make_shared<QueryDesc>(std::move(inner)), type});
+        return e;
+    }
     bool containsExists(const std::shared_ptr<Expression> &e) {
         return e && (e->kind == Expression::EXISTS || e->kind == Expression::MEMBERSHIP || containsExists(e->left) ||
                      containsExists(e->right) || containsExists(e->condition));
@@ -444,7 +471,7 @@ struct Parser
         Parser sub{std::move(subTokens), 0, {}, registry};
         sub.parent = this; sub.tableOffset = q.tables.size();
         auto inner = sub.parse();
-        if (inner.tables.size() != 1 || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
+        if (inner.tables.size() != 1 || !inner.scalarQueries.empty() || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
             !inner.orderBy.empty() || !inner.having.empty() ||
             std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                 return a.type != AggregateClause::AGGREGATE_PROJECT;
@@ -475,7 +502,7 @@ struct Parser
     AggregateClause aggregate(int precedence = 0) {
         size_t start = at;
         auto e = expr(precedence);
-        if (containsExists(e)) throw std::invalid_argument("EXISTS is supported only as a WHERE conjunct");
+        if (containsExists(e) || containsScalar(e)) throw std::invalid_argument("Subqueries are supported only as WHERE conjuncts");
         AggregateClause a;
         if (e->kind == Expression::AGGREGATE) {
             a.type = AggregateClause::Type(e->aggregateKind); a.expression = e->left;
@@ -711,6 +738,13 @@ struct Parser
         }
         if (e->kind != Expression::AND && containsExists(e))
             throw std::invalid_argument("EXISTS is supported only as a WHERE conjunct");
+        if (e->kind != Expression::AND && containsScalar(e)) {
+            auto scalarOperand = [](const auto &operand) { return operand && operand->column && operand->column->tableIdx == -2; };
+            if (e->kind < Expression::EQ || e->kind > Expression::GTE ||
+                !(scalarOperand(e->left) != scalarOperand(e->right)) ||
+                (scalarOperand(e->left) ? containsScalar(e->right) : containsScalar(e->left)))
+                throw std::invalid_argument("Scalar subqueries require a direct comparison conjunct");
+        }
         if (containsAggregate(e)) throw std::invalid_argument("WHERE cannot contain aggregates");
         if (e->kind == Expression::AND) { addPredicates(e->left); addPredicates(e->right); return; }
         if (e->kind == Expression::OR)
@@ -758,6 +792,7 @@ struct Parser
             q.predicates = std::move(inner.predicates);
             q.existenceJoins = std::move(inner.existenceJoins);
             q.membershipQueries = std::move(inner.membershipQueries);
+            q.scalarQueries = std::move(inner.scalarQueries);
             for (const auto &a : inner.aggregateClauses) {
                 std::string name = ToLower(a.alias.empty() && a.columnRef ? a.columnRef->Name() : a.alias);
                 if (name.empty()) throw std::invalid_argument("Derived expressions require aliases");
@@ -851,7 +886,7 @@ struct Parser
                             e=a.expression; ++at; break;
                         }
                 if (!e) e=expr();
-                if (containsAggregate(e) || containsExists(e)) throw std::invalid_argument("GROUP BY cannot contain aggregates or subqueries");
+                if (containsAggregate(e) || containsExists(e) || containsScalar(e)) throw std::invalid_argument("GROUP BY cannot contain aggregates or subqueries");
                 if (e->kind!=Expression::CONSTANT)
                 {
                     q.groupExpressions.push_back(e);
