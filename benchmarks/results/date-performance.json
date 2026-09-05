@@ -1,0 +1,51 @@
+{
+  "sf10_rows": 59986052,
+  "all_answers_match": true,
+  "eight_workers": [
+    {
+      "query": 1,
+      "workload": "Date/discount/quantity filter count",
+      "before_ms": 4.413892,
+      "branch_ms": 4.56402825,
+      "speedup": 0.9671044433171508,
+      "clickhouse_memory_ms": 81.193896,
+      "clickhouse_mergetree_ms": 140.667387
+    },
+    {
+      "query": 2,
+      "workload": "Narrow date GROUP BY (< 1992-01-05)",
+      "before_ms": 193.514242,
+      "branch_ms": 3.3223378333333335,
+      "speedup": 58.24640711081609,
+      "clickhouse_memory_ms": 15.224604,
+      "clickhouse_mergetree_ms": 34.411385
+    },
+    {
+      "query": 3,
+      "workload": "Full-year date GROUP BY (1994)",
+      "before_ms": 307.248864,
+      "branch_ms": 18.15743,
+      "speedup": 16.921385019796304,
+      "clickhouse_memory_ms": 61.126531,
+      "clickhouse_mergetree_ms": 82.539113
+    },
+    {
+      "query": 4,
+      "workload": "Full date GROUP BY, no filter",
+      "before_ms": 1367.718462,
+      "branch_ms": 88.875725,
+      "speedup": 15.389111728765082,
+      "clickhouse_memory_ms": 58.585024,
+      "clickhouse_mergetree_ms": 93.31405500000001
+    },
+    {
+      "query": 5,
+      "workload": "Empty date GROUP BY (> 2000-01-01)",
+      "before_ms": 2.1669779444444446,
+      "branch_ms": 0.3367127580645161,
+      "speedup": 6.435687073161746,
+      "clickhouse_memory_ms": 13.929718000000001,
+      "clickhouse_mergetree_ms": 5.328348999999999
+    }
+  ]
+}
