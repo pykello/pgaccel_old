@@ -17,6 +17,16 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
             aggregate |= a.type != AggregateClause::AGGREGATE_PROJECT;
             distinct |= a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT;
         }
+        QueryDesc aggregates = q;
+        aggregates.aggregateClauses.clear();
+        std::vector<int> stateIndex(n, -1);
+        for (size_t i = 0; i < n; ++i)
+            if (q.aggregateClauses[i].type != AggregateClause::AGGREGATE_PROJECT)
+            {
+                stateIndex[i] = aggregates.aggregateClauses.size();
+                aggregates.aggregateClauses.push_back(q.aggregateClauses[i]);
+            }
+        const size_t stateCount = aggregates.aggregateClauses.size();
         QueryOutput output;
         for (auto &a : q.aggregateClauses)
             output.fieldNames.push_back(a.ToString());
@@ -91,7 +101,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
             {
                 Groups groups(&budget);
                 if (q.groupBy.empty() && !q.grouped)
-                    Get(groups, {}, n, budget);
+                    Get(groups, {}, stateCount, budget);
                 for (int g = thread; g < table.RowGroupCount(); g += threads)
                 {
                     const auto &rg = table.GetRowGroup(g);
@@ -100,11 +110,11 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                     if (!selected)
                         continue;
                     const uint8_t *selection = filter && selected != rg.size ? bitmap : nullptr;
-                    if (q.groupBy.empty() && n == 1 &&
-                        q.aggregateClauses[0].type == AggregateClause::AGGREGATE_COUNT_DISTINCT &&
-                        q.aggregateClauses[0].columnRef)
+                    if (q.groupBy.empty() && stateCount == 1 &&
+                        aggregates.aggregateClauses[0].type == AggregateClause::AGGREGATE_COUNT_DISTINCT &&
+                        aggregates.aggregateClauses[0].columnRef)
                     {
-                        const auto &column = *q.aggregateClauses[0].columnRef;
+                        const auto &column = *aggregates.aggregateClauses[0].columnRef;
                         auto data = rg.columns[column.columnIdx].get();
                         if (data->type == ColumnDataBase::DICT_COLUMN_DATA)
                         {
@@ -113,7 +123,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                             std::vector<uint8_t> seen(dictionary->dictSize(), 0);
                             Selected(rg, selection,
                                      [&](int row) { seen[Code(dictionary, row)] = 1; });
-                            auto &state = Get(groups, {}, n, budget)[0];
+                            auto &state = Get(groups, {}, stateCount, budget)[0];
                             for (int code = 0; code < dictionary->dictSize(); ++code)
                                 if (seen[code])
                                     Insert(state,
@@ -127,14 +137,14 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                                                   ColumnDataBase::DICT_COLUMN_DATA)
                         dict = static_cast<const DictColumnDataBase *>(
                             rg.columns[q.groupBy[0].columnIdx].get());
-                    if (dict && DenseAggregate(q, rg, selection, dict, groups, budget))
+                    if (dict && DenseAggregate(aggregates, rg, selection, dict, groups, budget))
                         continue;
                     if (dict && !distinct)
                     {
                         // Dense local codes, contiguous accumulators, only selected rows and
                         // visited labels.
                         Scratch scratch(budget, uint64_t(dict->dictSize()) *
-                                                    (sizeof(States) + n * sizeof(State) + 8));
+                                                    (sizeof(States) + stateCount * sizeof(State) + 8));
                         std::vector<States> local(dict->dictSize());
                         std::vector<int> visited;
                         Selected(rg, selection,
@@ -144,18 +154,18 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                                      auto &state = local[code];
                                      if (state.empty())
                                      {
-                                         state.resize(n);
+                                         state.resize(stateCount);
                                          visited.push_back(code);
                                      }
-                                     for (size_t i = 0; i < n; ++i)
-                                         Update(state[i], q.aggregateClauses[i], rg, r, budget);
+                                     for (size_t i = 0; i < stateCount; ++i)
+                                         Update(state[i], aggregates.aggregateClauses[i], rg, r, budget);
                                  });
                         for (int code : visited)
                         {
                             auto &state =
-                                Get(groups, Label(dict, code, q.groupBy[0].Type()->type_num()), n,
+                                Get(groups, Label(dict, code, q.groupBy[0].Type()->type_num()), stateCount,
                                     budget);
-                            Merge(state, local[code], q, budget);
+                            Merge(state, local[code], aggregates, budget);
                         }
                     }
                     else
@@ -163,7 +173,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                         Scratch scratch(budget,
                                         dict ? uint64_t(dict->dictSize()) * sizeof(States *) : 0);
                         std::vector<States *> cache(dict ? dict->dictSize() : 0, nullptr);
-                        States *single = q.groupBy.empty() ? &Get(groups, {}, n, budget) : nullptr;
+                        States *single = q.groupBy.empty() ? &Get(groups, {}, stateCount, budget) : nullptr;
                         Selected(rg, selection,
                                  [&](int r)
                                  {
@@ -176,12 +186,12 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                                              state = cache[code] = &Get(
                                                  groups,
                                                  Label(dict, code, q.groupBy[0].Type()->type_num()),
-                                                 n, budget);
+                                                 stateCount, budget);
                                      }
                                      else if (!state)
-                                         state = &Get(groups, Read(rg, q.groupBy[0], r), n, budget);
-                                     for (size_t i = 0; i < n; ++i)
-                                         Update((*state)[i], q.aggregateClauses[i], rg, r, budget);
+                                         state = &Get(groups, Read(rg, q.groupBy[0], r), stateCount, budget);
+                                     for (size_t i = 0; i < stateCount; ++i)
+                                         Update((*state)[i], aggregates.aggregateClauses[i], rg, r, budget);
                                  });
                     }
                 }
@@ -204,7 +214,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                         if (found == groups.end())
                             groups.emplace(entry.first, std::move(entry.second));
                         else
-                            Merge(found->second, entry.second, q, budget);
+                            Merge(found->second, entry.second, aggregates, budget);
                     }
                 }
             }
@@ -215,7 +225,8 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 for (size_t i = 0; i < n; ++i)
                 {
                     auto &a = q.aggregateClauses[i];
-                    auto &s = entry.second[i];
+                    State projected;
+                    auto &s = stateIndex[i] < 0 ? projected : entry.second[stateIndex[i]];
                     FinalCell v;
                     v.type = a.expression ? a.expression->type.get() : nullptr;
                     switch (a.type)
