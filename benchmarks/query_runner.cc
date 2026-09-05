@@ -1,5 +1,6 @@
 #include "columnar_table.h"
 #include "parser.h"
+#include "query_resources.hpp"
 #include "executor.h"
 #include "util.h"
 #include <chrono>
@@ -73,8 +74,10 @@ int main(int argc,char **argv) {
         auto parsed=ParseSelect(sql,registry);
         if(!parsed.ok()){std::cout<<"{\"id\":"<<id<<",\"status\":\"parse_failure\",\"error\":"<<Json(parsed.status().Message())<<"}"<<std::endl;continue;}
         auto q=std::move(parsed).ValueUnsafe();
-        if(const char *b=std::getenv("PGACCEL_QUERY_MEMORY_BYTES"))q.memoryBudgetBytes=std::stoull(b);
-        if(const char *b=std::getenv("PGACCEL_SPILL_BYTES"))q.spillByteBudget=std::stoull(b);
+        uint64_t memoryBytes=q.memoryBudgetBytes, spillBytes=q.spillByteBudget;
+        if(const char *b=std::getenv("PGACCEL_QUERY_MEMORY_BYTES"))memoryBytes=std::stoull(b);
+        if(const char *b=std::getenv("PGACCEL_SPILL_BYTES"))spillBytes=std::stoull(b);
+        SetQueryResourceLimits(q,memoryBytes,spillBytes);
         std::vector<double> times;QueryOutput output;std::string error;
         for(int i=0;i<repeats;++i) {
             auto start=Clock::now();auto r=ExecuteQuery(q,std::stoi(argv[6]),std::stoi(argv[5]));
