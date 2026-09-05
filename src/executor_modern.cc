@@ -40,7 +40,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 Selected(rg, filter ? bitmap : nullptr,
                          [&](int r)
                          {
-                             if (q.limit && q.orderBy.empty() && results.size() >= *q.limit)
+                             if (q.limit && q.orderBy.empty() && results.size() >= *q.limit + q.offset)
                                  return;
                              FinalRow row;
                              row.reserve(n);
@@ -49,7 +49,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                                      {Evaluate(*a.expression, rg, r), a.expression->type.get()});
                              results.add(std::move(row));
                          });
-                if (q.limit && q.orderBy.empty() && results.size() >= *q.limit)
+                if (q.limit && q.orderBy.empty() && results.size() >= *q.limit + q.offset)
                     break;
             }
         }

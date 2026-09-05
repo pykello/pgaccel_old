@@ -40,3 +40,17 @@ TEST(Parser, UnsupportedAndMalformedQueriesFail) {
     auto t=test::Table({{test::Raw({1}),test::Raw({2})}},{{"v",std::make_shared<Int64Type>()},{"w",std::make_shared<Int64Type>()}});
     for(auto sql:{"SELECT count(*) FROM t WHERE v=1 AND", "SELECT count(*) FROM t WHERE", "SELECT sum(v) FROM t GROUP BY v,w", "SELECT v,count(*) FROM t", "SELECT count(*) FROM t WHERE v=1 garbage", "SELECT sum(v) FROM t LIMIT -1"}) EXPECT_FALSE(ParseSelect(sql,t).ok())<<sql;
 }
+
+TEST(Aggregation, OffsetBoundaries) {
+    auto t=test::Table({{test::Raw({3,1,2,2})}},{{"v",std::make_shared<Int64Type>()}});
+    Check(t,"SELECT v FROM t ORDER BY v LIMIT 2 OFFSET 1",{{"2"},{"2"}});
+    Check(t,"SELECT v,count(*) AS n FROM t GROUP BY v ORDER BY n DESC,v LIMIT 1 OFFSET 1",{{"1","1"}});
+    Check(t,"SELECT v FROM t LIMIT 1 OFFSET 2",{{"2"}});
+    Check(t,"SELECT v FROM t ORDER BY v OFFSET 3",{{"3"}});
+    Check(t,"SELECT v FROM t ORDER BY v LIMIT 0 OFFSET 1",{});
+    Check(t,"SELECT count(*) FROM t OFFSET 1",{});
+    Check(t,"SELECT sum(v) FROM t OFFSET 1",{});
+    Check(t,"SELECT v FROM t LIMIT 2 OFFSET 10",{});
+    EXPECT_FALSE(ParseSelect("SELECT v FROM t LIMIT 18446744073709551615 OFFSET 1",t).ok());
+    EXPECT_FALSE(ParseSelect("SELECT v FROM t OFFSET -1",t).ok());
+}

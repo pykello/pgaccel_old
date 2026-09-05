@@ -100,6 +100,7 @@ struct QueryDesc {
     struct Ordering { size_t output; bool descending; };
     std::vector<Ordering> orderBy;
     std::optional<uint64_t> limit;
+    uint64_t offset = 0;
     bool grouped = false;
     bool allowSpill = true;
     uint64_t spillByteBudget = uint64_t(64) << 30;

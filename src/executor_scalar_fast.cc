@@ -164,7 +164,7 @@ std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &q, bool av
             row.push_back(v.string ? std::string(v.text) : ToString(type, int64_t(v.number)));
         }
     }
-    if (!q.limit || *q.limit)
+    if ((!q.limit || *q.limit) && !q.offset)
         output.values.push_back(std::move(row));
     return Result<QueryOutput>(std::move(output));
 }

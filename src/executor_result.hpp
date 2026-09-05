@@ -9,6 +9,7 @@ class QueryResults
     const QueryDesc &q;
     Budget &budget;
     size_t n;
+    uint64_t capacity;
     QueryOutput output;
     std::vector<FinalRow> rows;
     bool compare(const FinalRow &a, const FinalRow &b) const
@@ -35,7 +36,8 @@ class QueryResults
 
   public:
     QueryResults(const QueryDesc &query, Budget &memory)
-        : q(query), budget(memory), n(q.aggregateClauses.size())
+        : q(query), budget(memory), n(q.aggregateClauses.size()),
+          capacity(q.limit ? *q.limit + q.offset : UINT64_MAX)
     {
         for (const auto &a : q.aggregateClauses)
             output.fieldNames.push_back(a.ToString());
@@ -45,7 +47,7 @@ class QueryResults
     {
         if (q.limit && !*q.limit)
             return;
-        if (!q.limit || rows.size() < *q.limit)
+        if (!q.limit || rows.size() < capacity)
         {
             budget.charge(64 + n * sizeof(FinalCell));
             rows.push_back(std::move(row));
@@ -64,7 +66,7 @@ class QueryResults
     }
     QueryOutput finish()
     {
-        size_t keep = q.limit ? std::min<uint64_t>(*q.limit, rows.size()) : rows.size();
+        size_t keep = q.limit ? std::min<uint64_t>(capacity, rows.size()) : rows.size();
         if (!q.orderBy.empty() || q.grouped)
         {
             if (keep < rows.size())
@@ -75,8 +77,9 @@ class QueryResults
                           [&](const auto &a, const auto &b) { return compare(a, b); });
         }
         rows.resize(keep);
-        for (const auto &r : rows)
+        for (size_t index = std::min<uint64_t>(q.offset, rows.size()); index < rows.size(); ++index)
         {
+            const auto &r = rows[index];
             Row row;
             for (const auto &v : r)
             {

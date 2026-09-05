@@ -385,6 +385,18 @@ struct Parser
                 throw std::invalid_argument("Invalid LIMIT");
             q.limit = value;
         }
+        if (eat("offset"))
+        {
+            auto t = take().text;
+            size_t n;
+            if (t.empty() || !std::isdigit((unsigned char)t[0]))
+                throw std::invalid_argument("Invalid OFFSET");
+            q.offset = std::stoull(t, &n);
+            if (n != t.size())
+                throw std::invalid_argument("Invalid OFFSET");
+        }
+        if (q.limit && q.offset > UINT64_MAX - *q.limit)
+            throw std::invalid_argument("LIMIT plus OFFSET overflows");
         eat(";");
         if (at != tokens.size())
             throw std::invalid_argument("Unsupported SQL near " + tokens[at].text);
