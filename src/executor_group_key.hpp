@@ -39,7 +39,7 @@ struct GroupKeys {
              identity[0]->type->type_num() != STRING_TYPE;
     if (budget) {
       packed.emplace(q, identity, *budget);
-      if (!packed->valid()) packed.reset();
+      if (!packed->valid() && !packed->enableConditional(q, identity, *budget)) packed.reset();
     }
     if (budget)
       for (const auto &expression : identity)

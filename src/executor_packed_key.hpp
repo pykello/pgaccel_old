@@ -31,6 +31,9 @@ class PackedGroupKey {
     bool valid_ = false;
     unsigned bits_ = 0;
     const ColumnarTable *table_;
+    std::shared_ptr<PackedGroupKey> alternatives[2];
+    const Expression *splitCondition = nullptr;
+    unsigned splitShift = 0;
     static int64_t raw(const Frame &f, int row) {
         switch (f.width) {
         case 1: return reinterpret_cast<const int8_t *>(f.values)[row];
@@ -181,7 +184,54 @@ class PackedGroupKey {
     }
     bool valid() const { return valid_; }
     unsigned bits() const { return bits_; }
+    bool enableConditional(const QueryDesc &q,
+                           const std::vector<std::shared_ptr<Expression>> &identity, Budget &memory) {
+        if (valid_) return true;
+        for (const auto &candidate : identity) {
+            if (candidate->kind != Expression::CASE || candidate->type->type_num() != STRING_TYPE ||
+                candidate->left->kind != Expression::COLUMN || candidate->right->kind != Expression::CONSTANT)
+                continue;
+            std::vector<ColumnRef> fixed;
+            auto guards = [&](auto &&self, const Expression &e) -> bool {
+                if (e.kind == Expression::AND) return self(self, *e.left) && self(self, *e.right);
+                if (e.kind != Expression::EQ) return false;
+                auto column = e.left, constant = e.right;
+                if (column->kind == Expression::CONSTANT) std::swap(column, constant);
+                if (column->kind != Expression::COLUMN || constant->kind != Expression::CONSTANT ||
+                    (column->type->type_num() != INT32_TYPE && column->type->type_num() != INT64_TYPE)) return false;
+                bool explicitKey = std::any_of(identity.begin(), identity.end(), [&](const auto &key) {
+                    return key->kind == Expression::COLUMN && *key->column == *column->column;
+                });
+                if (!explicitKey) return false;
+                fixed.push_back(*column->column); return true;
+            };
+            if (!guards(guards, *candidate->condition) || fixed.empty()) continue;
+            std::vector<std::shared_ptr<Expression>> whenTrue, whenFalse;
+            for (const auto &key : identity) {
+                if (key == candidate) { whenTrue.push_back(candidate->left); continue; }
+                whenFalse.push_back(key);
+                bool constantHere = key->kind == Expression::COLUMN &&
+                    std::find(fixed.begin(), fixed.end(), *key->column) != fixed.end();
+                if (!constantHere) whenTrue.push_back(key);
+            }
+            auto allocator = std::pmr::polymorphic_allocator<PackedGroupKey>(&memory);
+            auto yes = std::allocate_shared<PackedGroupKey>(allocator, q, whenTrue, memory);
+            auto no = std::allocate_shared<PackedGroupKey>(allocator, q, whenFalse, memory);
+            if (!yes->valid() || !no->valid() || std::max(yes->bits(), no->bits()) > 63) continue;
+            // Explicit guard keys prove the two logical tuple domains disjoint.
+            // The true branch fixes those keys; the false branch fixes CASE.
+            splitShift = std::max(yes->bits(), no->bits());
+            alternatives[0] = std::move(no); alternatives[1] = std::move(yes);
+            splitCondition = candidate->condition.get();
+            bits_ = splitShift + 1; valid_ = true; return true;
+        }
+        return false;
+    }
     uint64_t word(int group, int row) const {
+        if (splitCondition) {
+            bool branch = Evaluate(*splitCondition, table_->GetRowGroup(group), row).number;
+            return alternatives[branch]->word(group, row) | (uint64_t(branch) << splitShift);
+        }
         uint64_t result = 0;
         for (const auto &component : components) {
             const auto &frame = component.frames[group];
