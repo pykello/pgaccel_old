@@ -5,9 +5,6 @@ namespace pgaccel
 
 class AndFilterNode: public FilterNodeImpl {
 public:
-    void Prepare(const ColumnarTable &table, std::pmr::memory_resource &memory, int workers) override {
-        for (auto &child : children) child->Prepare(table, memory, workers);
-    }
     AndFilterNode(std::vector<FilterNodeP> &&children):
         children(std::move(children)) {}
 

@@ -26,7 +26,6 @@ std::optional<Result<QueryOutput>> ExecuteRadixGroupCount(const QueryDesc &q, bo
     Scratch metadata(budget, (workers * 2 + 1) * sizeof(Input));
     auto partition = [&](const GroupKey &key) { return GroupHash{&keys}(key) >> 54; };
     auto filter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
-    if (filter) filter->Prepare(table, budget, workers);
     auto inputs = RunTasks(workers, [&](int worker) {
         Input input(budget);
         if (!filter) {

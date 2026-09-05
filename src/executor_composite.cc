@@ -108,7 +108,6 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   auto filter = q.filterClauses.empty()
                     ? FilterNodeP{}
                     : CreateFilterNode(q.filterClauses, avx);
-    if (filter) filter->Prepare(table, budget, workers);
   using Partitions = std::vector<Map>;
   struct Partial { Partitions maps; std::vector<FinalRow> singletons; };
   auto scan = [&](int worker) {
