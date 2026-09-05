@@ -20,6 +20,7 @@ bool DenseAggregate(const QueryDesc &q, const RowGroup &rg, const uint8_t *selec
         if ((a.type != AggregateClause::AGGREGATE_SUM && a.type != AggregateClause::AGGREGATE_AVG) || !a.columnRef ||
             rg.columns[a.columnRef->columnIdx]->type != ColumnDataBase::RAW_COLUMN_DATA) return false;
     }
+    Scratch scratch(budget,uint64_t(dict->dictSize())*48);
     std::vector<uint64_t> counts(dict->dictSize(),0); std::vector<int> visited;
     auto visit = [&](int code) { if (!counts[code]++) visited.push_back(code); };
     if (dict->bytesPerValue() == 1) Selected(rg,selection,[&](int r) { visit(dict->values[r]); });

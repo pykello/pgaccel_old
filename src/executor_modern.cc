@@ -64,6 +64,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
                     if (dict && DenseAggregate(q,rg,selection,dict,groups,budget)) continue;
                     if (dict && !distinct) {
                         // Dense local codes, contiguous accumulators, only selected rows and visited labels.
+                        Scratch scratch(budget,uint64_t(dict->dictSize())*(sizeof(States)+n*sizeof(State)+8));
                         std::vector<States> local(dict->dictSize()); std::vector<int> visited;
                         Selected(rg,selection,[&](int r) {
                             int code = Code(dict,r); auto &state = local[code];
@@ -75,6 +76,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
                             Merge(state,local[code],q,budget);
                         }
                     } else {
+                        Scratch scratch(budget,dict ? uint64_t(dict->dictSize())*sizeof(States*) : 0);
                         std::vector<States*> cache(dict ? dict->dictSize() : 0,nullptr);
                         States *single = q.groupBy.empty() ? &Get(groups,{},n,budget) : nullptr;
                         Selected(rg,selection,[&](int r) {
@@ -128,7 +130,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
             else std::sort(rows.begin(),rows.end(),compare);
         }
         rows.resize(keep);
-        for (const auto &r : rows) { Row row; for (const auto &v : r) row.push_back(Format(v)); output.values.push_back(std::move(row)); }
+        for (const auto &r : rows) { Row row; for (const auto &v : r) { budget.charge(v.value.string ? v.value.text.size()+32 : 128); row.push_back(Format(v)); } output.values.push_back(std::move(row)); }
         return output;
     } catch (const std::exception &e) { return Status::Invalid(e.what()); }
 }

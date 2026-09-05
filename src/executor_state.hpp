@@ -6,6 +6,11 @@ struct Budget {
     std::atomic<uint64_t> used{0}; uint64_t limit;
     void charge(uint64_t n) { auto old = used.fetch_add(n); if (n > limit || old > limit-n) throw std::runtime_error("Query memory budget exceeded (exact results require more memory)"); }
 };
+struct Scratch {
+    Budget &budget; uint64_t bytes;
+    Scratch(Budget &b,uint64_t n):budget(b),bytes(n) { budget.charge(bytes); }
+    ~Scratch() { budget.used.fetch_sub(bytes); }
+};
 using Set = std::unordered_set<Cell,Hash>;
 struct State {
     uint64_t count = 0;
