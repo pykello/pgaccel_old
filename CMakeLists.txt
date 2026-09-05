@@ -24,6 +24,7 @@ pkg_check_modules(RE2 REQUIRED IMPORTED_TARGET re2)
 find_package(PAPI REQUIRED)
 find_package(Arrow REQUIRED)
 find_package(Parquet REQUIRED)
+find_package(absl CONFIG REQUIRED)
 
 if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
@@ -39,7 +40,8 @@ file(GLOB_RECURSE pgaccel_lib_SRC
 
 add_library(pgaccel_static STATIC ${pgaccel_lib_SRC})
 target_link_libraries(pgaccel_static PRIVATE
-                      Arrow::arrow_shared Parquet::parquet_shared tbb PkgConfig::RE2)
+                      Arrow::arrow_shared Parquet::parquet_shared tbb PkgConfig::RE2
+                      absl::flat_hash_set)
 
 add_executable(pgaccel "pgaccel.cc")
 target_include_directories(pgaccel PRIVATE "src")
