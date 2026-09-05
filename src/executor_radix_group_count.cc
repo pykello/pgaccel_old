@@ -1,4 +1,5 @@
 #include "executor_result.hpp"
+#include "executor_buffer.hpp"
 #include "executor_group_key.hpp"
 #include "executor_flat_map.hpp"
 #include <array>
@@ -55,7 +56,7 @@ std::optional<Result<QueryOutput>> ExecuteRadixGroupCount(const QueryDesc &q, bo
             offsets[p + 1] += count;
         }
     }
-    std::pmr::vector<GroupKey> ordered(offsets.back(), GroupKey{}, &budget);
+    OverwriteBuffer<GroupKey> ordered(offsets.back(), budget);
     RunTasks(workers, [&](int worker) {
         auto &input = inputs[worker];
         for (auto key : input.keys) ordered[input.offsets[partition(key)]++] = key;

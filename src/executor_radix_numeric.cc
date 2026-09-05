@@ -1,4 +1,5 @@
 #include "executor_result.hpp"
+#include "executor_buffer.hpp"
 #include "executor_group_key.hpp"
 #include "executor_flat_map.hpp"
 #include <array>
@@ -79,7 +80,7 @@ Result<QueryOutput> RadixNumeric(const QueryDesc &q, GroupKeys &keys, Budget &bu
             offsets[p + 1] += count;
         }
     }
-    std::pmr::vector<Record> ordered(offsets.back(), Record{}, &budget);
+    OverwriteBuffer<Record> ordered(offsets.back(), budget);
     RunTasks(workers, [&](int worker) {
         auto &input = inputs[worker];
         for (const auto &record : input.records) ordered[input.offsets[partition(record.key)]++] = record;

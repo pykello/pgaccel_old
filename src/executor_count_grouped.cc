@@ -1,4 +1,5 @@
 #include "executor_result.hpp"
+#include "executor_buffer.hpp"
 #include "executor_flat_map.hpp"
 #include "executor_integer_set.hpp"
 #include <bit>
@@ -59,7 +60,7 @@ Result<QueryOutput> IndexedGroupedCount(const QueryDesc &q, const GlobalDictiona
             offsets[part + 1] += count;
         }
     }
-    std::pmr::vector<uint32_t> ordered(offsets.back(), 0, &budget);
+    OverwriteBuffer<uint32_t> ordered(offsets.back(), budget);
     RunTasks(workers, [&](int worker) {
         auto &input = inputs[worker];
         for (uint32_t id : input.values) ordered[input.offsets[id >> shift]++] = id;

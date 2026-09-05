@@ -1,4 +1,5 @@
 #include "executor_result.hpp"
+#include "executor_buffer.hpp"
 #include "executor_integer_set.hpp"
 #include "column_index.hpp"
 #include <bit>
@@ -122,7 +123,7 @@ Result<QueryOutput> RadixIntegerDistinct(const QueryDesc &q, bool avx, bool para
         }
     }
     starts[partitions] = total;
-    std::pmr::vector<uint64_t> ordered(total, 0, &budget);
+    OverwriteBuffer<uint64_t> ordered(total, budget);
     RunTasks(workers, [&](int worker) {
         auto &input = inputs[worker];
         for (uint64_t value : input.values)

@@ -1,4 +1,5 @@
 #include "executor_result.hpp"
+#include "executor_buffer.hpp"
 #include "executor_group_key.hpp"
 #include "column_index.hpp"
 #include <array>
@@ -33,7 +34,7 @@ std::optional<Result<QueryOutput>> ExecutePostingDistinct(const QueryDesc &q, bo
     size_t domain = size_t(1) << keys.packed->bits();
     int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
     uint64_t rows = index->RowOffset(table.RowGroupCount());
-    std::pmr::vector<uint32_t> groups(rows, 0, &budget);
+    OverwriteBuffer<uint32_t> groups(rows, budget);
     std::pmr::vector<uint64_t> starts(&budget);
     for (int g = 0; g <= table.RowGroupCount(); ++g) starts.push_back(index->RowOffset(g));
     auto filter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
@@ -51,6 +52,7 @@ std::optional<Result<QueryOutput>> ExecutePostingDistinct(const QueryDesc &q, bo
         }
         for (int g = worker; g < table.RowGroupCount(); g += workers) {
             const auto &rg = table.GetRowGroup(g);
+            if (filter) std::fill_n(groups.data() + starts[g], rg.size, uint32_t(0));
             uint8_t bitmap[RowGroupSize / 8];
             int count = filter ? filter->ExecuteSet(rg, bitmap) : rg.size;
             if (!count) continue;
