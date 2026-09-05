@@ -19,6 +19,7 @@ static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
 std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteProjection(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteRadixNumeric(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteRadixGroupCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecutePostingDistinct(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecutePostingGroupedCount(const QueryDesc &, bool);
@@ -43,6 +44,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if (auto distinct = ExecutePostingDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
         if (auto counts = ExecutePostingGroupedCount(query,useParallelism)) return std::move(*counts);
         if (auto counts = ExecuteRadixGroupCount(query,useAvx,useParallelism)) return std::move(*counts);
+        if (auto numeric = ExecuteRadixNumeric(query,useAvx,useParallelism)) return std::move(*numeric);
         if (auto composite = ExecuteComposite(query,useAvx,useParallelism)) return std::move(*composite);
         if (auto counts = ExecuteGroupedCount(query,useAvx,useParallelism)) return std::move(*counts);
         if (auto distinct = ExecuteDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
