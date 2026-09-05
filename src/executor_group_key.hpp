@@ -1,6 +1,7 @@
 #pragma once
 #include "executor_state.hpp"
 #include "executor_dictionary_expression.hpp"
+#include "executor_packed_key.hpp"
 namespace pgaccel {
 namespace {
 // A representative resident row avoids copying string payloads into each key.
@@ -14,6 +15,7 @@ struct GroupKeys {
   std::vector<std::shared_ptr<Expression>> identity;
   bool scalar = false;
   std::pmr::vector<DictionaryExpression> cached;
+  std::optional<PackedGroupKey> packed;
   explicit GroupKeys(const QueryDesc &query, Budget *budget = nullptr)
       : q(query), cached(budget ? budget : std::pmr::get_default_resource()) {
     for (const auto &expression : q.groupExpressions) {
@@ -35,6 +37,10 @@ struct GroupKeys {
     }
     scalar = identity.size() == 1 && identity[0]->kind == Expression::COLUMN &&
              identity[0]->type->type_num() != STRING_TYPE;
+    if (budget) {
+      packed.emplace(q, identity, *budget);
+      if (!packed->valid()) packed.reset();
+    }
     if (budget)
       for (const auto &expression : identity)
         if (auto source = DictionaryExpressionSource(*expression))
@@ -52,6 +58,10 @@ struct GroupKeys {
   }
   GroupKey make(int group, int row) const {
     GroupKey key{0, uint32_t(group), uint32_t(row)};
+    if (packed) {
+      key.hash = packed->word(group, row);
+      return key;
+    }
     if (scalar) {
       // A stored numeric column fits 64 bits. Retain its exact identity in the
       // existing key word so collision checks do not reread resident rows.
@@ -81,13 +91,13 @@ struct GroupKeys {
 struct GroupHash {
   const GroupKeys *keys;
   size_t operator()(const GroupKey &key) const {
-    return keys->scalar ? IntegerHash{}(key.hash) : key.hash;
+    return (keys->scalar || keys->packed) ? IntegerHash{}(key.hash) : key.hash;
   }
 };
 struct GroupEqual {
   const GroupKeys *keys;
   bool operator()(const GroupKey &a, const GroupKey &b) const {
-    return a.hash == b.hash && (keys->scalar || keys->equal(a, b));
+    return a.hash == b.hash && (keys->scalar || keys->packed || keys->equal(a, b));
   }
 };
 } // namespace
