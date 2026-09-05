@@ -320,20 +320,30 @@ ProcessLoadParquet(ReplState &state,
                    const vector<std::string> &args,
                    const std::string &commandText)
 {
-    REQUIRED_ARGS(2, 3);
+    REQUIRED_ARGS(2, 4);
 
     std::string tableName = ToLower(args[0]);
     std::string path = args[1];
     std::optional<std::set<std::string>> fields;
-    if (args.size() == 3) {
+    if (args.size() >= 3 && args[2] != "*") {
         auto fieldsVec = Split(args[2], [](char c) { return c == ','; });
         fields = std::set<std::string>(fieldsVec.begin(), fieldsVec.end());
     }
 
+    std::map<std::string,std::string> declaredTypes;
+    if (args.size() == 4) {
+        std::ifstream input(args[3]);
+        if (!input) return Status::Invalid("Cannot open declared schema: ",args[3]);
+        std::string name,type;
+        while (input >> name) {
+            if (!(input >> type)) return Status::Invalid("Incomplete declared schema");
+            if (!declaredTypes.emplace(ToLower(name),type).second) return Status::Invalid("Duplicate declared column");
+        }
+    }
     ColumnarTableP table;
 
     auto durationMs = MeasureDurationMs([&]() {
-        table = ColumnarTable::ImportParquet(tableName, path, fields);
+        table = ColumnarTable::ImportParquet(tableName, path, fields, declaredTypes);
     });
 
     if (!table)
