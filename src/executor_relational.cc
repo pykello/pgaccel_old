@@ -225,7 +225,14 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         std::pmr::unordered_map<Key, JoinedGroup, KeyHash> groups(&budget);
         if (aggregate && !q.grouped)
             groups.try_emplace(Key(&budget), outputs, bound, budget);
-        QueryResults results(q, budget);
+        QueryDesc effective = q;
+        for (auto &having : effective.having) if (having.bound) {
+            try {
+                having.value = EvaluateWith(*having.bound, read).number;
+                having.scale = Scale(having.bound->type.get());
+            } catch (const MissingScalar &) { having.nullBound = true; }
+        }
+        QueryResults results(effective, budget);
         auto emit = [&] {
             if (!aggregate) {
                 results.addLazy([&](size_t i) {

@@ -133,7 +133,12 @@ struct QueryDesc {
     std::vector<AggregateClause> aggregateClauses;
     struct Ordering { size_t output; bool descending; };
     std::vector<Ordering> orderBy;
-    struct Having { size_t output; FilterClause::Op op; int64_t value; };
+    struct Having {
+        size_t output; FilterClause::Op op; __int128_t value;
+        int scale = 0;
+        std::shared_ptr<Expression> bound;
+        bool nullBound = false;
+    };
     std::vector<Having> having;
     std::optional<size_t> outputColumnCount;
     std::optional<uint64_t> limit;

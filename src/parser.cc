@@ -938,11 +938,16 @@ struct Parser
                 else if(op=="=")comparison=FilterClause::FILTER_EQ;
                 else if(op=="<>" || op=="!=")comparison=FilterClause::FILTER_NE;
                 else throw std::invalid_argument("Unsupported HAVING comparison");
-                ColumnRef bound{{"having", boundType, ColumnDataBase::RAW_COLUMN_DATA}, 0, 0};
-                auto literal = filterValue(bound);
-                int scale = boundNum == DECIMAL_TYPE ? static_cast<DecimalType *>(boundType.get())->scale : 0;
-                int64_t value = ParseDecimal(scale, literal);
-                q.having.push_back({index,comparison,value});
+                if (at < tokens.size() && tokens[at].text == "(") {
+                    auto expression = scalar();
+                    q.having.push_back({index, comparison, 0, 0, expression});
+                } else {
+                    ColumnRef bound{{"having", boundType, ColumnDataBase::RAW_COLUMN_DATA}, 0, 0};
+                    auto literal = filterValue(bound);
+                    int scale = boundNum == DECIMAL_TYPE ? static_cast<DecimalType *>(boundType.get())->scale : 0;
+                    int64_t value = ParseDecimal(scale, literal);
+                    q.having.push_back({index, comparison, value, scale});
+                }
             } while(eat("and"));
         }
         if (eat("order"))

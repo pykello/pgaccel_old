@@ -20,3 +20,16 @@ TEST(ScalarSubquery, GlobalAggregatesNullsCardinalityAndNestedMembership) {
     EXPECT_FALSE(ParseSelect("SELECT v FROM t WHERE v>(SELECT avg(v) FROM t) OR k=1", registry).ok());
     EXPECT_FALSE(ParseSelect("SELECT (SELECT avg(v) FROM t) FROM t", registry).ok());
 }
+TEST(ScalarSubquery, HavingUsesWideBoundsAndDifferentDecimalScales) {
+    auto decimal = std::make_shared<DecimalType>(); decimal->scale = 2;
+    auto registry = test::Table({{test::Raw({1, 1, 2}), test::Raw({125, 225, 300})}},
+        {{"k", std::make_shared<Int64Type>()}, {"v", decimal}});
+    for (const auto &[sql, expected] : std::vector<std::pair<std::string, Rows>>{
+        {"SELECT k FROM t GROUP BY k HAVING sum(v)>(SELECT avg(v) FROM t) ORDER BY k", {{"1"}, {"2"}}},
+        {"SELECT sum(v) FROM t HAVING sum(v)>(SELECT sum(v) FROM t WHERE k=99)", {}},
+        {"SELECT k FROM t GROUP BY k HAVING sum(v)>(SELECT sum(v)*0.0001000000 FROM t) ORDER BY k", {{"1"}, {"2"}}}}) {
+        auto q = ParseSelect(sql, registry); ASSERT_TRUE(q.ok()) << q.status().Message();
+        auto result = ExecuteQuery(*q, true, true); ASSERT_TRUE(result.ok()) << result.status().Message();
+        EXPECT_EQ(result->values, expected);
+    }
+}

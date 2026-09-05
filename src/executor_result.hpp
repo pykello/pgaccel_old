@@ -67,15 +67,19 @@ class QueryResults
     {
         for (const auto &h:q.having)
         {
-            if (row[h.output].null) return;
-            auto value=row[h.output].value.number; bool keep=false;
+            if (row[h.output].null || h.nullBound) return;
+            int rowScale = row[h.output].type ? Scale(row[h.output].type) : 0;
+            int scale = std::max(rowScale, h.scale);
+            auto value = Multiply(row[h.output].value.number, Power(scale - rowScale));
+            auto bound = Multiply(h.value, Power(scale - h.scale));
+            bool keep=false;
             switch(h.op) {
-            case FilterClause::FILTER_EQ:keep=value==h.value;break;
-            case FilterClause::FILTER_NE:keep=value!=h.value;break;
-            case FilterClause::FILTER_GT:keep=value>h.value;break;
-            case FilterClause::FILTER_GTE:keep=value>=h.value;break;
-            case FilterClause::FILTER_LT:keep=value<h.value;break;
-            case FilterClause::FILTER_LTE:keep=value<=h.value;break;
+            case FilterClause::FILTER_EQ:keep=value==bound;break;
+            case FilterClause::FILTER_NE:keep=value!=bound;break;
+            case FilterClause::FILTER_GT:keep=value>bound;break;
+            case FilterClause::FILTER_GTE:keep=value>=bound;break;
+            case FilterClause::FILTER_LT:keep=value<bound;break;
+            case FilterClause::FILTER_LTE:keep=value<=bound;break;
             default:break;
             }
             if(!keep)return;
