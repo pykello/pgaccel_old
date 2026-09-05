@@ -30,10 +30,12 @@ std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
 std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool);
+Result<QueryOutput> ExecuteMaterialized(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
+    if (!query.materializedSources.empty()) return ExecuteMaterialized(query, useAvx, useParallelism);
     if (query.tables.size() > 1 || !query.predicates.empty() || !query.membershipQueries.empty() || !query.scalarQueries.empty() ||
         std::any_of(query.aggregateClauses.begin(), query.aggregateClauses.end(), [](const auto &a) {
             return a.type == AggregateClause::AGGREGATE_FORMULA;

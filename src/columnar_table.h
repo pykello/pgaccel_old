@@ -74,6 +74,11 @@ public:
     Result<bool> Save(std::ostream& metadataStream,
                       std::ostream& dataStream) const;
 
+    // Execution-owned numeric intermediates; an empty input binds a schema.
+    static ColumnarTableP NumericIntermediate(
+        const std::string &name, const std::vector<ColumnDesc> &schema,
+        const std::vector<std::vector<std::string>> &rows);
+
     static ColumnarTableP ImportParquet(
         const std::string &tableName,
         const std::string &path,

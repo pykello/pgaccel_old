@@ -109,6 +109,12 @@ struct AggregateClause {
 
 struct QueryDesc {
     std::vector<ColumnarTable *> tables;
+    struct MaterializedSource {
+        size_t table;
+        std::shared_ptr<QueryDesc> query;
+        std::shared_ptr<ColumnarTable> schema;
+    };
+    std::vector<MaterializedSource> materializedSources;
     std::vector<FilterClause> filterClauses;
     // Bound column comparisons, evaluated by the relational executor.
     std::vector<std::shared_ptr<Expression>> predicates;
