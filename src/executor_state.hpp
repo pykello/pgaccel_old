@@ -1,5 +1,6 @@
 #pragma once
 #include "executor_value.hpp"
+#include "executor_exact_set.hpp"
 #include <memory_resource>
 namespace pgaccel
 {
@@ -47,7 +48,7 @@ struct State
     uint64_t count = 0;
     Wide sum = 0;
     Cell extreme;
-    std::shared_ptr<Set> distinct;
+    std::shared_ptr<ExactSet> distinct;
 };
 using States = std::pmr::vector<State>;
 using Groups = std::pmr::unordered_map<Cell, States, Hash>;
@@ -55,12 +56,9 @@ void Insert(State &state, Cell v, Budget &budget)
 {
     if (!state.distinct)
     {
-        state.distinct = std::allocate_shared<Set>(std::pmr::polymorphic_allocator<Set>(&budget));
+        state.distinct = std::allocate_shared<ExactSet>(std::pmr::polymorphic_allocator<ExactSet>(&budget), budget);
     }
-    if (state.distinct->find(v) == state.distinct->end())
-    {
-        state.distinct->insert(v);
-    }
+    state.distinct->insert(v);
 }
 void Update(State &state, const AggregateClause &a, const RowGroup &rg, int row, Budget &budget)
 {
@@ -92,8 +90,7 @@ void Merge(States &to, States &from, const QueryDesc &q, Budget &budget)
             if (!a.distinct)
                 a.distinct = std::move(b.distinct);
             else
-                for (const auto &v : *b.distinct)
-                    Insert(a, v, budget);
+                b.distinct->forEach([&](const Cell &v) { Insert(a, v, budget); });
         }
         if (b.count &&
             (!a.count || (kind == AggregateClause::AGGREGATE_MIN ? Less(b.extreme, a.extreme)
