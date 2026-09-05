@@ -19,6 +19,7 @@ static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
 std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteProjection(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteDictionaryWeighted(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDenseLength(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteRadixNumeric(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteRadixGroupCount(const QueryDesc &, bool, bool);
@@ -45,6 +46,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if (auto distinct = ExecutePostingDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
         if (auto counts = ExecutePostingGroupedCount(query,useParallelism)) return std::move(*counts);
         if (auto counts = ExecuteRadixGroupCount(query,useAvx,useParallelism)) return std::move(*counts);
+        if (auto weighted = ExecuteDictionaryWeighted(query,useAvx,useParallelism)) return std::move(*weighted);
         if (auto lengths = ExecuteDenseLength(query,useAvx,useParallelism)) return std::move(*lengths);
         if (auto numeric = ExecuteRadixNumeric(query,useAvx,useParallelism)) return std::move(*numeric);
         if (auto composite = ExecuteComposite(query,useAvx,useParallelism)) return std::move(*composite);
