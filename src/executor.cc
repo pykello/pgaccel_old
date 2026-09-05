@@ -19,6 +19,7 @@ static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
 std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteProjection(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecutePostingGroupedCount(const QueryDesc &, bool);
 std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
@@ -37,6 +38,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         }
         if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) return std::move(*fast);
         if (auto projection = ExecuteProjection(query,useAvx,useParallelism)) return std::move(*projection);
+        if (auto counts = ExecutePostingGroupedCount(query,useParallelism)) return std::move(*counts);
         if (auto composite = ExecuteComposite(query,useAvx,useParallelism)) return std::move(*composite);
         if (auto counts = ExecuteGroupedCount(query,useAvx,useParallelism)) return std::move(*counts);
         if (auto distinct = ExecuteDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
