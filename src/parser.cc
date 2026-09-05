@@ -82,6 +82,18 @@ struct Parser
     QueryDesc q;
     const TableRegistry &registry;
     std::map<std::string, int> sources;
+    std::vector<std::pair<std::string, std::shared_ptr<Expression>>> derivedColumns;
+    std::string derivedAlias;
+    std::shared_ptr<Expression> binding(const std::string &text) {
+        std::string name = ToLower(text);
+        if (auto dot = name.find('.'); dot != std::string::npos) {
+            if (name.substr(0, dot) != derivedAlias) throw std::invalid_argument("Unknown qualifier: " + text);
+            name.erase(0, dot + 1);
+        }
+        for (const auto &[column, expression] : derivedColumns)
+            if (column == name) return expression;
+        throw std::invalid_argument("Unknown derived column: " + text);
+    }
     bool eat(const std::string &s)
     {
         if (at < tokens.size() && !tokens[at].quoted && ToLower(tokens[at].text) == ToLower(s))
@@ -104,6 +116,11 @@ struct Parser
     }
     ColumnRef resolve(const std::string &s)
     {
+        if (!derivedColumns.empty()) {
+            auto e = binding(s);
+            if (!e->column) throw std::invalid_argument("Derived column requires expression evaluation");
+            return *e->column;
+        }
         std::string name = ToLower(s), qualifier;
         if (auto dot = name.find('.'); dot != std::string::npos) {
             qualifier = name.substr(0, dot); name.erase(0, dot + 1);
@@ -256,9 +273,12 @@ struct Parser
             }
             else
             {
-                e->kind = Expression::COLUMN;
-                e->column = resolve(t.text);
-                e->type = e->column->Type();
+                if (!derivedColumns.empty()) e = binding(t.text);
+                else {
+                    e->kind = Expression::COLUMN;
+                    e->column = resolve(t.text);
+                    e->type = e->column->Type();
+                }
             }
         }
         while (at < tokens.size())
@@ -400,6 +420,12 @@ struct Parser
              a.expression->type->type_num() == DATE_TYPE ||
              a.expression->type->type_num() == TIMESTAMP_TYPE))
             throw std::invalid_argument("SUM/AVG require numeric input");
+        if (!derivedColumns.empty() && at == start + 1 && a.type == AggregateClause::AGGREGATE_PROJECT) {
+            auto name = ToLower(tokens[start].text);
+            if (auto dot = name.find('.'); dot != std::string::npos) name.erase(0, dot + 1);
+            for (const auto &[column, expression] : derivedColumns)
+                if (column == name) a.alias = name;
+        }
         a.sql = signature(start, at);
         return a;
     }
@@ -573,7 +599,7 @@ struct Parser
     }
     QueryDesc parse()
     {
-        // Resolve the one source table before parsing SELECT expressions.
+        // Bind all source schemas before parsing SELECT expressions.
         size_t from = 0;
         int depth = 0;
         for (; from < tokens.size(); ++from)
@@ -590,6 +616,34 @@ struct Parser
         if (from + 1 >= tokens.size())
             throw std::invalid_argument("Expected FROM table");
         at = from + 1;
+        if (eat("(")) {
+            size_t start = at; int nesting = 1;
+            while (at < tokens.size() && nesting) {
+                if (!tokens[at].quoted) {
+                    if (tokens[at].text == "(") ++nesting;
+                    if (tokens[at].text == ")") --nesting;
+                }
+                if (nesting) ++at;
+            }
+            if (nesting) throw std::invalid_argument("Unclosed derived table");
+            std::vector<Token> innerTokens(tokens.begin() + start, tokens.begin() + at);
+            ++at; eat("as"); derivedAlias = ToLower(take().text);
+            auto inner = Parser{std::move(innerTokens), 0, {}, registry}.parse();
+            if (inner.grouped || inner.limit || inner.offset || !inner.having.empty() || !inner.orderBy.empty() ||
+                std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
+                    return a.type != AggregateClause::AGGREGATE_PROJECT;
+                })) throw std::invalid_argument("Derived tables currently require an unordered projection without LIMIT");
+            q.tables = std::move(inner.tables);
+            q.filterClauses = std::move(inner.filterClauses);
+            q.predicates = std::move(inner.predicates);
+            for (const auto &a : inner.aggregateClauses) {
+                std::string name = ToLower(a.alias.empty() && a.columnRef ? a.columnRef->Name() : a.alias);
+                if (name.empty()) throw std::invalid_argument("Derived expressions require aliases");
+                if (std::any_of(derivedColumns.begin(), derivedColumns.end(), [&](const auto &column) { return column.first == name; }))
+                    throw std::invalid_argument("Ambiguous derived column: " + name);
+                derivedColumns.emplace_back(name, a.expression);
+            }
+        } else {
         do {
             auto name = ToLower(take().text);
             auto table = registry.find(name);
@@ -606,6 +660,7 @@ struct Parser
                 throw std::invalid_argument("Duplicate table alias: " + alias);
             q.tables.push_back(table->second.get());
         } while (eat(","));
+        }
         size_t afterSources = at;
         at = 0;
         need("select");
@@ -613,6 +668,15 @@ struct Parser
         {
             if (eat("*"))
             {
+                if (!derivedColumns.empty()) {
+                    for (const auto &[name, expression] : derivedColumns) {
+                        AggregateClause a; a.type = AggregateClause::AGGREGATE_PROJECT;
+                        a.expression = expression; a.alias = name; a.sql = name + " ";
+                        if (expression->column) a.columnRef = expression->column;
+                        q.aggregateClauses.push_back(std::move(a));
+                    }
+                    continue;
+                }
                 for (const auto &column:q.tables[0]->Schema())
                 {
                     AggregateClause a; a.type=AggregateClause::AGGREGATE_PROJECT;
