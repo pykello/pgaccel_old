@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Run pinned stage-3 SQL in ClickHouse; retain typed answers and timings."""
+"""Run pinned SQL in ClickHouse; retain typed answers and timings."""
 import argparse,json,pathlib,subprocess,time,os
 os.environ["TZ"]="UTC"
-P=argparse.ArgumentParser();P.add_argument('--queries',required=True);P.add_argument('--output',required=True);P.add_argument('--threads',type=int,default=8);P.add_argument('--repeats',type=int,default=3);P.add_argument('--database',default='clickbench_audit');a=P.parse_args()
-ids={1,2,3,4,5,6,7,8,9,10,11,13,14,16,20,26,30,34,35,37,38}
+P=argparse.ArgumentParser();P.add_argument('--queries',required=True);P.add_argument('--output',required=True);P.add_argument('--threads',type=int,default=8);P.add_argument('--repeats',type=int,default=3);P.add_argument('--database',default='clickbench_audit');P.add_argument('--ids',default='1,2,3,4,5,6,7,8,9,10,11,13,14,16,20,26,30,34,35,37,38',help='Comma-separated query IDs, or all');a=P.parse_args()
+ids=set(range(1,44)) if a.ids=='all' else {int(i) for i in a.ids.split(',')}
 queries=pathlib.Path(a.queries).read_text().splitlines()
 with open(a.output,'w') as out:
  for qid,sql in enumerate(queries,1):
