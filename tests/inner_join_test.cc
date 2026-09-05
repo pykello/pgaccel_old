@@ -79,3 +79,25 @@ TEST(InnerJoin, NonNullMembershipSubqueriesPreserveDuplicatesAndEmptySets) {
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE id IN (SELECT id,value FROM u)", registry).ok());
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE id NOT IN (SELECT sum(value) FROM u)", registry).ok());
 }
+TEST(InnerJoin, MaterializedMembershipSupportsGroupingAndNestedSets) {
+    auto registry = JoinTables();
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t WHERE id IN "
+        "(SELECT id FROM u GROUP BY id HAVING sum(value)>25)", registry), (Rows{{"3"}}));
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t WHERE id NOT IN "
+        "(SELECT id FROM u GROUP BY id HAVING sum(value)>30)", registry), (Rows{{"4"}}));
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t WHERE id IN "
+        "(SELECT id FROM u WHERE id IN (SELECT id FROM t WHERE id=1))", registry), (Rows{{"2"}}));
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t WHERE label IN "
+        "(SELECT label FROM t WHERE id<3)", registry), (Rows{{"3"}}));
+    auto q = ParseSelect("SELECT count(*) FROM t WHERE id IN (SELECT id FROM u GROUP BY id)", registry);
+    ASSERT_TRUE(q.ok()); auto limited = std::move(q).ValueUnsafe(); limited.memoryBudgetBytes = 1;
+    EXPECT_FALSE(ExecuteQuery(limited, false, false).ok());
+}
+TEST(InnerJoin, MembershipNormalizesDifferentDecimalScales) {
+    auto two = std::make_shared<DecimalType>(); two->scale = 2;
+    auto one = std::make_shared<DecimalType>(); one->scale = 1;
+    auto registry = test::Table({{test::Raw({120, 121})}}, {{"x", two}});
+    auto other = test::Table({{test::Raw({12})}}, {{"y", one}});
+    registry.emplace("u", std::move(other.at("t")));
+    EXPECT_EQ(RunJoin("SELECT x FROM t WHERE x IN (SELECT y FROM u)", registry), (Rows{{"1.20"}}));
+}

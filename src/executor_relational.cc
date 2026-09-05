@@ -48,6 +48,38 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         Budget budget(q.memoryBudgetBytes);
         ScopedValueResource valuesMemory(budget);
         const size_t tables = q.tables.size(), outputs = q.aggregateClauses.size();
+        uint64_t subquerySpillBytes = 0;
+        struct Membership {
+            std::pmr::unordered_set<Cell, Hash> values;
+            int scale;
+            explicit Membership(Budget &budget, int s) : values(&budget), scale(s) {}
+        };
+        std::vector<Membership> memberships; memberships.reserve(q.membershipQueries.size());
+        for (const auto &membership : q.membershipQueries) {
+            int sourceScale = Scale(membership.resultType.get());
+            int scale = std::max(sourceScale, Scale(membership.column.Type().get()));
+            memberships.emplace_back(budget, scale);
+            auto sub = *membership.query; sub.memoryBudgetBytes = budget.limit - budget.used.load();
+            auto result = ExecuteQuery(sub, avx, false);
+            if (!result.ok()) return Status::Invalid("Membership subquery: " + result.status().Message());
+            subquerySpillBytes += result->spillBytes;
+            // Conservatively retain the child's reported peak while its output
+            // is converted, accounting for both child output and the new set.
+            Scratch childMemory(budget, result->peakMemoryBytes);
+            for (const auto &row : result->values) {
+                Cell key;
+                auto type = membership.resultType->type_num();
+                if (type == STRING_TYPE) {
+                    auto owner = std::allocate_shared<std::pmr::string>(std::pmr::polymorphic_allocator<std::pmr::string>(&budget), row[0]);
+                    key = {0, *owner, true, owner};
+                } else {
+                    int64_t value = type == DATE_TYPE ? ParseDate(row[0]) :
+                        type == TIMESTAMP_TYPE ? ParseTimestamp(row[0]) : ParseDecimal(sourceScale, row[0]);
+                    key.number = Multiply(value, Power(scale - sourceScale));
+                }
+                memberships.back().values.insert(std::move(key));
+            }
+        }
         std::pmr::vector<RowId> bound(tables, 0, &budget);
         auto read = [&](const ColumnRef &column) {
             RowId id = bound[column.tableIdx];
@@ -83,6 +115,13 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                     bound[table] = (uint64_t(g) << 32) | uint32_t(row);
                     for (const auto &predicate : local)
                         if (!EvaluateWith(*predicate, read).number) return;
+                    for (size_t i = 0; i < q.membershipQueries.size(); ++i) {
+                        const auto &query = q.membershipQueries[i];
+                        if (query.column.tableIdx != int(table)) continue;
+                        auto key = read(query.column);
+                        if (!key.string) key.number = Multiply(key.number, Power(memberships[i].scale - Scale(query.column.Type().get())));
+                        if (memberships[i].values.contains(key) == query.anti) return;
+                    }
                     rows.back().push_back(bound[table]);
                 });
             }
@@ -254,7 +293,8 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             };
             results.addLazy(finalize);
         }
-        return results.finish();
+        auto output = results.finish(); output.spillBytes += subquerySpillBytes;
+        return output;
     } catch (const std::exception &e) {
         // Do not send a multi-table query to the single-table spill executor.
         return Status::Invalid(e.what());

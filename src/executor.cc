@@ -34,7 +34,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
-    if (query.tables.size() > 1 || !query.predicates.empty() ||
+    if (query.tables.size() > 1 || !query.predicates.empty() || !query.membershipQueries.empty() ||
         std::any_of(query.aggregateClauses.begin(), query.aggregateClauses.end(), [](const auto &a) {
             return a.type == AggregateClause::AGGREGATE_FORMULA;
         }))

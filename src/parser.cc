@@ -304,7 +304,7 @@ struct Parser
                 if (op == "in") {
                     need("(");
                     if (at < tokens.size() && !tokens[at].quoted && ToLower(tokens[at].text) == "select") {
-                        --at; e = existence(e);
+                        --at; e = membership(e);
                     } else {
                         std::shared_ptr<Expression> choices;
                         do {
@@ -400,8 +400,34 @@ struct Parser
         return s;
     }
     bool containsExists(const std::shared_ptr<Expression> &e) {
-        return e && (e->kind == Expression::EXISTS || containsExists(e->left) ||
+        return e && (e->kind == Expression::EXISTS || e->kind == Expression::MEMBERSHIP || containsExists(e->left) ||
                      containsExists(e->right) || containsExists(e->condition));
+    }
+    std::shared_ptr<Expression> membership(const std::shared_ptr<Expression> &needle) {
+        if (!needle->column || needle->column->tableIdx < 0)
+            throw std::invalid_argument("IN subqueries require a non-null column operand");
+        size_t begin = at; need("("); size_t start = at; int nesting = 1;
+        while (at < tokens.size() && nesting) {
+            if (!tokens[at].quoted) {
+                if (tokens[at].text == "(") ++nesting;
+                if (tokens[at].text == ")") --nesting;
+            }
+            if (nesting) ++at;
+        }
+        if (nesting) throw std::invalid_argument("Unclosed membership subquery");
+        std::vector<Token> subTokens(tokens.begin() + start, tokens.begin() + at); ++at;
+        QueryDesc inner;
+        try { inner = Parser{std::move(subTokens), 0, {}, registry}.parse(); }
+        catch (const std::exception &) { at = begin; return existence(needle); }
+        if (inner.outputColumnCount != 1 || inner.aggregateClauses[0].type != AggregateClause::AGGREGATE_PROJECT ||
+            !inner.aggregateClauses[0].columnRef)
+            throw std::invalid_argument("IN subqueries require one non-null projected source column");
+        auto type = inner.aggregateClauses[0].expression->type;
+        predicate(Expression::EQ, needle, inner.aggregateClauses[0].expression); // Validate comparable types.
+        auto e = std::make_shared<Expression>(); e->kind = Expression::MEMBERSHIP;
+        e->subqueryIndex = q.membershipQueries.size(); e->type = std::make_shared<Int64Type>();
+        q.membershipQueries.push_back({std::make_shared<QueryDesc>(std::move(inner)), *needle->column, type, false});
+        return e;
     }
     std::shared_ptr<Expression> existence(std::shared_ptr<Expression> needle = {}) {
         if (parent) throw std::invalid_argument("Nested existence subqueries are not yet supported");
@@ -676,7 +702,10 @@ struct Parser
         return left;
     }
     void addPredicates(const std::shared_ptr<Expression> &e) {
-        if (e->kind == Expression::EXISTS) return;
+        if (e->kind == Expression::EXISTS || e->kind == Expression::MEMBERSHIP) return;
+        if (e->kind == Expression::NOT && e->left->kind == Expression::MEMBERSHIP) {
+            q.membershipQueries[e->left->subqueryIndex].anti = true; return;
+        }
         if (e->kind == Expression::NOT && e->left->kind == Expression::EXISTS) {
             q.existenceJoins[e->left->subqueryIndex].anti = true; return;
         }
@@ -720,13 +749,15 @@ struct Parser
             std::vector<Token> innerTokens(tokens.begin() + start, tokens.begin() + at);
             ++at; eat("as"); derivedAlias = ToLower(take().text);
             auto inner = Parser{std::move(innerTokens), 0, {}, registry}.parse();
-            if (!inner.existenceJoins.empty() || inner.grouped || inner.limit || inner.offset || !inner.having.empty() || !inner.orderBy.empty() ||
+            if (inner.grouped || inner.limit || inner.offset || !inner.having.empty() || !inner.orderBy.empty() ||
                 std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                     return a.type != AggregateClause::AGGREGATE_PROJECT;
                 })) throw std::invalid_argument("Derived tables currently require an unordered projection without LIMIT");
             q.tables = std::move(inner.tables);
             q.filterClauses = std::move(inner.filterClauses);
             q.predicates = std::move(inner.predicates);
+            q.existenceJoins = std::move(inner.existenceJoins);
+            q.membershipQueries = std::move(inner.membershipQueries);
             for (const auto &a : inner.aggregateClauses) {
                 std::string name = ToLower(a.alias.empty() && a.columnRef ? a.columnRef->Name() : a.alias);
                 if (name.empty()) throw std::invalid_argument("Derived expressions require aliases");
