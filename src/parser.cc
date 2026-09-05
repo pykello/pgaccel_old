@@ -488,7 +488,7 @@ struct Parser
         Parser sub{std::move(subTokens), 0, {}, registry};
         sub.parent = this; sub.tableOffset = q.tables.size();
         auto inner = sub.parse();
-        if (inner.tables.size() != 1 || !inner.scalarQueries.empty() || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
+        if (inner.tables.size() != 1 || !inner.scalarQueries.empty() || !inner.membershipQueries.empty() || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
             !inner.orderBy.empty() || !inner.having.empty() ||
             std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                 return a.type != AggregateClause::AGGREGATE_PROJECT;

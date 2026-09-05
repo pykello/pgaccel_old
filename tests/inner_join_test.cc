@@ -101,3 +101,10 @@ TEST(InnerJoin, MembershipNormalizesDifferentDecimalScales) {
     registry.emplace("u", std::move(other.at("t")));
     EXPECT_EQ(RunJoin("SELECT x FROM t WHERE x IN (SELECT y FROM u)", registry), (Rows{{"1.20"}}));
 }
+TEST(InnerJoin, RejectNestedPlansThatCannotRetainExistenceScope) {
+    auto registry = JoinTables();
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE NOT EXISTS "
+        "(SELECT * FROM u WHERE u.id=t.id AND u.id IN (SELECT id FROM t WHERE id=99))", registry).ok());
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE NOT EXISTS "
+        "(SELECT * FROM u WHERE u.id=t.id AND u.value>(SELECT avg(value) FROM u))", registry).ok());
+}
