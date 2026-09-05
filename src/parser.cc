@@ -120,10 +120,34 @@ struct Parser
         if (!found) throw std::invalid_argument("Unknown column: " + s);
         return *found;
     }
+    std::shared_ptr<Expression> predicate(Expression::Kind kind,
+        std::shared_ptr<Expression> left, std::shared_ptr<Expression> right = {})
+    {
+        if (right) {
+            auto l = left->type->type_num(), r = right->type->type_num();
+            auto numeric = [](TypeNum t) { return t == INT32_TYPE || t == INT64_TYPE || t == DECIMAL_TYPE; };
+            if (l != r && !(numeric(l) && numeric(r)))
+                throw std::invalid_argument("Predicate operands have incompatible types");
+        }
+        auto e = std::make_shared<Expression>(); e->kind = kind;
+        e->left = std::move(left); e->right = std::move(right);
+        e->type = std::make_shared<Int64Type>(); return e;
+    }
     std::shared_ptr<Expression> expr(int precedence = 0)
     {
         auto e = std::make_shared<Expression>();
-        if (eat("("))
+        if (eat("not")) {
+            e = predicate(Expression::NOT, expr(2));
+            if (e->left->type->type_num() != INT64_TYPE)
+                throw std::invalid_argument("NOT requires a predicate");
+        }
+        else if (at < tokens.size() && !tokens[at].quoted &&
+                 (ToLower(tokens[at].text) == "date" || ToLower(tokens[at].text) == "cast")) {
+            e->type = std::make_shared<DateType>();
+            ColumnRef date{{"", e->type, ColumnDataBase::DICT_COLUMN_DATA}, 0, 0};
+            e->literal = std::to_string(ParseDate(filterValue(date)));
+        }
+        else if (eat("("))
         {
             e = expr();
             need(")");
@@ -238,6 +262,47 @@ struct Parser
         while (at < tokens.size())
         {
             auto op = ToLower(tokens[at].text);
+            bool special = op == "in" || op == "between" || op == "like" || op == "not";
+            if (special && precedence < 3) {
+                ++at;
+                bool negate = op == "not";
+                if (negate) op = ToLower(take().text);
+                if (op == "in") {
+                    need("("); std::shared_ptr<Expression> choices;
+                    do {
+                        auto equal = predicate(Expression::EQ, e, expr(3));
+                        choices = choices ? predicate(Expression::OR, choices, equal) : equal;
+                    } while (eat(","));
+                    need(")"); e = choices;
+                } else if (op == "between") {
+                    auto low = expr(3); need("and"); auto high = expr(3);
+                    e = predicate(Expression::AND, predicate(Expression::GTE, e, low),
+                                  predicate(Expression::LTE, e, high));
+                } else if (op == "like") {
+                    auto pattern = expr(3);
+                    if (e->type->type_num() != STRING_TYPE || pattern->type->type_num() != STRING_TYPE ||
+                        pattern->kind != Expression::CONSTANT)
+                        throw std::invalid_argument("LIKE requires a string and literal pattern");
+                    e = predicate(Expression::LIKE, e, pattern);
+                    std::string regex;
+                    for (size_t i = 0; i < pattern->literal.size(); ++i) {
+                        char c = pattern->literal[i];
+                        if (c == '%') regex += ".*";
+                        else if (c == '_') regex += '.';
+                        else {
+                            if (c == '\\' && i + 1 < pattern->literal.size() &&
+                                (pattern->literal[i+1] == '%' || pattern->literal[i+1] == '_' || pattern->literal[i+1] == '\\'))
+                                c = pattern->literal[++i];
+                            regex += re2::RE2::QuoteMeta(std::string(1, c));
+                        }
+                    }
+                    re2::RE2::Options options; options.set_dot_nl(true); options.set_log_errors(false);
+                    e->regexp = std::make_shared<re2::RE2>(regex, options);
+                    if (!e->regexp->ok()) throw std::invalid_argument("Invalid UTF-8 LIKE pattern");
+                } else throw std::invalid_argument("Unsupported predicate operator " + op);
+                if (negate) e = predicate(Expression::NOT, e);
+                continue;
+            }
             bool comparison=op=="=" || op=="<>" || op=="!=" || op=="<" || op=="<=" || op==">" || op==">=";
             int p=op=="or"?1:op=="and"?2:comparison?3:op=="+" || op=="-"?4:op=="*" || op=="/"?5:0;
             if (!p || p <= precedence)
@@ -410,67 +475,7 @@ struct Parser
         if (bool(a.left)!=bool(b.left) || bool(a.right)!=bool(b.right)) return false;
         return (!a.left || same(*a.left,*b.left)) && (!a.right || same(*a.right,*b.right));
     }
-    QueryDesc parse()
-    {
-        // Resolve the one source table before parsing SELECT expressions.
-        size_t from = 0;
-        int depth = 0;
-        for (; from < tokens.size(); ++from)
-        {
-            if (tokens[from].quoted)
-                continue;
-            if (tokens[from].text == "(")
-                ++depth;
-            if (tokens[from].text == ")")
-                --depth;
-            if (!depth && ToLower(tokens[from].text) == "from")
-                break;
-        }
-        if (from + 1 >= tokens.size())
-            throw std::invalid_argument("Expected FROM table");
-        at = from + 1;
-        do {
-            auto name = ToLower(take().text);
-            auto table = registry.find(name);
-            if (table == registry.end()) throw std::invalid_argument("Unknown table: " + name);
-            std::string alias = name;
-            if (eat("as")) alias = ToLower(take().text);
-            else if (at < tokens.size() && !tokens[at].quoted) {
-                auto next = ToLower(tokens[at].text);
-                if (next != "," && next != "where" && next != "group" && next != "order" &&
-                    next != "having" && next != "limit" && next != "offset" && next != ";")
-                    alias = ToLower(take().text);
-            }
-            if (!sources.emplace(alias, q.tables.size()).second)
-                throw std::invalid_argument("Duplicate table alias: " + alias);
-            q.tables.push_back(table->second.get());
-        } while (eat(","));
-        size_t afterSources = at;
-        at = 0;
-        need("select");
-        do
-        {
-            if (eat("*"))
-            {
-                for (const auto &column:q.tables[0]->Schema())
-                {
-                    AggregateClause a; a.type=AggregateClause::AGGREGATE_PROJECT;
-                    a.expression=std::make_shared<Expression>(); a.expression->kind=Expression::COLUMN;
-                    a.columnRef=resolve(column.name); a.expression->column=a.columnRef;
-                    a.expression->type=column.type; a.sql=ToLower(column.name)+" ";
-                    q.aggregateClauses.push_back(std::move(a));
-                }
-                continue;
-            }
-            auto a = aggregate();
-            if (eat("as"))
-                a.alias = take().text;
-            q.aggregateClauses.push_back(std::move(a));
-        } while (eat(","));
-        q.outputColumnCount=q.aggregateClauses.size();
-        need("from");
-        at = afterSources;
-        if (eat("where"))
+    void parseFilters() {
             do
             {
                 FilterClause f;
@@ -544,6 +549,102 @@ struct Parser
                     throw std::invalid_argument("LIKE requires string operands");
                 q.filterClauses.push_back(std::move(f));
             } while (eat("and"));
+    }
+    // Only equalities entailed by every OR branch may drive a hash join.
+    std::vector<std::shared_ptr<Expression>> requiredEqualities(const std::shared_ptr<Expression> &e) {
+        if (e->kind == Expression::EQ && e->left->column && e->right->column) return {e};
+        if (e->kind != Expression::AND && e->kind != Expression::OR) return {};
+        auto left = requiredEqualities(e->left), right = requiredEqualities(e->right);
+        if (e->kind == Expression::AND) { left.insert(left.end(), right.begin(), right.end()); return left; }
+        std::erase_if(left, [&](const auto &a) {
+            return !std::any_of(right.begin(), right.end(), [&](const auto &b) {
+                return same(*a, *b) || (same(*a->left, *b->right) && same(*a->right, *b->left));
+            });
+        });
+        return left;
+    }
+    void addPredicates(const std::shared_ptr<Expression> &e) {
+        if (e->kind == Expression::AND) { addPredicates(e->left); addPredicates(e->right); return; }
+        if (e->kind == Expression::OR)
+            for (const auto &required : requiredEqualities(e)) q.predicates.push_back(required);
+        q.predicates.push_back(e);
+    }
+    QueryDesc parse()
+    {
+        // Resolve the one source table before parsing SELECT expressions.
+        size_t from = 0;
+        int depth = 0;
+        for (; from < tokens.size(); ++from)
+        {
+            if (tokens[from].quoted)
+                continue;
+            if (tokens[from].text == "(")
+                ++depth;
+            if (tokens[from].text == ")")
+                --depth;
+            if (!depth && ToLower(tokens[from].text) == "from")
+                break;
+        }
+        if (from + 1 >= tokens.size())
+            throw std::invalid_argument("Expected FROM table");
+        at = from + 1;
+        do {
+            auto name = ToLower(take().text);
+            auto table = registry.find(name);
+            if (table == registry.end()) throw std::invalid_argument("Unknown table: " + name);
+            std::string alias = name;
+            if (eat("as")) alias = ToLower(take().text);
+            else if (at < tokens.size() && !tokens[at].quoted) {
+                auto next = ToLower(tokens[at].text);
+                if (next != "," && next != "where" && next != "group" && next != "order" &&
+                    next != "having" && next != "limit" && next != "offset" && next != ";")
+                    alias = ToLower(take().text);
+            }
+            if (!sources.emplace(alias, q.tables.size()).second)
+                throw std::invalid_argument("Duplicate table alias: " + alias);
+            q.tables.push_back(table->second.get());
+        } while (eat(","));
+        size_t afterSources = at;
+        at = 0;
+        need("select");
+        do
+        {
+            if (eat("*"))
+            {
+                for (const auto &column:q.tables[0]->Schema())
+                {
+                    AggregateClause a; a.type=AggregateClause::AGGREGATE_PROJECT;
+                    a.expression=std::make_shared<Expression>(); a.expression->kind=Expression::COLUMN;
+                    a.columnRef=resolve(column.name); a.expression->column=a.columnRef;
+                    a.expression->type=column.type; a.sql=ToLower(column.name)+" ";
+                    q.aggregateClauses.push_back(std::move(a));
+                }
+                continue;
+            }
+            auto a = aggregate();
+            if (eat("as"))
+                a.alias = take().text;
+            q.aggregateClauses.push_back(std::move(a));
+        } while (eat(","));
+        q.outputColumnCount=q.aggregateClauses.size();
+        need("from");
+        at = afterSources;
+        if (eat("where")) {
+            size_t start = at, filters = q.filterClauses.size(), predicates = q.predicates.size();
+            try {
+                parseFilters();
+                if (at < tokens.size()) {
+                    auto next = ToLower(tokens[at].text);
+                    if (next != "group" && next != "having" && next != "order" && next != "limit" &&
+                        next != "offset" && next != ";") throw std::invalid_argument("General predicate");
+                }
+            } catch (const std::exception &) {
+                at = start; q.filterClauses.resize(filters); q.predicates.resize(predicates);
+                auto e = expr();
+                if (e->type->type_num() != INT64_TYPE) throw std::invalid_argument("WHERE requires a predicate");
+                addPredicates(e);
+            }
+        }
         if (eat("group"))
         {
             need("by");

@@ -126,6 +126,12 @@ Cell EvaluateWith(const Expression &e, const Reader &read)
         if (!value.string) value.number=Multiply(value.number,Power(Scale(e.type.get())-Scale(branch->type.get())));
         return value;
     }
+    if (e.kind==Expression::NOT)
+        return {Wide(!EvaluateWith(*e.left, read).number)};
+    if (e.kind==Expression::LIKE) {
+        auto value = EvaluateWith(*e.left, read);
+        return {Wide(re2::RE2::FullMatch(re2::StringPiece(value.text.data(), value.text.size()), *e.regexp))};
+    }
     if (e.kind==Expression::OR)
         return {Wide(EvaluateWith(*e.left, read).number || EvaluateWith(*e.right, read).number)};
     if (e.kind==Expression::AND)

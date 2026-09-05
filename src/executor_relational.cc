@@ -26,6 +26,15 @@ uint64_t References(const Expression &e) {
         if (child) mask |= References(*child);
     return mask;
 }
+std::shared_ptr<Expression> LocalPredicate(const std::shared_ptr<Expression> &e, uint64_t table) {
+    if ((References(*e) & ~table) == 0) return e;
+    if (e->kind != Expression::AND && e->kind != Expression::OR) return {};
+    auto left = LocalPredicate(e->left, table), right = LocalPredicate(e->right, table);
+    if (e->kind == Expression::OR && (!left || !right)) return {};
+    if (!left) return right;
+    if (!right) return left;
+    auto local = std::make_shared<Expression>(*e); local->left = left; local->right = right; return local;
+}
 }
 
 // Hash inner joins stream row identities into typed aggregation. The largest
@@ -51,6 +60,9 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             std::vector<FilterClause> clauses;
             for (const auto &filter : q.filterClauses)
                 if (filter.columnRef.tableIdx == int(table)) clauses.push_back(filter);
+            std::vector<std::shared_ptr<Expression>> local;
+            for (const auto &predicate : q.predicates)
+                if (auto projected = LocalPredicate(predicate, uint64_t(1) << table)) local.push_back(projected);
             auto filter = clauses.empty() ? FilterNodeP{} : CreateFilterNode(clauses, avx);
             for (int g = 0; g < q.tables[table]->RowGroupCount(); ++g) {
                 const auto &rg = q.tables[table]->GetRowGroup(g);
@@ -58,9 +70,8 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 if (filter && !filter->ExecuteSet(rg, bitmap)) continue;
                 Selected(rg, filter ? bitmap : nullptr, [&](int row) {
                     bound[table] = (uint64_t(g) << 32) | uint32_t(row);
-                    for (size_t p = 0; p < masks.size(); ++p)
-                        if ((masks[p] & ~(uint64_t(1) << table)) == 0 &&
-                            !EvaluateWith(*q.predicates[p], read).number) return;
+                    for (const auto &predicate : local)
+                        if (!EvaluateWith(*predicate, read).number) return;
                     rows.back().push_back(bound[table]);
                 });
             }

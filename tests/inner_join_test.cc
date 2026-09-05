@@ -46,3 +46,12 @@ TEST(InnerJoin, SelfJoinAndAdditionalEqualityOrInequality) {
     EXPECT_EQ(RunJoin("SELECT count(*) FROM t a,t b WHERE a.id=b.id AND a.label=b.label", registry), (Rows{{"4"}}));
     EXPECT_EQ(RunJoin("SELECT count(*) FROM u WHERE id < value", registry), (Rows{{"4"}}));
 }
+TEST(InnerJoin, OnlyEqualitiesSharedByEveryAlternativeDriveHashJoins) {
+    auto registry = JoinTables();
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t a,u b WHERE "
+        "(a.id=b.id AND a.label='a' AND b.value=10) OR "
+        "(b.id=a.id AND a.label='c' AND b.value=30)", registry), (Rows{{"2"}}));
+    auto q = ParseSelect("SELECT count(*) FROM t a,u b WHERE a.id=b.id OR a.label='a'", registry);
+    ASSERT_TRUE(q.ok());
+    EXPECT_FALSE(ExecuteQuery(*q, false, false).ok());
+}
