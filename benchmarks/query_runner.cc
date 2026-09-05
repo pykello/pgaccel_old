@@ -26,8 +26,32 @@ int main(int argc,char **argv) {
     if(std::string(argv[1])=="native") { auto r=ColumnarTable::Load(argv[3],argv[2]);if(!r.ok()){std::cerr<<r.status().Message();return 2;}table=std::move(r).ValueUnsafe(); }
     else table=ColumnarTable::ImportParquet(argv[3],argv[2],{},schema);
     if(!table)return 2;
+    double baseLoadMs=std::chrono::duration<double,std::milli>(Clock::now()-begin).count();
+    DictionaryBuildStats indexes;
+    double indexBuildMs=0;
+    if(const char *enabled=std::getenv("PGACCEL_BUILD_DICTIONARIES"); enabled && std::string(enabled)=="1") {
+        uint64_t indexLimit=uint64_t(64)<<30;
+        if(const char *limit=std::getenv("PGACCEL_INDEX_MEMORY_BYTES")) indexLimit=std::stoull(limit);
+        auto start=Clock::now();
+        auto built=table->BuildDictionaries(indexLimit);
+        if(!built.ok()){std::cerr<<built.status().Message();return 2;}
+        indexes=std::move(built).ValueUnsafe();
+        indexBuildMs=std::chrono::duration<double,std::milli>(Clock::now()-start).count();
+    }
     uint64_t count=0;for(int g=0;g<table->RowGroupCount();++g)count+=table->GetRowGroup(g).size;
-    std::cout<<std::setprecision(12)<<"{\"status\":\"loaded\",\"rows\":"<<count<<",\"columns\":"<<table->ColumnCount()<<",\"load_ms\":"<<std::chrono::duration<double,std::milli>(Clock::now()-begin).count()<<"}"<<std::endl;
+    struct rusage loadedUsage{};getrusage(RUSAGE_SELF,&loadedUsage);
+    std::cout<<std::setprecision(12)<<"{\"status\":\"loaded\",\"rows\":"<<count<<",\"columns\":"<<table->ColumnCount()
+             <<",\"base_load_ms\":"<<baseLoadMs<<",\"index_build_ms\":"<<indexBuildMs
+             <<",\"index_bytes\":"<<indexes.bytes<<",\"index_peak_allocation_bytes\":"<<indexes.peakBytes
+             <<",\"process_peak_rss_bytes\":"<<uint64_t(loadedUsage.ru_maxrss)*1024
+             <<",\"load_ms\":"<<std::chrono::duration<double,std::milli>(Clock::now()-begin).count()
+             <<",\"indexed_columns\":[";
+    for(size_t i=0;i<indexes.columns.size();++i) {
+        const auto &column=indexes.columns[i]; if(i)std::cout<<',';
+        std::cout<<"{\"column\":"<<Json(table->Schema()[column.column].name)<<",\"values\":"<<column.values
+                 <<",\"bytes\":"<<column.bytes<<",\"peak_bytes\":"<<column.peakBytes<<",\"build_ms\":"<<column.buildMs<<'}';
+    }
+    std::cout<<"]}"<<std::endl;
     if(argc>8){auto s=table->Save(argv[8]);if(!s.ok())return 2;std::cout<<"{\"status\":\"saved\"}"<<std::endl;}
     registry.emplace(ToLower(argv[3]),std::move(table));
     int id=0,repeats=argc>7?std::max(1,std::stoi(argv[7])):1;
