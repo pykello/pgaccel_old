@@ -49,6 +49,7 @@ public:
 };
 
 struct QueryOutput {
+    uint64_t peakMemoryBytes = 0;
     Row fieldNames;
     std::vector<Row> values;
 };

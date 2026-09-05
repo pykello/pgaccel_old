@@ -1,4 +1,5 @@
 #include "executor_dense.hpp"
+#include "executor_result.hpp"
 namespace pgaccel
 {
 Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
@@ -27,49 +28,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 aggregates.aggregateClauses.push_back(q.aggregateClauses[i]);
             }
         const size_t stateCount = aggregates.aggregateClauses.size();
-        QueryOutput output;
-        for (auto &a : q.aggregateClauses)
-            output.fieldNames.push_back(a.ToString());
-        std::vector<FinalRow> rows;
-        auto compare = [&](const FinalRow &a, const FinalRow &b)
-        {
-            for (const auto &o : q.orderBy)
-            {
-                const auto &l = a[o.output], &r = b[o.output];
-                if (l.null != r.null)
-                    return l.null; // SQL default NULLS FIRST ascending.
-                if (l.null)
-                    continue;
-                bool eq = l.average ? l.mean == r.mean : l.value == r.value;
-                if (eq)
-                    continue;
-                bool less = l.average ? l.mean < r.mean : Less(l.value, r.value);
-                return o.descending ? !less : less;
-            }
-            // Stable deterministic tie-breaks; ties remain SQL-equivalent.
-            for (size_t i = 0; i < a.size(); ++i)
-                if (!(a[i].value == b[i].value))
-                    return Less(a[i].value, b[i].value);
-            return false;
-        };
-        auto append = [&](FinalRow row)
-        {
-            if (q.limit && !*q.limit)
-                return;
-            if (!q.limit || rows.size() < *q.limit)
-            {
-                budget.charge(64 + n * sizeof(FinalCell));
-                rows.push_back(std::move(row));
-                if (q.limit)
-                    std::push_heap(rows.begin(), rows.end(), compare);
-            }
-            else if (compare(row, rows.front()))
-            {
-                std::pop_heap(rows.begin(), rows.end(), compare);
-                rows.back() = std::move(row);
-                std::push_heap(rows.begin(), rows.end(), compare);
-            }
-        };
+        QueryResults results(q, budget);
         if (!aggregate)
         {
             for (int g = 0; g < table.RowGroupCount(); ++g)
@@ -81,16 +40,16 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 Selected(rg, filter ? bitmap : nullptr,
                          [&](int r)
                          {
-                             if (q.limit && q.orderBy.empty() && rows.size() >= *q.limit)
+                             if (q.limit && q.orderBy.empty() && results.size() >= *q.limit)
                                  return;
                              FinalRow row;
                              row.reserve(n);
                              for (auto &a : q.aggregateClauses)
                                  row.push_back(
                                      {Evaluate(*a.expression, rg, r), a.expression->type.get()});
-                             append(std::move(row));
+                             results.add(std::move(row));
                          });
-                if (q.limit && q.orderBy.empty() && rows.size() >= *q.limit)
+                if (q.limit && q.orderBy.empty() && results.size() >= *q.limit)
                     break;
             }
         }
@@ -111,7 +70,8 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                         continue;
                     const uint8_t *selection = filter && selected != rg.size ? bitmap : nullptr;
                     if (q.groupBy.empty() && stateCount == 1 &&
-                        aggregates.aggregateClauses[0].type == AggregateClause::AGGREGATE_COUNT_DISTINCT &&
+                        aggregates.aggregateClauses[0].type ==
+                            AggregateClause::AGGREGATE_COUNT_DISTINCT &&
                         aggregates.aggregateClauses[0].columnRef)
                     {
                         const auto &column = *aggregates.aggregateClauses[0].columnRef;
@@ -143,8 +103,9 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                     {
                         // Dense local codes, contiguous accumulators, only selected rows and
                         // visited labels.
-                        Scratch scratch(budget, uint64_t(dict->dictSize()) *
-                                                    (sizeof(States) + stateCount * sizeof(State) + 8));
+                        Scratch scratch(budget,
+                                        uint64_t(dict->dictSize()) *
+                                            (sizeof(States) + stateCount * sizeof(State) + 8));
                         std::vector<States> local(dict->dictSize());
                         std::vector<int> visited;
                         Selected(rg, selection,
@@ -158,13 +119,14 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                                          visited.push_back(code);
                                      }
                                      for (size_t i = 0; i < stateCount; ++i)
-                                         Update(state[i], aggregates.aggregateClauses[i], rg, r, budget);
+                                         Update(state[i], aggregates.aggregateClauses[i], rg, r,
+                                                budget);
                                  });
                         for (int code : visited)
                         {
                             auto &state =
-                                Get(groups, Label(dict, code, q.groupBy[0].Type()->type_num()), stateCount,
-                                    budget);
+                                Get(groups, Label(dict, code, q.groupBy[0].Type()->type_num()),
+                                    stateCount, budget);
                             Merge(state, local[code], aggregates, budget);
                         }
                     }
@@ -173,7 +135,8 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                         Scratch scratch(budget,
                                         dict ? uint64_t(dict->dictSize()) * sizeof(States *) : 0);
                         std::vector<States *> cache(dict ? dict->dictSize() : 0, nullptr);
-                        States *single = q.groupBy.empty() ? &Get(groups, {}, stateCount, budget) : nullptr;
+                        States *single =
+                            q.groupBy.empty() ? &Get(groups, {}, stateCount, budget) : nullptr;
                         Selected(rg, selection,
                                  [&](int r)
                                  {
@@ -189,9 +152,11 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                                                  stateCount, budget);
                                      }
                                      else if (!state)
-                                         state = &Get(groups, Read(rg, q.groupBy[0], r), stateCount, budget);
+                                         state = &Get(groups, Read(rg, q.groupBy[0], r), stateCount,
+                                                      budget);
                                      for (size_t i = 0; i < stateCount; ++i)
-                                         Update((*state)[i], aggregates.aggregateClauses[i], rg, r, budget);
+                                         Update((*state)[i], aggregates.aggregateClauses[i], rg, r,
+                                                budget);
                                  });
                     }
                 }
@@ -262,29 +227,10 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                     }
                     row.push_back(v);
                 }
-                append(std::move(row));
+                results.add(std::move(row));
             }
         }
-        size_t keep = q.limit ? std::min<uint64_t>(*q.limit, rows.size()) : rows.size();
-        if (!q.orderBy.empty() || q.grouped)
-        {
-            if (keep < rows.size())
-                std::partial_sort(rows.begin(), rows.begin() + keep, rows.end(), compare);
-            else
-                std::sort(rows.begin(), rows.end(), compare);
-        }
-        rows.resize(keep);
-        for (const auto &r : rows)
-        {
-            Row row;
-            for (const auto &v : r)
-            {
-                budget.charge(v.value.string ? v.value.text.size() + 32 : 128);
-                row.push_back(Format(v));
-            }
-            output.values.push_back(std::move(row));
-        }
-        return output;
+        return results.finish();
     }
     catch (const std::exception &e)
     {

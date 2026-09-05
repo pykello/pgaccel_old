@@ -1,0 +1,93 @@
+#pragma once
+#include "executor_state.hpp"
+namespace pgaccel
+{
+namespace
+{
+class QueryResults
+{
+    const QueryDesc &q;
+    Budget &budget;
+    size_t n;
+    QueryOutput output;
+    std::vector<FinalRow> rows;
+    bool compare(const FinalRow &a, const FinalRow &b) const
+    {
+        for (const auto &o : q.orderBy)
+        {
+            const auto &l = a[o.output], &r = b[o.output];
+            if (l.null != r.null)
+                return l.null; // SQL default NULLS FIRST ascending.
+            if (l.null)
+                continue;
+            bool eq = l.average ? l.mean == r.mean : l.value == r.value;
+            if (eq)
+                continue;
+            bool less = l.average ? l.mean < r.mean : Less(l.value, r.value);
+            return o.descending ? !less : less;
+        }
+        // Stable deterministic tie-breaks; ties remain SQL-equivalent.
+        for (size_t i = 0; i < a.size(); ++i)
+            if (!(a[i].value == b[i].value))
+                return Less(a[i].value, b[i].value);
+        return false;
+    }
+
+  public:
+    QueryResults(const QueryDesc &query, Budget &memory)
+        : q(query), budget(memory), n(q.aggregateClauses.size())
+    {
+        for (const auto &a : q.aggregateClauses)
+            output.fieldNames.push_back(a.ToString());
+    }
+    size_t size() const { return rows.size(); }
+    void add(FinalRow row)
+    {
+        if (q.limit && !*q.limit)
+            return;
+        if (!q.limit || rows.size() < *q.limit)
+        {
+            budget.charge(64 + n * sizeof(FinalCell));
+            rows.push_back(std::move(row));
+            if (q.limit)
+                std::push_heap(rows.begin(), rows.end(),
+                               [&](const auto &a, const auto &b) { return compare(a, b); });
+        }
+        else if (compare(row, rows.front()))
+        {
+            std::pop_heap(rows.begin(), rows.end(),
+                          [&](const auto &a, const auto &b) { return compare(a, b); });
+            rows.back() = std::move(row);
+            std::push_heap(rows.begin(), rows.end(),
+                           [&](const auto &a, const auto &b) { return compare(a, b); });
+        }
+    }
+    QueryOutput finish()
+    {
+        size_t keep = q.limit ? std::min<uint64_t>(*q.limit, rows.size()) : rows.size();
+        if (!q.orderBy.empty() || q.grouped)
+        {
+            if (keep < rows.size())
+                std::partial_sort(rows.begin(), rows.begin() + keep, rows.end(),
+                                  [&](const auto &a, const auto &b) { return compare(a, b); });
+            else
+                std::sort(rows.begin(), rows.end(),
+                          [&](const auto &a, const auto &b) { return compare(a, b); });
+        }
+        rows.resize(keep);
+        for (const auto &r : rows)
+        {
+            Row row;
+            for (const auto &v : r)
+            {
+                budget.charge(v.value.string ? v.value.text.size() + 32 : 128);
+                row.push_back(Format(v));
+            }
+            output.values.push_back(std::move(row));
+        }
+        output.peakMemoryBytes = budget.peak.load();
+        return std::move(output);
+    }
+};
+} // namespace
+} // namespace pgaccel
