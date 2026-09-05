@@ -16,12 +16,13 @@ struct ColumnDataGroups {
     uint16_t groups[1 << 16] __attribute__ ((aligned (512)));
 };
 
-class AggState {};
+class AggState { public: virtual ~AggState() = default; };
 typedef std::unique_ptr<AggState> AggStateP;
 typedef std::vector<AggStateP> AggStateVec;
 
 class Aggregator {
 public:
+    virtual ~Aggregator() = default;
     virtual AggStateVec LocalAggregate(const RowGroup& rowGroup,
                                        const ColumnDataGroups& groups,
                                        uint8_t *bitmap) const = 0;
