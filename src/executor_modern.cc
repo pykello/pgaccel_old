@@ -11,6 +11,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
         auto filter =
             q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
         auto &table = *q.tables[0];
+        if (filter) filter->Prepare(table, budget, parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1);
         size_t n = q.aggregateClauses.size();
         bool aggregate = q.grouped;
         bool distinct = false;

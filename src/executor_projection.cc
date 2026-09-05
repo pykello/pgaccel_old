@@ -16,6 +16,7 @@ std::optional<Result<QueryOutput>> ExecuteProjection(const QueryDesc &q, bool av
     auto &table = *q.tables[0];
     int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
     auto filter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
+    if (filter) filter->Prepare(table, budget, workers);
     auto task = [&](int worker)
     {
         ScopedValueResource valueMemory(budget);

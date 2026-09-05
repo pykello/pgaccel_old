@@ -11,6 +11,8 @@ class ValuePredicate : public FilterNodeImpl {
   std::string needle;
   bool substring = false, negate = false, avx;
   StringSignature required;
+  std::optional<std::pmr::vector<uint32_t>> globalMatches;
+  const GlobalDictionary *globalOwner = nullptr;
   std::unordered_set<Cell, Hash> members;
   bool matches(Cell value) const {
     bool yes =
@@ -34,7 +36,11 @@ class ValuePredicate : public FilterNodeImpl {
       auto signatures = data->globalDictionary && substring && needle.size() >= 3
           ? data->globalDictionary->StringSignatures() : std::span<const StringSignature>{};
       for (int i = 0; i < dict->dictSize(); ++i) {
-        bool yes = !signatures.empty() && !signatures[data->globalIds[i]].mayContain(required)
+        bool yes;
+        if (globalOwner && globalOwner == data->globalDictionary) {
+          uint32_t id = data->globalIds[i];
+          yes = ((*globalMatches)[id / 32] >> (id % 32)) & 1;
+        } else yes = !signatures.empty() && !signatures[data->globalIds[i]].mayContain(required)
             ? negate : matches(Label(dict, i, f.columnRef.Type()->type_num()));
         if (yes) labels[i / 32] |= uint32_t(1) << (i % 32);
       }
@@ -147,6 +153,32 @@ public:
         members.insert(value);
       }
     }
+  }
+  void Prepare(const ColumnarTable &table, std::pmr::memory_resource &memory, int workers) override {
+    if (!substring || needle.size() < 3) return;
+    auto index = table.Dictionary(f.columnRef.columnIdx);
+    if (!index || index->StringSignatures().empty()) return;
+    // Query-local exact predicate results, rebuilt inside every timed query.
+    // Prepare before stripe tasks so no worker waits on nested initialization.
+    globalOwner = nullptr;
+    globalMatches.emplace(&memory);
+    globalMatches->resize((index->size() + 31) / 32, 0);
+    auto signatures = index->StringSignatures();
+    auto strings = index->Strings();
+    RunTasks(workers, [&](int worker) {
+      size_t begin = globalMatches->size() * worker / workers;
+      size_t end = globalMatches->size() * (worker + 1) / workers;
+      for (size_t word = begin; word < end; ++word) {
+        uint32_t mask = 0;
+        for (size_t id = word * 32; id < std::min(word * 32 + 32, strings.size()); ++id) {
+          bool yes = !signatures[id].mayContain(required) ? negate : matches(Cell{0, strings[id], true});
+          if (yes) mask |= uint32_t(1) << (id % 32);
+        }
+        (*globalMatches)[word] = mask;
+      }
+      return 0;
+    });
+    globalOwner = index;
   }
   int ExecuteCount(const RowGroup &rg) const override {
     uint8_t bitmap[RowGroupSize / 8];

@@ -17,6 +17,7 @@ static Rows ExecuteGroupBy(const AggregateNode &aggNode,
                            bool useParallelism);
 static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
+Result<QueryOutput> ExecuteFilteredCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteProjection(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecutePostingDistinct(const QueryDesc &, bool, bool);
@@ -35,7 +36,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
             query.aggregateClauses[0].type == AggregateClause::AGGREGATE_COUNT &&
             !query.aggregateClauses[0].expression && !query.limit && !query.offset) {
             if (query.filterClauses.empty()) return ExecuteAggNoGroupByNoFilter(query,useAvx,useParallelism);
-            return ExecuteAggNoGroupByWithFilter(query,useAvx,useParallelism);
+            return ExecuteFilteredCount(query,useAvx,useParallelism);
         }
         if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) return std::move(*fast);
         if (auto projection = ExecuteProjection(query,useAvx,useParallelism)) return std::move(*projection);
