@@ -323,57 +323,29 @@ ComputeSkipAction(T value, FilterClause::Op op,
                   T fusedVal, FilterClause::Op fusedOp,
                   T minValue, T maxValue)
 {
-    switch (op)
-    {
+    auto one = [&](T v, FilterClause::Op operation) {
+        switch (operation) {
         case FilterClause::FILTER_EQ:
-            if (value < minValue || value > maxValue)
-                return FILTER_NONE;
-            break;
-        
+            return v < minValue || v > maxValue ? FILTER_NONE :
+                   minValue == maxValue ? FILTER_ALL : CANNOT_SKIP;
+        case FilterClause::FILTER_NE:
+            return v < minValue || v > maxValue ? FILTER_ALL :
+                   minValue == maxValue ? FILTER_NONE : CANNOT_SKIP;
         case FilterClause::FILTER_LT:
+            return v <= minValue ? FILTER_NONE : v > maxValue ? FILTER_ALL : CANNOT_SKIP;
         case FilterClause::FILTER_LTE:
-            if (fusedOp == FilterClause::INVALID)
-            {
-                if (value < minValue)
-                    return FILTER_NONE;
-
-                if (value > maxValue)
-                    return FILTER_ALL;
-            }
-            else if (value < minValue)
-            {
-                // filter range starts before vector range, should check end
-
-                // case 1: filter range ends before vector range. no overlaps
-                if (fusedVal < minValue)
-                    return FILTER_NONE;
-
-                // case 2: filter range ends after vector range. full overlap.
-                if (fusedVal > maxValue)
-                    return FILTER_ALL;
-            }
-            else if (value > maxValue)
-            {
-                // filter range starts after vector range. no overlaps.
-                return FILTER_NONE;
-            }
-
-            break;
-
+            return v < minValue ? FILTER_NONE : v >= maxValue ? FILTER_ALL : CANNOT_SKIP;
         case FilterClause::FILTER_GT:
+            return v >= maxValue ? FILTER_NONE : v < minValue ? FILTER_ALL : CANNOT_SKIP;
         case FilterClause::FILTER_GTE:
-            if (value < minValue)
-            {
-                return FILTER_ALL;
-            }
-            else if (value > maxValue)
-            {
-                return FILTER_NONE;
-            }
-
-            break;
-    }
-
+            return v > maxValue ? FILTER_NONE : v <= minValue ? FILTER_ALL : CANNOT_SKIP;
+        default: return FILTER_ALL;
+        }
+    };
+    if (maxValue < minValue) return FILTER_NONE;
+    auto first = one(value, op), second = one(fusedVal, fusedOp);
+    if (first == FILTER_NONE || second == FILTER_NONE) return FILTER_NONE;
+    if (first == FILTER_ALL && second == FILTER_ALL) return FILTER_ALL;
     return CANNOT_SKIP;
 }
 
@@ -403,6 +375,13 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
             return FilterAll<bitmapAction>(columnData.size, bitmap);
     }
 
+    if (ComputeSkipAction(dictIdx, op, 0, FilterClause::INVALID, 0, dictSize - 1) == FILTER_ALL) {
+        dictIdx = dictIdx2; op = fusedOp; fusedOp = FilterClause::INVALID;
+    }
+    if (fusedOp != FilterClause::INVALID &&
+        ComputeSkipAction(dictIdx2, fusedOp, 0, FilterClause::INVALID, 0, dictSize - 1) == FILTER_ALL)
+        fusedOp = FilterClause::INVALID;
+
     switch (columnData.bytesPerValue())
     {
         case 1:
@@ -425,9 +404,9 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
 
 template<class AccelTy, bool returnCount, BitmapAction bitmapAction>
 int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
-                     const typename AccelTy::c_type &value,
+                     typename AccelTy::c_type value,
                      FilterClause::Op op,
-                     const typename AccelTy::c_type &fusedVal,
+                     typename AccelTy::c_type fusedVal,
                      FilterClause::Op fusedOp,
                      uint8_t *bitmap,
                      bool useAvx)
@@ -440,6 +419,13 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
         case FILTER_ALL:
             return FilterAll<bitmapAction>(columnData.size, bitmap);
     }
+
+    if (ComputeSkipAction(value, op, value, FilterClause::INVALID, columnData.minValue, columnData.maxValue) == FILTER_ALL) {
+        value = fusedVal; op = fusedOp; fusedOp = FilterClause::INVALID;
+    }
+    if (fusedOp != FilterClause::INVALID &&
+        ComputeSkipAction(fusedVal, fusedOp, fusedVal, FilterClause::INVALID, columnData.minValue, columnData.maxValue) == FILTER_ALL)
+        fusedOp = FilterClause::INVALID;
 
     switch (columnData.bytesPerValue) {
     #define FILTER_MATCHES_RAW_DISPATCH_BY_SIZE(SIZE, TYPE) \
@@ -483,9 +469,9 @@ public:
 template<typename AccelTy>
 class FilterRawDataNode: public CompareFilterNode {
 public:
-    FilterRawDataNode(const typename AccelTy::c_type &value,
+    FilterRawDataNode(typename AccelTy::c_type value,
                       FilterClause::Op op,
-                      const typename AccelTy::c_type &fusedVal,
+                      typename AccelTy::c_type fusedVal,
                       FilterClause::Op fusedOp,
                       bool useAvx): 
         value(value),
@@ -524,9 +510,9 @@ private:
 template<typename AccelTy>
 class FilterDictDataNode: public CompareFilterNode {
 public:
-    FilterDictDataNode(const typename AccelTy::c_type &value,
+    FilterDictDataNode(typename AccelTy::c_type value,
                        FilterClause::Op op,
-                       const typename AccelTy::c_type &fusedVal,
+                       typename AccelTy::c_type fusedVal,
                        FilterClause::Op fusedOp,
                        bool useAvx): 
         value(value),

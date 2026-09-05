@@ -71,50 +71,18 @@ int DictIndex(const DictColumnData<AccelTy> &columnData,
               typename AccelTy::c_type value,
               FilterClause::Op op)
 {
-    int left = 0, right = columnData.dict.size() - 1;
-    int result;
-    switch (op)
-    {
-        case FilterClause::FILTER_LT:
-        case FilterClause::FILTER_LTE:
-            result = columnData.dict.size();
-            break;
-
-        default:
-            result = -1;
+    auto lo = std::lower_bound(columnData.dict.begin(), columnData.dict.end(), value);
+    auto hi = std::upper_bound(columnData.dict.begin(), columnData.dict.end(), value);
+    int l = lo - columnData.dict.begin(), h = hi - columnData.dict.begin();
+    switch (op) {
+    case FilterClause::FILTER_EQ:
+    case FilterClause::FILTER_NE: return lo != columnData.dict.end() && *lo == value ? l : -1;
+    case FilterClause::FILTER_GT: return h - 1;
+    case FilterClause::FILTER_GTE: return l;
+    case FilterClause::FILTER_LT: return l;
+    case FilterClause::FILTER_LTE: return h - 1;
+    default: return -1;
     }
-
-    while (left <= right) {
-        int mid = (left + right) / 2;
-        if (columnData.dict[mid] == value)
-            return mid;
-
-        if (value < columnData.dict[mid]) {
-            right = mid - 1;
-            switch (op)
-            {
-                case FilterClause::FILTER_LT:
-                    result = mid;
-                    break;
-                case FilterClause::FILTER_LTE:
-                    result = mid - 1;
-                    break;
-            }
-        } else {
-            left = mid + 1;
-            switch (op)
-            {
-                case FilterClause::FILTER_GT:
-                    result = mid;
-                    break;
-                case FilterClause::FILTER_GTE:
-                    result = mid + 1;
-                    break;
-            }
-        }
-    }
-
-    return result;
 }
 
 template<typename PartialResult>
