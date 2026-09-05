@@ -1,5 +1,7 @@
 #include "executor_group_key.hpp"
 #include "executor_result.hpp"
+#include <array>
+#include <concepts>
 namespace pgaccel {
 namespace {
 struct NumericState {
@@ -7,6 +9,10 @@ struct NumericState {
   Wide sum = 0;
 };
 using NumericStates = std::pmr::vector<NumericState>;
+template <class Values>
+constexpr bool NumericValues = requires(Values values) {
+  { values[0] } -> std::same_as<NumericState &>;
+};
 template <class Values>
 Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   Budget budget(q.memoryBudgetBytes);
@@ -27,8 +33,11 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   auto initial = [&]() -> Values {
     if constexpr (std::is_same_v<Values, uint64_t>)
       return 0;
-    else
+    else if constexpr (std::is_same_v<Values, NumericStates> ||
+                       std::is_same_v<Values, States>)
       return Values(aggregates.aggregateClauses.size(), &budget);
+    else
+      return {};
   };
   auto &table = *q.tables[0];
   int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
@@ -59,7 +68,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
         else
           for (size_t i = 0; i < values.size(); ++i) {
             const auto &a = aggregates.aggregateClauses[i];
-            if constexpr (std::is_same_v<Values, NumericStates>) {
+            if constexpr (NumericValues<Values>) {
               ++values[i].count;
               if (a.type != AggregateClause::AGGREGATE_COUNT)
                 values[i].sum =
@@ -90,7 +99,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
           State state;
           if constexpr (std::is_same_v<Values, uint64_t>)
             state.count = values;
-          else if constexpr (std::is_same_v<Values, NumericStates>) {
+          else if constexpr (NumericValues<Values>) {
             state.count = values[indexes[i]].count;
             state.sum = values[indexes[i]].sum;
           } else
@@ -140,7 +149,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
           auto &to = found->second, &from = it->second;
           if constexpr (std::is_same_v<Values, uint64_t>)
             to += from;
-          else if constexpr (std::is_same_v<Values, NumericStates>) {
+          else if constexpr (NumericValues<Values>) {
             for (size_t i = 0; i < to.size(); ++i) {
               to[i].count += from[i].count;
               to[i].sum = Add(to[i].sum, from[i].sum);
@@ -177,8 +186,18 @@ std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &q,
   }
   if (count)
     return Composite<uint64_t>(q, avx, parallel);
-  if (numeric)
+  if (numeric) {
+    size_t aggregates = 0;
+    for (const auto &a : q.aggregateClauses)
+      aggregates += a.type != AggregateClause::AGGREGATE_PROJECT;
+    switch (aggregates) {
+    case 1: return Composite<std::array<NumericState, 1>>(q, avx, parallel);
+    case 2: return Composite<std::array<NumericState, 2>>(q, avx, parallel);
+    case 3: return Composite<std::array<NumericState, 3>>(q, avx, parallel);
+    case 4: return Composite<std::array<NumericState, 4>>(q, avx, parallel);
+    }
     return Composite<NumericStates>(q, avx, parallel);
+  }
   return Composite<States>(q, avx, parallel);
 }
 } // namespace pgaccel
