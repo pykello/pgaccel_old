@@ -105,3 +105,20 @@ TEST(IntegerDistinct, RadixPartitionedInputMatchesIndependentSet)
         }
     }
 }
+
+TEST(IntegerDistinct, InlineSingletonNeedsNoBackingAllocation)
+{
+    Budget budget(4096);
+    InlineIntegerSet values(budget);
+    values.insert(UINT64_MAX);
+    values.insert(UINT64_MAX);
+    EXPECT_EQ(values.size(), 1);
+    EXPECT_EQ(budget.used.load(), 0);
+    values.insert(0);
+    values.insert(uint64_t(INT64_MIN));
+    values.insert(0);
+    std::set<uint64_t> actual;
+    values.forEach([&](uint64_t value) { actual.insert(value); });
+    EXPECT_EQ(actual, std::set<uint64_t>({0, UINT64_MAX, uint64_t(INT64_MIN)}));
+    EXPECT_EQ(values.size(), actual.size());
+}

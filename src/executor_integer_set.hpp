@@ -111,5 +111,25 @@ class IntegerSet
                 function(value);
     }
 };
+// Many grouped distinct sets contain one value. Keep that value inline and
+// allocate the exact backing set only for additional distinct identities.
+class InlineIntegerSet {
+    IntegerSet additional;
+    uint64_t first = 0;
+    bool present = false;
+  public:
+    explicit InlineIntegerSet(std::pmr::memory_resource &memory) : additional(memory) {}
+    InlineIntegerSet(InlineIntegerSet &&) noexcept = default;
+    InlineIntegerSet(const InlineIntegerSet &) = delete;
+    size_t size() const { return size_t(present) + additional.size(); }
+    void insert(uint64_t value) {
+        if (!present) { first = value; present = true; }
+        else if (value != first) additional.insert(value);
+    }
+    template <class F> void forEach(F function) const {
+        if (present) function(first);
+        additional.forEach(function);
+    }
+};
 } // namespace
 } // namespace pgaccel
