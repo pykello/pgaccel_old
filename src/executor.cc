@@ -17,6 +17,7 @@ static Rows ExecuteGroupBy(const AggregateNode &aggNode,
                            bool useParallelism);
 static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
+std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
@@ -29,6 +30,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
             if (query.filterClauses.empty()) return ExecuteAggNoGroupByNoFilter(query,useAvx,useParallelism);
             return ExecuteAggNoGroupByWithFilter(query,useAvx,useParallelism);
         }
+        if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) return std::move(*fast);
         return ExecuteModern(query,useAvx,useParallelism);
     } catch (const std::exception &e) { return Status::Invalid(e.what()); }
 }
