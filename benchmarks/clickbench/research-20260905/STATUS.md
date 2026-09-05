@@ -1,9 +1,16 @@
 # Research status
 
 The goal has been extended: continue until **43/43 queries** are faster than
-a fresh paired ClickHouse run. Work is active on Q22, Q24, Q28 and Q29.
+a fresh paired ClickHouse run. Q29 is the only known remaining loss.
 The complete checkpoint below remains the latest validated full comparison;
 individual experiments do not replace it.
+
+The continued experiments provisionally beat the prior ClickHouse checkpoint
+on [Q28](38-dense-string-length.md), [Q22](43-sparse-predicates.md), and
+[Q24](44-projection-boundaries.md). Q29 is down to 4.361 seconds after
+[weighted dictionary execution](39-weighted-dictionary.md) and
+[capture-prefix evaluation](42-capture-prefix.md), but still exceeds CH.
+The next regex plan is undergoing native and sanitizer validation.
 
 The requested resident warm comparison target is met: **39/43 query wins
 (90.70%)** and a **0.368585** paired geometric PGAccel/ClickHouse latency
