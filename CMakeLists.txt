@@ -1,7 +1,7 @@
 project(PgAccel)
 
 cmake_minimum_required(VERSION 3.18)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 include(FetchContent)
 
@@ -23,7 +23,7 @@ if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx512f -mavx512bw -pthread -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx512f -mavx512bw -pthread -O3 -fno-strict-aliasing")
 
 file(GLOB_RECURSE pgaccel_lib_SRC
      "src/*.h"
