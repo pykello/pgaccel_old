@@ -126,6 +126,8 @@ Cell EvaluateWith(const Expression &e, const Reader &read)
         if (!value.string) value.number=Multiply(value.number,Power(Scale(e.type.get())-Scale(branch->type.get())));
         return value;
     }
+    if (e.kind==Expression::OR)
+        return {Wide(EvaluateWith(*e.left, read).number || EvaluateWith(*e.right, read).number)};
     if (e.kind==Expression::AND)
         return {Wide(EvaluateWith(*e.left, read).number && EvaluateWith(*e.right, read).number)};
     if (e.kind>=Expression::EQ && e.kind<=Expression::GTE)

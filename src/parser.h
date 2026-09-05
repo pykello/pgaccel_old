@@ -71,7 +71,7 @@ struct FilterClause {
 
 class DelimitedCapture;
 struct Expression {
-    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND } kind = CONSTANT;
+    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND, OR } kind = CONSTANT;
     std::optional<ColumnRef> column;
     std::string literal = "0";
     std::string replacement;

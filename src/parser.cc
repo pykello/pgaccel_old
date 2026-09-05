@@ -196,11 +196,11 @@ struct Parser
             e->kind = Expression::SUBTRACT;
             e->left = std::make_shared<Expression>();
             e->left->type = std::make_shared<Int64Type>();
-            e->right = expr(5);
+            e->right = expr(6);
             e->type = e->right->type;
         }
         else if (eat("+"))
-            e = expr(5);
+            e = expr(6);
         else
         {
             auto t = take();
@@ -239,22 +239,22 @@ struct Parser
         {
             auto op = ToLower(tokens[at].text);
             bool comparison=op=="=" || op=="<>" || op=="!=" || op=="<" || op=="<=" || op==">" || op==">=";
-            int p=op=="and"?1:comparison?2:op=="+" || op=="-"?3:op=="*" || op=="/"?4:0;
+            int p=op=="or"?1:op=="and"?2:comparison?3:op=="+" || op=="-"?4:op=="*" || op=="/"?5:0;
             if (!p || p <= precedence)
                 break;
             ++at;
             auto parent = std::make_shared<Expression>();
             parent->left = e;
             parent->right = expr(p);
-            if (comparison || op=="and")
+            if (comparison || op=="and" || op=="or")
             {
                 auto l=e->type->type_num(),r=parent->right->type->type_num();
                 auto numeric=[](TypeNum t){return t==INT32_TYPE || t==INT64_TYPE || t==DECIMAL_TYPE;};
-                if (op=="and" && (l!=INT64_TYPE || r!=INT64_TYPE))
-                    throw std::invalid_argument("AND requires predicate operands");
+                if ((op=="and" || op=="or") && (l!=INT64_TYPE || r!=INT64_TYPE))
+                    throw std::invalid_argument("Boolean operators require predicate operands");
                 if (comparison && l!=r && !(numeric(l) && numeric(r)))
                     throw std::invalid_argument("Comparison operands have incompatible types");
-                parent->kind=op=="and"?Expression::AND:op=="="?Expression::EQ:op=="<>" || op=="!="?Expression::NE:
+                parent->kind=op=="or"?Expression::OR:op=="and"?Expression::AND:op=="="?Expression::EQ:op=="<>" || op=="!="?Expression::NE:
                     op=="<"?Expression::LT:op=="<="?Expression::LTE:op==">"?Expression::GT:Expression::GTE;
                 parent->type=std::make_shared<Int64Type>();e=parent;continue;
             }
