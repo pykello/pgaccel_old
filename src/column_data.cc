@@ -110,6 +110,7 @@ LoadRawColumnData(std::istream &in, AccelType *dataType)
     {
         case TypeNum::INT32_TYPE:
             return LoadRawColumnData<Int32Type>(in);
+        case TypeNum::TIMESTAMP_TYPE:
         case TypeNum::INT64_TYPE:
             return LoadRawColumnData<Int64Type>(in);
         case TypeNum::DATE_TYPE:

@@ -558,6 +558,11 @@ CreateRawFilterNode(const ColumnDesc &columnDesc,
 {
     switch (columnDesc.type->type_num())
     {
+        case TIMESTAMP_TYPE:
+            return std::make_unique<FilterRawDataNode<Int64Type>>(
+                ParseTimestamp(valueStr),op,
+                fusedOp == FilterClause::INVALID ? 0 : ParseTimestamp(value2Str),fusedOp,useAvx);
+
         case INT32_TYPE:
             return std::make_unique<FilterRawDataNode<Int32Type>>(
                 columnDesc.type->asInt32Type()->Parse(valueStr),

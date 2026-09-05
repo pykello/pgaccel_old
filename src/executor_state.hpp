@@ -60,7 +60,7 @@ std::string Format(const FinalCell &v) {
     if (v.null) return "NULL";
     if (v.average) { std::ostringstream s; s << std::setprecision(17) << v.mean; return s.str(); }
     if (v.value.string) return std::string(v.value.text);
-    if (v.type && v.type->type_num() == DATE_TYPE) return ToString(v.type,int64_t(v.value.number));
+    if (v.type && (v.type->type_num() == DATE_TYPE || v.type->type_num() == TIMESTAMP_TYPE)) return ToString(v.type,int64_t(v.value.number));
     return Number(v.value.number,v.type ? Scale(v.type) : 0);
 }
 }

@@ -14,7 +14,8 @@ enum TypeNum {
     INT64_TYPE,
     DECIMAL_TYPE,
     DATE_TYPE,
-    INVALID_TYPE
+    INVALID_TYPE,
+    TIMESTAMP_TYPE
 };
 
 #define COMMA ,
@@ -42,6 +43,7 @@ enum TypeNum {
 
 int64_t ParseDecimal(int scale, const std::string &valueStr);
 int32_t ParseDate(const std::string &s);
+int64_t ParseTimestamp(const std::string &s);
 
 struct StringType;
 struct Int32Type;
@@ -138,6 +140,12 @@ struct Int64Type: public AccelType {
     virtual std::string ToString() const {
         return "Int64";
     }
+};
+
+// UTC epoch seconds. Existing serialized type numbers remain unchanged.
+struct TimestampType: public Int64Type {
+    TypeNum type_num() const override { return TIMESTAMP_TYPE; }
+    std::string ToString() const override { return "Timestamp(UTC,seconds)"; }
 };
 
 struct DecimalType: public AccelType {

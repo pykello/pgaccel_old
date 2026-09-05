@@ -127,6 +127,9 @@ ColumnarTable::Load(const std::string &tableName,
             case TypeNum::INT32_TYPE:
                 columnDesc.type = std::make_shared<Int32Type>();
                 break;
+            case TypeNum::TIMESTAMP_TYPE:
+                columnDesc.type = std::make_shared<TimestampType>();
+                break;
             case TypeNum::INT64_TYPE:
                 columnDesc.type = std::make_shared<Int64Type>();
                 break;

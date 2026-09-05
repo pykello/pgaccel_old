@@ -107,7 +107,7 @@ struct Parser {
         } else a.expression = expr();
         if (a.expression && a.expression->kind == Expression::COLUMN) a.columnRef = a.expression->column;
         if (a.expression && (a.type == AggregateClause::AGGREGATE_SUM || a.type == AggregateClause::AGGREGATE_AVG) &&
-            (a.expression->type->type_num() == STRING_TYPE || a.expression->type->type_num() == DATE_TYPE)) throw std::invalid_argument("SUM/AVG require numeric input");
+            (a.expression->type->type_num() == STRING_TYPE || a.expression->type->type_num() == DATE_TYPE || a.expression->type->type_num() == TIMESTAMP_TYPE)) throw std::invalid_argument("SUM/AVG require numeric input");
         a.sql = signature(start,at);
         return a;
     }
@@ -140,8 +140,9 @@ struct Parser {
             std::string sign; if (eat("-")) sign = "-"; else eat("+");
             auto literal = take(); f.value = sign + literal.text;
             auto type = f.columnRef.Type()->type_num();
-            if ((type == STRING_TYPE || type == DATE_TYPE) != literal.quoted) throw std::invalid_argument("Incorrect literal type");
+            if ((type == STRING_TYPE || type == DATE_TYPE || type == TIMESTAMP_TYPE) != literal.quoted) throw std::invalid_argument("Incorrect literal type");
             if (type == DATE_TYPE) ParseDate(f.value);
+            if (type == TIMESTAMP_TYPE) ParseTimestamp(f.value);
             if (type == DECIMAL_TYPE) ParseDecimal(static_cast<DecimalType*>(f.columnRef.Type().get())->scale,f.value);
             if (type == INT32_TYPE || type == INT64_TYPE) { size_t n; std::stoll(f.value,&n); if (n != f.value.size()) throw std::invalid_argument("Invalid integer literal"); }
             q.filterClauses.push_back(std::move(f));

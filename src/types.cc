@@ -45,6 +45,18 @@ int32_t ParseDate(const std::string &s) {
     if (!date.ok()) throw std::invalid_argument("Invalid calendar date");
     return sys_days(date).time_since_epoch().count();
 }
+int64_t ParseTimestamp(const std::string &s) {
+    if (s.size() != 19 || s[10] != ' ' || s[13] != ':' || s[16] != ':')
+        throw std::invalid_argument("Expected UTC YYYY-MM-DD HH:MM:SS");
+    auto part = [&](int i, int max) {
+        if (!std::isdigit((unsigned char)s[i]) || !std::isdigit((unsigned char)s[i+1]))
+            throw std::invalid_argument("Invalid timestamp");
+        int n = (s[i]-'0')*10+s[i+1]-'0';
+        if (n > max) throw std::invalid_argument("Invalid timestamp");
+        return n;
+    };
+    return int64_t(ParseDate(s.substr(0,10)))*86400 + part(11,23)*3600 + part(14,59)*60 + part(17,59);
+}
 std::string ToString(const AccelType *type, int64_t value) {
     if (type->type_num() == DECIMAL_TYPE) {
         int scale = static_cast<const DecimalType*>(type)->scale;
@@ -55,6 +67,13 @@ std::string ToString(const AccelType *type, int64_t value) {
             s.insert(s.size() - scale, 1, '.');
         }
         return (value < 0 ? "-" : "") + s;
+    }
+    if (type->type_num() == TIMESTAMP_TYPE) {
+        int64_t day = value/86400, seconds = value%86400;
+        if (seconds < 0) { --day; seconds += 86400; }
+        DateType date; char suffix[16];
+        snprintf(suffix,sizeof(suffix)," %02lld:%02lld:%02lld",(long long)(seconds/3600),(long long)(seconds/60%60),(long long)(seconds%60));
+        return ToString(&date,day) + suffix;
     }
     if (type->type_num() == DATE_TYPE) {
         using namespace std::chrono;
