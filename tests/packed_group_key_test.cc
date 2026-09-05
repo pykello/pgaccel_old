@@ -62,3 +62,19 @@ TEST(PackedGroups, WideCompositeKeysRetainAllBits)
         {"9223372036854775807","-9223372036854775808","1"},
         {"9223372036854775807","9223372036854775807","1"}}));
 }
+TEST(PackedGroups, ActualNumericRangesRetainOffsetsAndSignedExtremes)
+{
+    auto registry = test::Table({{test::Raw({INT64_MIN, INT64_MIN+1, INT64_MIN, INT64_MIN+1}),
+        test::Raw({INT64_MAX, INT64_MAX, INT64_MAX-1, INT64_MAX-1}), test::Raw({-7,-7,-7,-7}, 1)}},
+        {{"a", std::make_shared<Int64Type>()}, {"b", std::make_shared<Int64Type>()},
+         {"c", std::make_shared<Int64Type>()}});
+    auto query = ParseSelect("SELECT a,b,c,count(*) FROM t GROUP BY a,b,c ORDER BY a,b,c", registry);
+    ASSERT_TRUE(query.ok());
+    auto result = ExecuteQuery(*query, true, true);
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(result->values, Rows({
+        {"-9223372036854775808","9223372036854775806","-7","1"},
+        {"-9223372036854775808","9223372036854775807","-7","1"},
+        {"-9223372036854775807","9223372036854775806","-7","1"},
+        {"-9223372036854775807","9223372036854775807","-7","1"}}));
+}

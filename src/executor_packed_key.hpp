@@ -18,9 +18,10 @@ class PackedGroupKey {
     struct Component {
         Kind kind;
         unsigned bits, shift;
+        int64_t minimum;
         std::pmr::vector<Frame> frames;
-        Component(Budget &memory, Kind k, unsigned b, unsigned s)
-            : kind(k), bits(b), shift(s), frames(&memory) {}
+        Component(Budget &memory, Kind k, unsigned b, unsigned s, int64_t m)
+            : kind(k), bits(b), shift(s), minimum(m), frames(&memory) {}
     };
     std::pmr::vector<Component> components;
     bool valid_ = false;
@@ -46,7 +47,7 @@ class PackedGroupKey {
   public:
     PackedGroupKey(const QueryDesc &q, const std::vector<std::shared_ptr<Expression>> &identity,
                    Budget &memory) : components(&memory) {
-        struct Plan { Kind kind; int column; unsigned bits, shift; const GlobalDictionary *index; };
+        struct Plan { Kind kind; int column; unsigned bits, shift; const GlobalDictionary *index; int64_t minimum = 0; };
         std::pmr::vector<Plan> plans(&memory);
         unsigned total = 0;
         const auto &table = *q.tables[0];
@@ -60,12 +61,32 @@ class PackedGroupKey {
                     plan.bits = std::bit_width(plan.index->size() ? plan.index->size() - 1 : size_t(0));
                 } else {
                     if (expression->type->type_num() == STRING_TYPE) return;
+                    int64_t minimum = INT64_MAX, maximum = INT64_MIN;
                     for (int g = 0; g < table.RowGroupCount(); ++g) {
                         auto data = table.GetRowGroup(g).columns[plan.column].get();
-                        unsigned bits = data->type == ColumnDataBase::DICT_COLUMN_DATA
-                            ? 32 : static_cast<const RawColumnDataBase *>(data)->bytesPerValue * 8;
-                        plan.bits = std::max(plan.bits, bits);
+                        if (!data->size) continue;
+                        int64_t lo, hi;
+                        if (data->type == ColumnDataBase::DICT_COLUMN_DATA) {
+                            auto dict = static_cast<const DictColumnData<DateType> *>(data);
+                            lo = dict->dict.front(); hi = dict->dict.back();
+                        } else {
+                            auto bounds = [&]<class T>() {
+                                auto raw = static_cast<const RawColumnData<T> *>(data);
+                                lo = raw->minValue; hi = raw->maxValue;
+                            };
+                            switch (expression->type->type_num()) {
+                            case INT32_TYPE: bounds.template operator()<Int32Type>(); break;
+                            case INT64_TYPE: bounds.template operator()<Int64Type>(); break;
+                            case TIMESTAMP_TYPE: bounds.template operator()<TimestampType>(); break;
+                            case DECIMAL_TYPE: bounds.template operator()<DecimalType>(); break;
+                            case DATE_TYPE: bounds.template operator()<DateType>(); break;
+                            default: return;
+                            }
+                        }
+                        minimum = std::min(minimum, lo); maximum = std::max(maximum, hi);
                     }
+                    plan.minimum = minimum;
+                    plan.bits = minimum <= maximum ? std::bit_width(uint64_t(maximum) - uint64_t(minimum)) : 0;
                 }
             } else if (expression->kind == Expression::EXTRACT && expression->left->kind == Expression::COLUMN &&
                        expression->left->type->type_num() == TIMESTAMP_TYPE) {
@@ -82,7 +103,7 @@ class PackedGroupKey {
             if (plan.bits) plans.push_back(plan);
         }
         for (const auto &plan : plans) {
-            components.emplace_back(memory, plan.kind, plan.bits, plan.shift);
+            components.emplace_back(memory, plan.kind, plan.bits, plan.shift, plan.minimum);
             auto &frames = components.back().frames;
             frames.reserve(table.RowGroupCount());
             for (int g = 0; g < table.RowGroupCount(); ++g) {
@@ -120,7 +141,7 @@ class PackedGroupKey {
             case NUMBER: {
                 int64_t number = frame.dictionary
                     ? static_cast<const int32_t *>(frame.mapping)[code(frame, row)] : raw(frame, row);
-                value = uint64_t(number) + (uint64_t(1) << (component.bits - 1));
+                value = uint64_t(number) - uint64_t(component.minimum);
                 break;
             }
             case MINUTE: value = part<60, 60>(raw(frame, row)); break;
