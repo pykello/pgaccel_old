@@ -31,13 +31,22 @@ struct NumericInput {
         throw std::runtime_error("Invalid numeric input width");
     }
 };
+// A two-word representation avoids 16-byte alignment padding in each
+// hash payload while retaining the complete checked 128-bit sum.
+struct NumericWideSum {
+    std::array<uint64_t, 2> words{};
+    Wide value() const { return std::bit_cast<Wide>(words); }
+    void add(int64_t number) { words = std::bit_cast<std::array<uint64_t, 2>>(Add(value(), number)); }
+};
+static_assert(sizeof(NumericWideSum) == 16 && alignof(NumericWideSum) == 8);
 template<size_t N>
 Result<QueryOutput> RadixNumeric(const QueryDesc &q, GroupKeys &keys, Budget &budget,
                                 const std::vector<const AggregateClause *> &numeric, bool avx, bool parallel)
 {
     constexpr size_t partitions = 1024;
     struct Record { GroupKey key; std::array<int64_t, N> values; };
-    struct State { uint64_t count = 0; std::array<Wide, N> sums{}; };
+    struct State { uint64_t count = 0; std::array<NumericWideSum, N> sums{}; };
+    static_assert(sizeof(State) == 8 + 16 * N);
     struct Input {
         std::pmr::vector<Record> records;
         std::array<size_t, partitions> offsets{};
@@ -97,7 +106,7 @@ Result<QueryOutput> RadixNumeric(const QueryDesc &q, GroupKeys &keys, Budget &bu
                 const auto &record = ordered[i];
                 auto [position, added] = groups.get(record.key, [] { return State{}; });
                 auto &state = groups.at(position).second; ++state.count;
-                for (size_t j = 0; j < N; ++j) state.sums[j] = Add(state.sums[j], record.values[j]);
+                for (size_t j = 0; j < N; ++j) state.sums[j].add(record.values[j]);
             }
             groups.forEach([&](const GroupKey &key, const State &state) {
                 result.addLazy([&](size_t output) {
@@ -106,10 +115,10 @@ Result<QueryOutput> RadixNumeric(const QueryDesc &q, GroupKeys &keys, Budget &bu
                         return FinalCell{keys.value(key, a.expression), a.expression->type.get()};
                     if (a.type == AggregateClause::AGGREGATE_COUNT) return FinalCell{Cell{Wide(state.count)}};
                     size_t slot = std::find(numeric.begin(), numeric.end(), &a) - numeric.begin();
-                    FinalCell cell{Cell{state.sums[slot]}, a.expression->type.get()};
+                    FinalCell cell{Cell{state.sums[slot].value()}, a.expression->type.get()};
                     if (a.type == AggregateClause::AGGREGATE_AVG) {
                         cell.average = true;
-                        cell.mean = (long double)state.sums[slot] / state.count / (long double)Power(Scale(cell.type));
+                        cell.mean = (long double)state.sums[slot].value() / state.count / (long double)Power(Scale(cell.type));
                     }
                     return cell;
                 });
