@@ -50,3 +50,9 @@ SELECT star expands the declared schema. ORDER BY may bind hidden expressions,
 but these do not appear in output. HAVING currently supports COUNT comparisons
 against integer bounds, combined with AND; it runs before ORDER BY/LIMIT. Other
 HAVING expressions fail explicitly.
+
+CASE supports one WHEN/THEN pair and a required ELSE. Predicates support
+comparisons and AND with conventional arithmetic precedence; evaluation is
+short-circuited. Only the chosen CASE branch executes. Branches must have
+compatible types, with numeric branches promoted to a common fixed scale.
+NULL-producing implicit ELSE and multi-arm CASE are not supported.

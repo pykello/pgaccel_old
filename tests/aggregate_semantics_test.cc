@@ -139,3 +139,14 @@ TEST(Expressions, RegexReplacementOwnership) {
     EXPECT_FALSE(ParseSelect("SELECT regexp_replace(s,'[','x') FROM t",t).ok());
     EXPECT_FALSE(ParseSelect(R"(SELECT regexp_replace(s,'(a)','\9') FROM t)",t).ok());
 }
+
+TEST(Expressions, LazyCaseAndPredicatePrecedence) {
+    auto t=test::Table({{test::Raw({0,1,2}),test::Dict<StringType>({"zero","one","two"})}},
+                      {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    Check(t,"SELECT CASE WHEN (v=0 AND v+1=1) THEN s ELSE '' END AS k,count(*) FROM t GROUP BY k ORDER BY k",{{"","2"},{"zero","1"}});
+    Check(t,"SELECT CASE WHEN v=0 THEN 0 ELSE 1/v END AS n FROM t ORDER BY n",{{"0.000000"},{"0.500000"},{"1.000000"}});
+    Check(t,"SELECT CASE WHEN v=0 THEN 1.2 ELSE 3 END AS n FROM t ORDER BY n",{{"1.2"},{"3.0"},{"3.0"}});
+    Check(t,"SELECT CASE WHEN s='one' THEN 1 ELSE 0 END AS n FROM t ORDER BY n",{{"0"},{"0"},{"1"}});
+    EXPECT_FALSE(ParseSelect("SELECT CASE WHEN v=0 THEN s ELSE 1 END FROM t",t).ok());
+    EXPECT_FALSE(ParseSelect("SELECT CASE WHEN v=0 THEN s END FROM t",t).ok());
+}

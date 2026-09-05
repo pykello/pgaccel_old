@@ -116,6 +116,29 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
             return {0, e.literal, true};
         return {ParseDecimal(Scale(e.type.get()), e.literal)};
     }
+    if (e.kind==Expression::CASE)
+    {
+        auto branch=Evaluate(*e.condition,rg,row).number?e.left:e.right;
+        Cell value=Evaluate(*branch,rg,row);
+        if (!value.string) value.number=Multiply(value.number,Power(Scale(e.type.get())-Scale(branch->type.get())));
+        return value;
+    }
+    if (e.kind==Expression::AND)
+        return {Wide(Evaluate(*e.left,rg,row).number && Evaluate(*e.right,rg,row).number)};
+    if (e.kind>=Expression::EQ && e.kind<=Expression::GTE)
+    {
+        Cell l=Evaluate(*e.left,rg,row),r=Evaluate(*e.right,rg,row);
+        if (!l.string)
+        {
+            int ls=Scale(e.left->type.get()),rs=Scale(e.right->type.get());
+            int scale=std::max(ls,rs);
+            l.number=Multiply(l.number,Power(scale-ls));r.number=Multiply(r.number,Power(scale-rs));
+        }
+        bool equal=l==r,less=Less(l,r);
+        return {Wide(e.kind==Expression::EQ?equal:e.kind==Expression::NE?!equal:
+            e.kind==Expression::LT?less:e.kind==Expression::LTE?less || equal:
+            e.kind==Expression::GT?!less && !equal:!less)};
+    }
     if (e.kind==Expression::REGEXP_REPLACE)
     {
         Cell input=Evaluate(*e.left,rg,row);

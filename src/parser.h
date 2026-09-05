@@ -70,12 +70,12 @@ struct FilterClause {
 };
 
 struct Expression {
-    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE } kind = CONSTANT;
+    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND } kind = CONSTANT;
     std::optional<ColumnRef> column;
     std::string literal = "0";
     std::string replacement;
     std::shared_ptr<const re2::RE2> regexp;
-    std::shared_ptr<Expression> left, right;
+    std::shared_ptr<Expression> left, right, condition;
     std::shared_ptr<AccelType> type;
 };
 

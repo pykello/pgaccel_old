@@ -112,6 +112,24 @@ struct Parser
             e = expr();
             need(")");
         }
+        else if (eat("case"))
+        {
+            e->kind=Expression::CASE;
+            need("when"); e->condition=expr(); need("then"); e->left=expr(); need("else"); e->right=expr(); need("end");
+            if (e->condition->type->type_num()!=INT64_TYPE)
+                throw std::invalid_argument("CASE condition requires a predicate");
+            auto l=e->left->type->type_num(),r=e->right->type->type_num();
+            auto numeric=[](TypeNum t){return t==INT32_TYPE || t==INT64_TYPE || t==DECIMAL_TYPE;};
+            if (numeric(l) && numeric(r))
+            {
+                int ls=l==DECIMAL_TYPE?static_cast<DecimalType *>(e->left->type.get())->scale:0;
+                int rs=r==DECIMAL_TYPE?static_cast<DecimalType *>(e->right->type.get())->scale:0;
+                if (ls || rs) {auto ty=std::make_shared<DecimalType>();ty->scale=std::max(ls,rs);e->type=ty;}
+                else e->type=std::make_shared<Int64Type>();
+            }
+            else if (l==r) e->type=e->left->type;
+            else throw std::invalid_argument("CASE branches have incompatible types");
+        }
         else if (eat("regexp_replace"))
         {
             e->kind=Expression::REGEXP_REPLACE;
@@ -160,11 +178,11 @@ struct Parser
             e->kind = Expression::SUBTRACT;
             e->left = std::make_shared<Expression>();
             e->left->type = std::make_shared<Int64Type>();
-            e->right = expr(3);
+            e->right = expr(5);
             e->type = e->right->type;
         }
         else if (eat("+"))
-            e = expr(3);
+            e = expr(5);
         else
         {
             auto t = take();
@@ -201,14 +219,27 @@ struct Parser
         }
         while (at < tokens.size())
         {
-            auto op = tokens[at].text;
-            int p = op == "+" || op == "-" ? 1 : op == "*" || op == "/" ? 2 : 0;
+            auto op = ToLower(tokens[at].text);
+            bool comparison=op=="=" || op=="<>" || op=="!=" || op=="<" || op=="<=" || op==">" || op==">=";
+            int p=op=="and"?1:comparison?2:op=="+" || op=="-"?3:op=="*" || op=="/"?4:0;
             if (!p || p <= precedence)
                 break;
             ++at;
             auto parent = std::make_shared<Expression>();
             parent->left = e;
             parent->right = expr(p);
+            if (comparison || op=="and")
+            {
+                auto l=e->type->type_num(),r=parent->right->type->type_num();
+                auto numeric=[](TypeNum t){return t==INT32_TYPE || t==INT64_TYPE || t==DECIMAL_TYPE;};
+                if (op=="and" && (l!=INT64_TYPE || r!=INT64_TYPE))
+                    throw std::invalid_argument("AND requires predicate operands");
+                if (comparison && l!=r && !(numeric(l) && numeric(r)))
+                    throw std::invalid_argument("Comparison operands have incompatible types");
+                parent->kind=op=="and"?Expression::AND:op=="="?Expression::EQ:op=="<>" || op=="!="?Expression::NE:
+                    op=="<"?Expression::LT:op=="<="?Expression::LTE:op==">"?Expression::GT:Expression::GTE;
+                parent->type=std::make_shared<Int64Type>();e=parent;continue;
+            }
             parent->kind = op == "+"   ? Expression::ADD
                            : op == "-" ? Expression::SUBTRACT
                            : op == "*" ? Expression::MULTIPLY
@@ -319,6 +350,7 @@ struct Parser
     bool same(const Expression &a,const Expression &b)
     {
         if (a.kind!=b.kind || a.column!=b.column || a.literal!=b.literal || a.replacement!=b.replacement) return false;
+        if (bool(a.condition)!=bool(b.condition) || (a.condition && !same(*a.condition,*b.condition))) return false;
         if (bool(a.left)!=bool(b.left) || bool(a.right)!=bool(b.right)) return false;
         return (!a.left || same(*a.left,*b.left)) && (!a.right || same(*a.right,*b.right));
     }
