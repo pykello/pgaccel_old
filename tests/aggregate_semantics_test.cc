@@ -150,3 +150,10 @@ TEST(Expressions, LazyCaseAndPredicatePrecedence) {
     EXPECT_FALSE(ParseSelect("SELECT CASE WHEN v=0 THEN s ELSE 1 END FROM t",t).ok());
     EXPECT_FALSE(ParseSelect("SELECT CASE WHEN v=0 THEN s END FROM t",t).ok());
 }
+
+TEST(Expressions, TimestampTruncationOverflowIsExplicit) {
+    auto t=test::Table({{test::Raw({INT64_MIN})}},{{"ts",std::make_shared<TimestampType>()}});
+    auto q=ParseSelect("SELECT date_trunc('minute',ts) FROM t",t);ASSERT_TRUE(q.ok());
+    auto result=ExecuteQuery(*q,true,true);ASSERT_FALSE(result.ok());
+    EXPECT_NE(result.status().Message().find("Truncated timestamp"),std::string::npos);
+}

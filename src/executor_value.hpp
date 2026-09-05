@@ -173,7 +173,11 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
         Wide remainder=seconds%unit;
         if (remainder<0) remainder+=unit;
         Wide rounded=seconds-remainder;
-        if (e.kind==Expression::DATE_TRUNC) return {rounded};
+        if (e.kind==Expression::DATE_TRUNC) {
+            if(rounded<INT64_MIN || rounded>INT64_MAX)
+                throw std::overflow_error("Truncated timestamp exceeds signed 64-bit storage");
+            return {rounded};
+        }
         Wide value=(rounded/unit)%(e.literal=="hour"?24:60);
         if (value<0) value+=e.literal=="hour"?24:60;
         return {value};
