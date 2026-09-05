@@ -565,6 +565,7 @@ struct Parser
         auto e = std::make_shared<Expression>(); e->kind = Expression::EXISTS;
         e->subqueryIndex = q.existenceJoins.size(); e->type = std::make_shared<Int64Type>();
         q.existenceJoins.push_back({int(q.tables.size()), false, std::move(inner.predicates)});
+        q.filterClauses.insert(q.filterClauses.end(), inner.filterClauses.begin(), inner.filterClauses.end());
         q.tables.push_back(inner.tables[0]);
         return e;
     }
@@ -810,6 +811,28 @@ struct Parser
         });
         return left;
     }
+    bool lowerDateFilter(const std::shared_ptr<Expression> &e) {
+        if (e->kind < Expression::EQ || e->kind > Expression::GTE) return false;
+        auto column = e->left, value = e->right;
+        bool reversed = !column->column;
+        if (reversed) std::swap(column, value);
+        if (!column->column || column->column->tableIdx < tableOffset ||
+            column->column->tableIdx >= tableOffset + int(sourceCount) ||
+            column->type->type_num() != DATE_TYPE || value->kind != Expression::CONSTANT ||
+            value->type->type_num() != DATE_TYPE) return false;
+        FilterClause f; f.columnRef = *column->column;
+        f.value = ToString(column->type.get(), std::stoll(value->literal));
+        switch (e->kind) {
+        case Expression::EQ: f.op = FilterClause::FILTER_EQ; break;
+        case Expression::NE: f.op = FilterClause::FILTER_NE; break;
+        case Expression::LT: f.op = reversed ? FilterClause::FILTER_GT : FilterClause::FILTER_LT; break;
+        case Expression::LTE: f.op = reversed ? FilterClause::FILTER_GTE : FilterClause::FILTER_LTE; break;
+        case Expression::GT: f.op = reversed ? FilterClause::FILTER_LT : FilterClause::FILTER_GT; break;
+        case Expression::GTE: f.op = reversed ? FilterClause::FILTER_LTE : FilterClause::FILTER_GTE; break;
+        default: return false;
+        }
+        q.filterClauses.push_back(std::move(f)); return true;
+    }
     void addPredicates(const std::shared_ptr<Expression> &e) {
         if (e->kind == Expression::EXISTS || e->kind == Expression::MEMBERSHIP) return;
         if (e->kind == Expression::NOT && e->left->kind == Expression::MEMBERSHIP) {
@@ -829,6 +852,7 @@ struct Parser
         }
         if (containsAggregate(e)) throw std::invalid_argument("WHERE cannot contain aggregates");
         if (e->kind == Expression::AND) { addPredicates(e->left); addPredicates(e->right); return; }
+        if (lowerDateFilter(e)) return;
         if (e->kind == Expression::OR)
             for (const auto &required : requiredEqualities(e)) q.predicates.push_back(required);
         q.predicates.push_back(e);

@@ -46,3 +46,22 @@ TEST(TpchDates, CalendarExtractionGroupsDatesAndFloorsNegativeTimestamps) {
     EXPECT_EQ(result->values, (Rows{{"1969", "12", "31"}, {"1970", "1", "1"}, {"2000", "2", "29"}}));
     EXPECT_FALSE(ParseSelect("SELECT extract(hour FROM d) FROM t", registry).ok());
 }
+TEST(TpchDates, LowerSubqueryDateFiltersWithoutLeakingOuterAntiConditions) {
+    auto registry = test::Table({{test::Raw({1, 2}), test::Dict<DateType>({ParseDate("1994-01-01"), ParseDate("1995-01-01")})}},
+        {{"id", std::make_shared<Int64Type>()}, {"d", std::make_shared<DateType>()}});
+    auto other = test::Table({{test::Raw({1, 2}), test::Dict<DateType>({ParseDate("1994-01-01"), ParseDate("1995-01-01")})}},
+        {{"id", std::make_shared<Int64Type>()}, {"d", std::make_shared<DateType>()}});
+    registry.emplace("u", std::move(other.at("t")));
+    for (const std::string column : {"t.d", "u.d"}) {
+        auto q = ParseSelect("SELECT id FROM t WHERE NOT EXISTS (SELECT * FROM u WHERE u.id=t.id AND " +
+            column + ">=DATE '1995-01-01') ORDER BY id", registry);
+        ASSERT_TRUE(q.ok()) << q.status().Message();
+        EXPECT_EQ(q->filterClauses.size(), column == "u.d" ? 1 : 0);
+        auto result = ExecuteQuery(*q, true, true); ASSERT_TRUE(result.ok()) << result.status().Message();
+        EXPECT_EQ(result->values, (Rows{{"1"}}));
+    }
+    auto q = ParseSelect("SELECT count(*) FROM t WHERE DATE '1994-01-01' <= d AND id>(SELECT min(id) FROM u)", registry);
+    ASSERT_TRUE(q.ok()); ASSERT_EQ(q->filterClauses.size(), 1);
+    EXPECT_EQ(q->filterClauses[0].op, FilterClause::FILTER_GTE);
+    auto result = ExecuteQuery(*q, true, true); ASSERT_TRUE(result.ok()); EXPECT_EQ(result->values, (Rows{{"1"}}));
+}
