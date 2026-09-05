@@ -15,15 +15,14 @@ LIKE, NOT LIKE, IN, and NOT IN remain unchanged.
 
 Engine `4f6c7cb`, dictionaries disabled, eight threads, unchanged queries,
 three trials each. All twelve answers pass the full validation gate,
-including the canonical Q22 tie refinement. Times are minimum warm client
-milliseconds; ClickHouse is the independently validated checkpoint 1 run.
+including the canonical Q22 tie refinement. Times are minimum client milliseconds from trials two and three; ClickHouse is the independently validated checkpoint 1 run.
 
 | Query | Checkpoint 1 PG | Membership PG | ClickHouse |
 | ---: | ---: | ---: | ---: |
 | 21 | 274.015 | 212.544 | 336.286 |
 | 22 | 270.629 | 217.762 | 96.774 |
 | 23 | 426.411 | 343.636 | 537.647 |
-| 24 | 271.047 | 214.561 | 89.395 |
+| 24 | 271.047 | 216.128 | 96.147 |
 
 No new query win is claimed from this subset. The cheaper row scan improves
 all four measured cases, but exact dictionary-string matching remains a
