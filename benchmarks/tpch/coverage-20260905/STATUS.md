@@ -51,8 +51,9 @@ All six before/after answers match the oracle.
 | Q13 | 2.997 | 1.780 | 40.6% | 38933.65 | 35922.14 |
 | Q21 | 12.809 | 4.177 | 67.4% | 58692.57 | 46153.22 |
 
-Loaded SF10 tables occupy about 9.57 GiB RSS in addition to query working
-memory. Extrapolating Q21 after this change makes SF100 plausible within
+For Q21, the measured whole-process RSS high-water mark fell from
+23.95 GiB to 14.27 GiB (40.4%), including loaded data. Loaded SF10 tables
+occupy about 9.57 GiB RSS in addition to query working memory. Extrapolating Q21 after this change makes SF100 plausible within
 192 GiB, but this is not a measurement or a guarantee. Actual SF100 data
 and working-memory peaks will determine whether it fits.
 
