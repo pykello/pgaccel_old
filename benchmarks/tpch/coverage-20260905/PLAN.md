@@ -17,7 +17,8 @@ new engine code must have no restrictive dependency.
 
 `audit.py` records each SQL hash, runner hash, source revision, errors,
 answers, query allocation peak, and individual execution times. Current
-comparison is ordered with decimal tolerance of max(1e-6, 1e-12 relative).
+comparison is ordered with exact integers/decimals and floating tolerance
+of max(1e-6 absolute, 1e-12 relative).
 Top-K ties may need explicit oracle refinement; a mismatch is not waived.
 DuckDB timings include Parquet scanning and are correctness-run diagnostics,
 not a resident-engine speed comparison. ClickHouse comparisons come after
@@ -60,3 +61,13 @@ Single execution diagnostics: Q1 370.536 ms, Q6 3.424 ms. These are not warm
 minima or comparisons with ClickHouse. Raw records:
 `../results/coverage-baseline-sf1.jsonl` and
 `../results/coverage-dates-sf1.jsonl` in the external TPC-H docs directory.
+
+## Completion checkpoint
+
+The implementation now passes all 22 statements on complete SF1. See
+[STATUS.md](STATUS.md) for the current evidence, limits, and memory results.
+Stage 6 reached Q13 through a restricted null-extension/count path;
+general nullable column execution remains a separate, unfinished feature.
+The user requested an SF100 three-engine comparison, preceded by memory
+optimization. Compact join keys are implemented and measured; SF100 data
+preparation and sanitizer validation are in progress.
