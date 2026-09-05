@@ -22,6 +22,17 @@ class GateTests(unittest.TestCase):
         self.assertTrue(gate.validate(invalid_ids, gate.STAGE3))
         self.assertEqual([], gate.validate(self.records(), gate.STAGE3))
 
+    def test_experiment_subsets_require_explicit_complete_identities(self):
+        rows = [{'id': 5, 'status': 'success'}, {'id': 6, 'status': 'success'}]
+        self.assertTrue(gate.validate(rows, {5, 6}))
+        self.assertEqual([], gate.validate(rows, {5, 6}, expected_ids={5, 6}))
+        self.assertTrue(gate.validate(rows[:1], {5, 6}, expected_ids={5, 6}))
+        self.assertTrue(gate.validate(rows + rows[:1], {5, 6}, expected_ids={5, 6}))
+        self.assertTrue(gate.validate(rows, {5, 6}, expected_ids={5, 6, 44}))
+        self.assertTrue(gate.validate([], set(), expected_ids=set()))
+        rows[1]['status'] = 'answer_mismatch'
+        self.assertTrue(gate.validate(rows, {5, 6}, expected_ids={5, 6}))
+
     def test_wide_policy_checks_the_value(self):
         rows = self.records()
         rows[3].update(status='answer_mismatch', rows=[['5e18']])

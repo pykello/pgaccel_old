@@ -12,11 +12,14 @@ STAGE4 = STAGE3 | {12, 15, 17, 18, 31, 32, 33, 36, 39, 42}
 
 ALL_QUERIES = set(range(1,44))
 
-def validate(records, required, wide_oracle=None, refinements=None):
+def validate(records, required, wide_oracle=None, refinements=None, expected_ids=None):
     by_id = {r['id']: r for r in records}
     failures = []
-    if set(by_id) != set(range(1, 44)) or len(records) != 43:
-        failures.append('Expected exactly one result for each of 43 queries')
+    expected_ids = ALL_QUERIES if expected_ids is None else set(expected_ids)
+    if not expected_ids or not expected_ids <= ALL_QUERIES or not set(required) <= expected_ids:
+        failures.append('Invalid expected query identities')
+    if set(by_id) != expected_ids or len(records) != len(expected_ids):
+        failures.append(f'Expected exactly one result for each of {len(expected_ids)} queries')
     for qid in required:
         r = by_id.get(qid, {})
         if qid == 4 and wide_oracle and r.get('status') == 'answer_mismatch':
