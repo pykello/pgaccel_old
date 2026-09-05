@@ -136,6 +136,7 @@ TEST(Expressions, RegexReplacementOwnership) {
     Check(t,"SELECT regexp_replace(s,'plain','a replacement longer than the original value') AS r FROM t ORDER BY r LIMIT 1",{{"a replacement longer than the original value"}});
     Check(t,"SELECT min(regexp_replace(s,'plain','a replacement longer than the original value')) FROM t",{{"a replacement longer than the original value"}});
     Check(t,"SELECT regexp_replace('aaa','a','xx') FROM t LIMIT 1",{{"xxaa"}});
+    Check(t,"SELECT regexp_replace('a\nb','a.*b','x') FROM t LIMIT 1",{{"x"}});
     EXPECT_FALSE(ParseSelect("SELECT regexp_replace(s,'[','x') FROM t",t).ok());
     EXPECT_FALSE(ParseSelect(R"(SELECT regexp_replace(s,'(a)','\9') FROM t)",t).ok());
 }

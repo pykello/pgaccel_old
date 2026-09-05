@@ -137,7 +137,7 @@ struct Parser
             if (e->left->type->type_num()!=STRING_TYPE || !pattern.quoted || !replacement.quoted)
                 throw std::invalid_argument("REGEXP_REPLACE requires string input and literal pattern/replacement");
             e->literal=pattern.text; e->replacement=replacement.text;
-            re2::RE2::Options options; options.set_log_errors(false);
+            re2::RE2::Options options; options.set_log_errors(false); options.set_dot_nl(true);
             e->regexp=std::make_shared<re2::RE2>(e->literal,options);
             std::string error;
             if (!e->regexp->ok() || !e->regexp->CheckRewriteString(e->replacement,&error))

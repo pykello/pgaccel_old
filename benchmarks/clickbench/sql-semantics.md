@@ -39,7 +39,8 @@ arguments fail at binding. No session timezone or daylight-saving conversion
 is applied.
 
 REGEXP_REPLACE accepts a string and literal RE2 pattern/replacement. It replaces
-the first match (the PostgreSQL default), with backreferences zero through nine
+the first match (the PostgreSQL default), with dot matching newlines and
+backreferences zero through nine
 and escaped backslashes. The ClickBench expression is anchored to the entire
 string, so first-match versus global replacement has no effect there. Invalid
 patterns or replacement references are rejected. Computed string ownership and
