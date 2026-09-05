@@ -33,7 +33,9 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
       aggregates.aggregateClauses.push_back(a);
   }
   auto initial = [&]() -> Values {
-    if constexpr (std::is_same_v<Values, uint64_t>)
+    if constexpr (std::is_same_v<Values, InlineIntegerSet>)
+      return Values(budget);
+    else if constexpr (std::is_same_v<Values, uint64_t>)
       return 0;
     else if constexpr (std::is_same_v<Values, NumericStates> ||
                        std::is_same_v<Values, States>)
@@ -42,7 +44,9 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
       return {};
   };
   auto update = [&](Values &values, const RowGroup &rg, int row) {
-        if constexpr (std::is_same_v<Values, uint64_t>)
+        if constexpr (std::is_same_v<Values, InlineIntegerSet>)
+          values.insert(uint64_t(Evaluate(*aggregates.aggregateClauses[0].expression, rg, row).number));
+        else if constexpr (std::is_same_v<Values, uint64_t>)
           ++values;
         else
           for (size_t i = 0; i < values.size(); ++i) {
@@ -102,6 +106,14 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
         if (!count)
           continue;
       }
+      const DictColumnDataBase *dictionary = nullptr;
+      if (!bounded && q.groupBy.size() == 1) {
+        auto data = rg.columns[q.groupBy[0].columnIdx].get();
+        if (data->type == ColumnDataBase::DICT_COLUMN_DATA)
+          dictionary = static_cast<const DictColumnDataBase *>(data);
+      }
+      Scratch cacheMemory(budget, dictionary ? uint64_t(dictionary->dictSize()) * sizeof(uint64_t) : 0);
+      std::vector<uint64_t> cache(dictionary ? dictionary->dictSize() : 0, UINT64_MAX);
       Selected(rg, count == rg.size ? nullptr : bitmap, [&](int row) {
         if (bounded) {
           GroupKey key{0, uint32_t(g), uint32_t(row)};
@@ -116,10 +128,16 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
           update(found->second, rg, row);
           return;
         }
-        auto key = keys.make(g, row);
-        auto &groups = maps[(GroupHash{&keys}(key) >> 32) % workers];
-        auto [index, added] = groups.get(key, initial);
-        auto &values = groups.at(index).second;
+        int code = dictionary ? Code(dictionary, row) : 0;
+        uint64_t location = dictionary ? cache[code] : UINT64_MAX;
+        if (location == UINT64_MAX) {
+          auto key = keys.make(g, row);
+          uint32_t owner = (GroupHash{&keys}(key) >> 32) % workers;
+          auto [index, added] = maps[owner].get(key, initial);
+          location = (uint64_t(owner) << 32) | index;
+          if (dictionary) cache[code] = location;
+        }
+        auto &values = maps[location >> 32].at(uint32_t(location)).second;
         update(values, rg, row);
       });
     }
@@ -152,7 +170,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
           else if constexpr (NumericValues<Values>) {
             state.count = values[indexes[i]].count;
             state.sum = values[indexes[i]].sum;
-          } else
+          } else if constexpr (!std::is_same_v<Values, InlineIntegerSet>)
             state = values[indexes[i]];
           switch (a.type) {
           case AggregateClause::AGGREGATE_COUNT:
@@ -161,7 +179,10 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
             break;
           case AggregateClause::AGGREGATE_COUNT_DISTINCT:
             cell.type = nullptr;
-            cell.value.number = state.distinct ? state.distinct->size() : 0;
+            if constexpr (std::is_same_v<Values, InlineIntegerSet>)
+              cell.value.number = values.size();
+            else
+              cell.value.number = state.distinct ? state.distinct->size() : 0;
             break;
           case AggregateClause::AGGREGATE_SUM:
             cell.value.number = state.sum;
@@ -195,7 +216,9 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
         auto [index, added] = groups.get(key, [&] { return std::move(from); });
         if (!added) {
           auto &to = groups.at(index).second;
-          if constexpr (std::is_same_v<Values, uint64_t>)
+          if constexpr (std::is_same_v<Values, InlineIntegerSet>)
+            from.forEach([&](uint64_t value) { to.insert(value); });
+          else if constexpr (std::is_same_v<Values, uint64_t>)
             to += from;
           else if constexpr (NumericValues<Values>) {
             for (size_t i = 0; i < to.size(); ++i) {
@@ -221,7 +244,20 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
 } // namespace
 std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &q,
                                                     bool avx, bool parallel) {
-  if (q.groupExpressions.empty() || !q.groupBy.empty())
+  if (q.groupExpressions.empty())
+    return {};
+  const AggregateClause *onlyAggregate = nullptr;
+  size_t aggregateCount = 0;
+  for (const auto &a : q.aggregateClauses)
+    if (a.type != AggregateClause::AGGREGATE_PROJECT) {
+      onlyAggregate = &a;
+      ++aggregateCount;
+    }
+  if (aggregateCount == 1 && onlyAggregate->type == AggregateClause::AGGREGATE_COUNT_DISTINCT &&
+      onlyAggregate->expression && onlyAggregate->expression->kind == Expression::COLUMN &&
+      onlyAggregate->expression->type->type_num() != STRING_TYPE)
+    return Composite<InlineIntegerSet>(q, avx, parallel);
+  if (!q.groupBy.empty())
     return {};
   bool count = true, numeric = true;
   for (const auto &a : q.aggregateClauses) {
