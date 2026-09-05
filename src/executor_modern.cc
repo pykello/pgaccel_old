@@ -10,15 +10,41 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
         for (auto &a : q.aggregateClauses) { aggregate |= a.type != AggregateClause::AGGREGATE_PROJECT; distinct |= a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT; }
         QueryOutput output; for (auto &a : q.aggregateClauses) output.fieldNames.push_back(a.ToString());
         std::vector<FinalRow> rows;
+        auto compare = [&](const FinalRow &a, const FinalRow &b) {
+            for (const auto &o : q.orderBy) {
+                const auto &l = a[o.output], &r = b[o.output];
+                if (l.null != r.null) return l.null; // SQL default NULLS FIRST ascending.
+                if (l.null) continue;
+                bool eq = l.average ? l.mean == r.mean : l.value == r.value;
+                if (eq) continue;
+                bool less = l.average ? l.mean < r.mean : Less(l.value,r.value);
+                return o.descending ? !less : less;
+            }
+            // Stable deterministic tie-breaks; ties remain SQL-equivalent.
+            for (size_t i = 0; i < a.size(); ++i) if (!(a[i].value == b[i].value)) return Less(a[i].value,b[i].value);
+            return false;
+        };
+        auto append = [&](FinalRow row) {
+            if (q.limit && !*q.limit) return;
+            if (!q.limit || rows.size() < *q.limit) {
+                budget.charge(64+n*sizeof(FinalCell));
+                rows.push_back(std::move(row));
+                if (q.limit) std::push_heap(rows.begin(),rows.end(),compare);
+            } else if (compare(row,rows.front())) {
+                std::pop_heap(rows.begin(),rows.end(),compare);
+                rows.back() = std::move(row);
+                std::push_heap(rows.begin(),rows.end(),compare);
+            }
+        };
         if (!aggregate) {
             for (int g = 0; g < table.RowGroupCount(); ++g) {
                 const auto &rg = table.GetRowGroup(g); uint8_t bitmap[RowGroupSize/8];
                 if (filter && !filter->ExecuteSet(rg,bitmap)) continue;
                 Selected(rg,filter ? bitmap : nullptr,[&](int r) {
                     if (q.limit && q.orderBy.empty() && rows.size() >= *q.limit) return;
-                    budget.charge(64+n*sizeof(FinalCell)); FinalRow row;
+                    FinalRow row; row.reserve(n);
                     for (auto &a : q.aggregateClauses) row.push_back({Evaluate(*a.expression,rg,r),a.expression->type.get()});
-                    rows.push_back(std::move(row));
+                    append(std::move(row));
                 });
                 if (q.limit && q.orderBy.empty() && rows.size() >= *q.limit) break;
             }
@@ -78,7 +104,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
                 }
             }
             for (auto &entry : groups) {
-                budget.charge(64+n*sizeof(FinalCell)); FinalRow row;
+                FinalRow row; row.reserve(n);
                 for (size_t i = 0; i < n; ++i) {
                     auto &a = q.aggregateClauses[i]; auto &s = entry.second[i]; FinalCell v;
                     v.type = a.expression ? a.expression->type.get() : nullptr;
@@ -93,23 +119,9 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
                     }
                     row.push_back(v);
                 }
-                rows.push_back(std::move(row));
+                append(std::move(row));
             }
         }
-        auto compare = [&](const FinalRow &a, const FinalRow &b) {
-            for (const auto &o : q.orderBy) {
-                const auto &l = a[o.output], &r = b[o.output];
-                if (l.null != r.null) return l.null; // SQL default NULLS FIRST ascending.
-                if (l.null) continue;
-                bool eq = l.average ? l.mean == r.mean : l.value == r.value;
-                if (eq) continue;
-                bool less = l.average ? l.mean < r.mean : Less(l.value,r.value);
-                return o.descending ? !less : less;
-            }
-            // Stable deterministic tie-breaks; ties remain SQL-equivalent.
-            for (size_t i = 0; i < a.size(); ++i) if (!(a[i].value == b[i].value)) return Less(a[i].value,b[i].value);
-            return false;
-        };
         size_t keep = q.limit ? std::min<uint64_t>(*q.limit,rows.size()) : rows.size();
         if (!q.orderBy.empty() || q.grouped) {
             if (keep < rows.size()) std::partial_sort(rows.begin(),rows.begin()+keep,rows.end(),compare);
