@@ -51,6 +51,7 @@ struct ReplState {
     int repeats = 1;
 
     bool done = false;
+    bool failed = false;
     int papiEventSet = PAPI_NULL;
     bool papiAvailable = false;
 
@@ -188,8 +189,12 @@ repl()
 
         if (line.length() > 0 && CommandTerminated(line)) {
             AddHistory(line);
-            auto result = ProcessCommand(state, line);
+            auto result = [&]() -> Result<bool> {
+                try { return ProcessCommand(state, line); }
+                catch (const std::exception &e) { return Status::Invalid(e.what()); }
+            }();
             if (!result.ok()) {
+                state.failed = true;
                 std::cout << "ERROR: " << result.status().Message() << std::endl;
             }
             line = "";
@@ -201,7 +206,7 @@ repl()
 
     write_history(historyFile.c_str());
 
-    return 0;
+    return state.failed || !line.empty() ? 1 : 0;
 }
 
 static bool
@@ -450,7 +455,7 @@ ProcessSchema(ReplState &state,
     {
         const auto &field = schema[colIdx];
         int groupCount = state.tables[tableName]->RowGroupCount();
-        int groupType = state.tables[tableName]->GetRowGroup(0).columns[colIdx]->type;
+        int groupType = field.layout;
         std::string groupTypeStr =
             groupType == ColumnDataBase::RAW_COLUMN_DATA ? "RAW" :
             groupType == ColumnDataBase::DICT_COLUMN_DATA ? "DICT" :
