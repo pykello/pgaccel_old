@@ -1,6 +1,7 @@
 #pragma once
 #include "executor.h"
 #include "regex_capture_prefix.hpp"
+#include "regex_delimited_capture.hpp"
 #include <atomic>
 #include <cstring>
 #include <iomanip>
@@ -145,6 +146,13 @@ Cell EvaluateWith(const Expression &e, const Reader &read)
     {
         Cell input=EvaluateWith(*e.left, read);
         re2::StringPiece pieces[10];
+        if (e.delimitedCapture) {
+            auto capture = e.delimitedCapture->match(input.text);
+            if (!capture) return input;
+            // A valid UTF-8 suffix is consumed entirely by the original .*$.
+            // Invalid byte sequences retain the exact RE2 fallback behavior.
+            if (IsValidUtf8(input.text)) return {0, *capture, true, input.owner};
+        }
         if (e.capturePrefix && IsAscii(input.text)) {
             int capture = e.replacement[1] - '0';
             if (!e.capturePrefix->Match(re2::StringPiece(input.text.data(), input.text.size()),

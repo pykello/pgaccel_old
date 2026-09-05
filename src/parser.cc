@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "regex_capture_prefix.hpp"
+#include "regex_delimited_capture.hpp"
 #include "util.h"
 #include <cctype>
 #include <stdexcept>
@@ -144,6 +145,7 @@ struct Parser
             if (!e->regexp->ok() || !e->regexp->CheckRewriteString(e->replacement,&error))
                 throw std::invalid_argument("Invalid regular expression or replacement");
             e->capturePrefix = CompileCapturePrefix(e->literal, e->replacement);
+            e->delimitedCapture = DelimitedCapture::Compile(e->literal, e->replacement);
             e->type=std::make_shared<StringType>();
         }
         else if (eat("extract"))
