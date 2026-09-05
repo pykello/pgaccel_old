@@ -10,6 +10,8 @@ STAGE3 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 16, 20, 26, 30, 34, 35, 37,
 
 STAGE4 = STAGE3 | {12, 15, 17, 18, 31, 32, 33, 36, 39, 42}
 
+ALL_QUERIES = set(range(1,44))
+
 def validate(records, required, wide_oracle=None, refinements=None):
     by_id = {r['id']: r for r in records}
     failures = []
@@ -50,7 +52,7 @@ def validate(records, required, wide_oracle=None, refinements=None):
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--results', required=True)
-    p.add_argument('--required', default=','.join(map(str, sorted(STAGE4))))
+    p.add_argument('--required', default=','.join(map(str, sorted(ALL_QUERIES))))
     p.add_argument('--wide-oracle')
     p.add_argument('--refinements')
     p.add_argument('--output', required=True)
