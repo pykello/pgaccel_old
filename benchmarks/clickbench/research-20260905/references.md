@@ -43,3 +43,17 @@ installation. The existing header and CMake package are already installed.
 [LICENSE](https://github.com/martinus/unordered_dense/blob/main/LICENSE) declares
 MIT. It has not been added. GPL/AGPL or source-available restricted dependencies
 will not be incorporated into these experiments.
+
+## Retained primitive and substring-filter provenance
+
+- [SplitMix64 author source](https://prng.di.unimi.it/splitmix64.c): the integer
+  hash uses its final mixing steps. Sebastiano Vigna's source dedicates the
+  implementation to the public domain and grants unrestricted use. This is
+  a standard retained primitive, not a claim of a novel hash function.
+- [Bloom, 1970](https://www.cs.princeton.edu/courses/archive/spr05/cos598E/bib/p422-bloom.pdf):
+  research context for a compact approximate filter followed by exact checks.
+  The implemented trigram signatures are original; no paper implementation
+  or additional library was imported.
+
+The completed experiments retain no new library dependency. See dependencies.md
+for the removed Abseil trial and the retained public-domain hash primitive.

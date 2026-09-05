@@ -22,3 +22,17 @@ pointer into its slots is retained.
 Rejected after the allocator-exception test aborted. The CMake dependency was
 removed; this is a historical license review, not an active requirement.
 See `01-abseil-rejected.md`.
+
+## Retained hash primitive: SplitMix64 finalizer
+
+IntegerHash uses the standard SplitMix64 final mixing steps, rather than a
+newly invented mixing function. The [author's implementation](https://prng.di.unimi.it/splitmix64.c)
+credits Sebastiano Vigna (2015), dedicates the software to the public domain,
+and explicitly permits use, copying, modification, and distribution for any
+purpose. This license notice was checked directly during the final audit.
+No external library is linked for this primitive.
+
+The surrounding exact sets, flat maps, indexes, group layouts, and query
+executors are implemented in this repository. No GPL/AGPL or restricted
+source-available algorithm dependency was added. Abseil remains a rejected,
+removed build dependency; its installed development package is historical.
