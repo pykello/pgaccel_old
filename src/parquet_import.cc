@@ -10,6 +10,8 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <future>
+#include <limits>
 
 #include "columnar_table.h"
 #include "util.h"
@@ -19,7 +21,7 @@ namespace pgaccel
 
 template<class ParquetTy, class AccelTy>
 std::vector<ColumnDataP>
-GenerateRawColumnData(parquet::ColumnReader &untypedReader)
+GenerateRawColumnData(parquet::ColumnReader &untypedReader, int64_t divisor = 1, int64_t minimum = INT64_MIN, int64_t maximum = INT64_MAX)
 {
     using ReaderType = parquet::TypedColumnReader<ParquetTy>&;
     ReaderType& typedReader = static_cast<ReaderType>(untypedReader);
@@ -33,12 +35,16 @@ GenerateRawColumnData(parquet::ColumnReader &untypedReader)
         int16_t def_levels[N];
         typename ParquetTy::c_type values[N];
         int64_t valuesRead = 0;
-        typedReader.ReadBatch(N, def_levels, rep_levels, values, &valuesRead);
+        auto levelsRead = typedReader.ReadBatch(N, def_levels, rep_levels, values, &valuesRead);
+        if (levelsRead != valuesRead) throw std::invalid_argument("NULL or repeated values are not supported");
         if (valuesRead == 0)
             break;
 
         for (int i = 0; i < valuesRead; i++) {
-            allValues.push_back(AccelTy::FromParquet(values[i]));
+            auto value = AccelTy::FromParquet(values[i]);
+            if (value < minimum || value > maximum) throw std::invalid_argument("Value outside declared integer range");
+            if (value % divisor) throw std::invalid_argument("Subsecond timestamps are not supported");
+            allValues.push_back(value / divisor);
         }
     }
 
@@ -106,7 +112,8 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
         int16_t def_levels[N];
         typename ParquetTy::c_type values[N];
         int64_t valuesRead = 0;
-        typedReader.ReadBatch(N, def_levels, rep_levels, values, &valuesRead);
+        auto levelsRead = typedReader.ReadBatch(N, def_levels, rep_levels, values, &valuesRead);
+        if (levelsRead != valuesRead) throw std::invalid_argument("NULL or repeated values are not supported");
         if (valuesRead == 0)
             break;
 
@@ -171,7 +178,8 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
 
 std::vector<RowGroup>
 LoadParquetRowGroup(parquet::RowGroupReader& rowGroupReader,
-                    const ColumnarTable &columnarTable)
+                    const ColumnarTable &columnarTable,
+                    const std::map<std::string,std::string> &declaredTypes)
 {
     std::vector<RowGroup> result;
 
@@ -202,10 +210,14 @@ LoadParquetRowGroup(parquet::RowGroupReader& rowGroupReader,
                 break;
 
             case INT32_TYPE:
+            {
+                auto it = declaredTypes.find(ToLower(name));
+                bool small = it != declaredTypes.end() && ToLower(it->second) == "smallint";
                 columnDataVec =
                     GenerateRawColumnData<parquet::Int32Type, pgaccel::Int32Type>(
-                        *columnReader);
+                        *columnReader, 1, small ? INT16_MIN : INT32_MIN, small ? INT16_MAX : INT32_MAX);
                 break;
+            }
 
             case DECIMAL_TYPE:
                 columnDataVec =
@@ -213,6 +225,22 @@ LoadParquetRowGroup(parquet::RowGroupReader& rowGroupReader,
                         *columnReader);
                 break;
 
+            case TIMESTAMP_TYPE:
+            {
+                int64_t divisor = 1;
+                auto logical = columnReader->descr()->logical_type();
+                if (logical->is_timestamp()) {
+                    auto timestamp = static_cast<const parquet::TimestampLogicalType*>(logical.get());
+                    switch (timestamp->time_unit()) {
+                    case parquet::LogicalType::TimeUnit::MILLIS: divisor = 1000; break;
+                    case parquet::LogicalType::TimeUnit::MICROS: divisor = 1000000; break;
+                    case parquet::LogicalType::TimeUnit::NANOS: divisor = 1000000000; break;
+                    default: throw std::invalid_argument("Unknown timestamp unit");
+                    }
+                }
+                columnDataVec = GenerateRawColumnData<parquet::Int64Type,pgaccel::Int64Type>(*columnReader,divisor);
+                break;
+            }
             case INT64_TYPE:
                 columnDataVec =
                     GenerateRawColumnData<parquet::Int64Type, pgaccel::Int64Type>(
@@ -235,8 +263,10 @@ LoadParquetRowGroup(parquet::RowGroupReader& rowGroupReader,
 std::unique_ptr<ColumnarTable> 
 ColumnarTable::ImportParquet(const std::string &tableName,
                              const std::string &path,
-                             std::optional<std::set<std::string>> maybeFields)
+                             std::optional<std::set<std::string>> maybeFields,
+                             const std::map<std::string,std::string> &declaredTypes)
 {
+    try {
     arrow::fs::LocalFileSystem fs;
     auto openResult = fs.OpenInputFile(path);
     if (!openResult.ok()) {
@@ -275,6 +305,19 @@ ColumnarTable::ImportParquet(const std::string &tableName,
 
         auto phyType = column->physical_type();
         auto logicalType = column->logical_type();
+        if (column->max_repetition_level()) throw std::invalid_argument("Repeated columns are not supported");
+        if (logicalType->is_decimal() && phyType != parquet::Type::INT64)
+            throw std::invalid_argument("Only INT64 decimals are supported");
+        std::string declared;
+        if (!declaredTypes.empty()) {
+            auto found = declaredTypes.find(ToLower(column->name()));
+            if (found == declaredTypes.end()) throw std::invalid_argument("Missing declared type for " + column->name());
+            declared = ToLower(found->second);
+            bool compatible = (declared == "text" && phyType == parquet::Type::BYTE_ARRAY) ||
+                ((declared == "smallint" || declared == "integer" || declared == "date") && phyType == parquet::Type::INT32) ||
+                ((declared == "bigint" || declared == "timestamp") && phyType == parquet::Type::INT64);
+            if (!compatible) throw std::invalid_argument("Incompatible declared type for " + column->name());
+        }
 
         switch (phyType) {
             case parquet::Type::BYTE_ARRAY:
@@ -283,7 +326,7 @@ ColumnarTable::ImportParquet(const std::string &tableName,
                 break;
 
             case parquet::Type::INT32:
-                if (logicalType->is_date())
+                if (logicalType->is_date() || declared == "date")
                 {
                     columnDesc.type = std::make_shared<pgaccel::DateType>();
                     columnDesc.layout = ColumnDataBase::DICT_COLUMN_DATA;
@@ -296,7 +339,14 @@ ColumnarTable::ImportParquet(const std::string &tableName,
                 break;
 
             case parquet::Type::INT64:
-                if (logicalType->is_decimal())
+                if (logicalType->is_timestamp() || declared == "timestamp")
+                {
+                    if (logicalType->is_timestamp() && !static_cast<const parquet::TimestampLogicalType*>(logicalType.get())->is_adjusted_to_utc())
+                        throw std::invalid_argument("Timestamp must declare UTC adjustment");
+                    columnDesc.type = std::make_shared<pgaccel::TimestampType>();
+                    columnDesc.layout = ColumnDataBase::RAW_COLUMN_DATA;
+                }
+                else if (logicalType->is_decimal())
                 {
                     auto parquetDecimalType =
                         static_cast<const parquet::DecimalLogicalType *>(logicalType.get());
@@ -320,31 +370,33 @@ ColumnarTable::ImportParquet(const std::string &tableName,
         result->schema_.push_back(std::move(columnDesc));
     }
 
-    std::vector<int> rowGroupIdxs;
-    for (size_t i = 0; i < fileMetadata->num_row_groups(); i++)
-        rowGroupIdxs.push_back(i);
-
-    std::mutex push_mutex;
-    std::mutex log_mutex;
-    std::for_each(
-        std::execution::par_unseq,
-        rowGroupIdxs.begin(),
-        rowGroupIdxs.end(),
-        [&](int parquetGroup)
-        {
-            {
-                std::lock_guard lock(push_mutex);
-                std::cout << "Loading group " << parquetGroup << std::endl;
+    if (result->schema_.empty()) throw std::invalid_argument("No matching columns");
+    for (const auto &field : fieldsToLoad) if (!result->ColumnIndex(field))
+        throw std::invalid_argument("Unknown requested column: " + field);
+    for (const auto &entry : declaredTypes) {
+        bool found = false;
+        for (int c = 0; c < parquetSchema->num_columns(); ++c)
+            found |= ToLower(parquetSchema->Column(c)->name()) == entry.first;
+        if (!found) throw std::invalid_argument("Unknown declared column: " + entry.first);
+    }
+    int count = fileMetadata->num_row_groups();
+    std::vector<std::vector<RowGroup>> loaded(count);
+    std::vector<std::future<void>> workers;
+    for (int worker = 0; worker < std::min(8,count); ++worker)
+        workers.push_back(std::async(std::launch::async,[&,worker] {
+            for (int group = worker; group < count; group += 8) {
+                auto reader = fileReader->RowGroup(group);
+                loaded[group] = LoadParquetRowGroup(*reader,*result,declaredTypes);
             }
-            auto rowGroupReader = fileReader->RowGroup(parquetGroup);
-            auto rowGroups = LoadParquetRowGroup(*rowGroupReader, *result);
-
-            std::lock_guard lock(push_mutex);
-            for(auto &rowGroup: rowGroups)
-                result->row_groups_.push_back(std::move(rowGroup));
-        });
+        }));
+    for (auto &worker : workers) worker.get();
+    for (auto &groups : loaded) for (auto &group : groups) result->row_groups_.push_back(std::move(group));
 
     return result;
+    } catch (const std::exception &e) {
+        std::cerr << "Parquet import: " << e.what() << std::endl;
+        return {};
+    }
 }
 
 };

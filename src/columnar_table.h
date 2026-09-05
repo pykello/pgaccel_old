@@ -20,9 +20,9 @@ struct ColumnDesc {
 
 struct RowGroup {
     std::vector<ColumnDataP> columns;
-    int size;
+    int size = 0;
     std::unique_ptr<std::array<uint8_t, BITMAP_SIZE>> selectionBitmap;
-    int selectedSize;
+    int selectedSize = 0;
 };
 
 class ColumnarTable;
@@ -61,7 +61,8 @@ public:
     static ColumnarTableP ImportParquet(
         const std::string &tableName,
         const std::string &path,
-        std::optional<std::set<std::string>> fields = std::nullopt);
+        std::optional<std::set<std::string>> fields = std::nullopt,
+        const std::map<std::string,std::string> &declaredTypes = {});
 
     static Result<ColumnarTableP> Load(
         const std::string &tableName,
