@@ -253,7 +253,21 @@ std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &q,
       onlyAggregate = &a;
       ++aggregateCount;
     }
-  if (aggregateCount == 1 && onlyAggregate->type == AggregateClause::AGGREGATE_COUNT_DISTINCT &&
+  bool inlineDistinct = q.groupBy.size() == 1;
+  if (inlineDistinct && q.groupBy[0].Type()->type_num() == STRING_TYPE) {
+    // Small dictionaries already amortize general state over many rows. The
+    // larger inline payload only pays off when per-group allocation dominates.
+    size_t maximumLabels = 0;
+    for (int g = 0; g < q.tables[0]->RowGroupCount(); ++g) {
+      auto data = q.tables[0]->GetRowGroup(g).columns[q.groupBy[0].columnIdx].get();
+      if (data->type == ColumnDataBase::DICT_COLUMN_DATA)
+        maximumLabels = std::max(maximumLabels,
+            size_t(static_cast<const DictColumnDataBase *>(data)->dictSize()));
+    }
+    inlineDistinct = maximumLabels > 4096;
+  }
+  if (inlineDistinct && aggregateCount == 1 &&
+      onlyAggregate->type == AggregateClause::AGGREGATE_COUNT_DISTINCT &&
       onlyAggregate->expression && onlyAggregate->expression->kind == Expression::COLUMN &&
       onlyAggregate->expression->type->type_num() != STRING_TYPE)
     return Composite<InlineIntegerSet>(q, avx, parallel);

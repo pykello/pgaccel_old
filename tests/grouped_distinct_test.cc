@@ -13,8 +13,8 @@ TEST(GroupedDistinct, InlinePayloadsAndCachedIndexesPreserveExactUnions)
         std::vector<std::string> strings;
         std::vector<int64_t> values;
         for (int repeat = 0; repeat < 3; ++repeat)
-            for (int i = 0; i < 1700; ++i) {
-                auto key = "key-" + std::to_string((i * 37 + g) % 2003);
+            for (int i = 0; i < 5000; ++i) {
+                auto key = "key-" + std::to_string((i * 37 + g) % 5003);
                 int64_t value = i % 5 == 0 ? INT64_MIN : i % 5 == 1 ? INT64_MAX : g - repeat;
                 strings.push_back(key);
                 values.push_back(value);
