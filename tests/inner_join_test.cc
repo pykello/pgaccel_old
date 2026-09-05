@@ -124,3 +124,28 @@ TEST(InnerJoin, ChildPeakDoesNotRemainResidentDuringSetConversion) {
     EXPECT_EQ(result->values, (Rows{{"1"}}));
     EXPECT_LE(result->peakMemoryBytes, q.memoryBudgetBytes);
 }
+
+TEST(InnerJoin, CompactPhysicalKeysPreserveExtremesAndStringDuplicates) {
+    auto registry = test::Table({{test::Raw({INT64_MIN, INT64_MAX, -1, -1, 0})}},
+                               {{"k", std::make_shared<Int64Type>()}});
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t a,t b WHERE a.k = b.k", registry), (Rows{{"7"}}));
+    auto strings = test::Table({{test::Dict<StringType>({"", "long shared prefix a", "long shared prefix b", "long shared prefix a"})}},
+                              {{"k", std::make_shared<StringType>()}});
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t a,t b WHERE a.k = b.k", strings), (Rows{{"6"}}));
+    EXPECT_EQ(RunJoin("SELECT count(*) FROM t a WHERE EXISTS (SELECT 1 FROM t b WHERE a.k = b.k AND b.k <> '')", strings), (Rows{{"3"}}));
+}
+TEST(InnerJoin, CompactDuplicateBuildFitsBoundedMemory) {
+    auto registry = test::Table({{test::Raw({1})}}, {{"k", std::make_shared<Int64Type>()}});
+    auto other = test::Table({{test::Raw(std::vector<int64_t>(10000, 1))}}, {{"k", std::make_shared<Int64Type>()}});
+    registry.emplace("u", std::move(other.at("t")));
+    auto parsed = ParseSelect("SELECT count(u.k) FROM t LEFT JOIN u ON t.k = u.k", registry);
+    ASSERT_TRUE(parsed.ok()) << parsed.status().Message();
+    auto query = std::move(parsed).ValueUnsafe();
+    query.memoryBudgetBytes = 600 * 1024; query.allowSpill = false;
+    auto result = ExecuteQuery(query, true, false);
+    ASSERT_TRUE(result.ok()) << result.status().Message();
+    EXPECT_EQ(result->values, (Rows{{"10000"}}));
+    EXPECT_LE(result->peakMemoryBytes, query.memoryBudgetBytes);
+    query.memoryBudgetBytes = 128;
+    EXPECT_FALSE(ExecuteQuery(query, true, false).ok());
+}

@@ -37,6 +37,39 @@ uint64_t OutputFootprint(const QueryOutput &output) {
     for (const auto &row : output.values) strings(row);
     return bytes;
 }
+// Physical join columns are signed 64-bit values or borrowed strings.
+// Keep the general expression Cell out of every retained hash entry.
+struct JoinIndex {
+    struct IntegerHash {
+        size_t operator()(int64_t value) const noexcept { return Hash{}(Cell{Wide(value)}); }
+    };
+    bool strings;
+    std::pmr::unordered_multimap<int64_t, RowId, IntegerHash> numbers;
+    std::pmr::unordered_multimap<std::string_view, RowId> texts;
+    JoinIndex(bool text, Budget &budget) : strings(text), numbers(&budget), texts(&budget) {}
+    static int64_t number(const Cell &key) {
+        if (key.string || key.number < INT64_MIN || key.number > INT64_MAX)
+            throw std::invalid_argument("Invalid physical numeric join key");
+        return int64_t(key.number);
+    }
+    void reserve(size_t n) { if (strings) texts.reserve(n); else numbers.reserve(n); }
+    void insert(const Cell &key, RowId row) {
+        if (strings) {
+            if (!key.string) throw std::invalid_argument("Invalid physical string join key");
+            texts.emplace(key.text, row);
+        } else numbers.emplace(number(key), row);
+    }
+    template<class F> void each(const Cell &key, F &&visit) const {
+        if (strings) {
+            if (!key.string) throw std::invalid_argument("Invalid physical string join key");
+            auto range = texts.equal_range(key.text);
+            for (auto it = range.first; it != range.second; ++it) if (!visit(it->second)) break;
+        } else {
+            auto range = numbers.equal_range(number(key));
+            for (auto it = range.first; it != range.second; ++it) if (!visit(it->second)) break;
+        }
+    }
+};
 struct JoinedGroup {
     States states;
     std::pmr::vector<RowId> representative;
@@ -214,9 +247,9 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         struct Join {
             size_t table;
             ColumnRef build, probe;
-            std::pmr::unordered_multimap<Cell, RowId, Hash> index;
+            JoinIndex index;
             Join(size_t t, ColumnRef b, ColumnRef p, Budget &budget)
-                : table(t), build(b), probe(p), index(&budget) {}
+                : table(t), build(b), probe(p), index(b.Type()->type_num() == STRING_TYPE, budget) {}
         };
         std::vector<Join> joins;
         joins.reserve(tables - 1);
@@ -266,7 +299,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             join.index.reserve(rows[join.table].size());
             for (RowId id : rows[join.table]) {
                 bound[join.table] = id;
-                join.index.emplace(read(build), id);
+                join.index.insert(read(build), id);
             }
             // The hash table owns row identities now; release selection storage.
             std::pmr::vector<RowId> empty(&budget); rows[join.table].swap(empty);
@@ -318,38 +351,41 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         std::function<void(size_t, uint64_t)> visit = [&](size_t stage, uint64_t active) {
             if (stage == joins.size()) { emit(); return; }
             auto &join = joins[stage];
-            auto range = join.index.equal_range(read(join.probe));
+            auto key = read(join.probe);
             uint64_t next = active | (uint64_t(1) << join.table);
             if (const auto *exists = existence[join.table]) {
                 bool matched = false;
-                for (auto it = range.first; it != range.second && !matched; ++it) {
-                    bound[join.table] = it->second; matched = true;
+                join.index.each(key, [&](RowId row) {
+                    bound[join.table] = row; matched = true;
                     for (const auto &predicate : exists->predicates)
                         if (!keep(*predicate)) { matched = false; break; }
-                }
+                    return !matched;
+                });
                 if (matched != exists->anti) visit(stage + 1, next);
                 return;
             }
             if (const auto *outer = left[join.table]) {
                 bool matched = false;
-                for (auto it = range.first; it != range.second; ++it) {
-                    bound[join.table] = it->second;
+                join.index.each(key, [&](RowId row) {
+                    bound[join.table] = row;
                     bool selected = true;
                     for (const auto &predicate : outer->predicates)
                         if (!keep(*predicate)) { selected = false; break; }
                     if (selected) { matched = true; visit(stage + 1, next); }
-                }
+                    return true;
+                });
                 if (!matched) { bound[join.table] = UINT64_MAX; visit(stage + 1, next); }
                 return;
             }
-            for (auto it = range.first; it != range.second; ++it) {
-                bound[join.table] = it->second;
+            join.index.each(key, [&](RowId row) {
+                bound[join.table] = row;
                 bool selected = true;
                 for (size_t p = 0; p < masks.size() && selected; ++p)
                     if ((masks[p] & ~next) == 0 && (masks[p] & ~active) != 0)
                         selected = keep(*q.predicates[p]);
                 if (selected) visit(stage + 1, next);
-            }
+                return true;
+            });
         };
         for (RowId id : rows[probe]) {
             bound[probe] = id;
