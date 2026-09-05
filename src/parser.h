@@ -68,7 +68,7 @@ struct FilterClause {
 };
 
 struct Expression {
-    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH } kind = CONSTANT;
+    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC } kind = CONSTANT;
     std::optional<ColumnRef> column;
     std::string literal = "0";
     std::shared_ptr<Expression> left, right;

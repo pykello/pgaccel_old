@@ -30,3 +30,10 @@ overflow. Grouped and ordered results use deterministic selected-value tie
 breakers. SQL does not otherwise promise which tied rows cross a LIMIT/OFFSET
 boundary. The audit preserves raw discrepancies and independently checks
 order refinements before accepting equivalent tied results.
+
+Timestamps are UTC seconds since the Unix epoch; dates are epoch days.
+EXTRACT supports second, minute, and hour. DATE_TRUNC supports second, minute,
+hour, and day and returns a timestamp. Truncation floors toward the earlier
+boundary, including negative epochs. Unsupported units and non-timestamp
+arguments fail at binding. No session timezone or daylight-saving conversion
+is applied.

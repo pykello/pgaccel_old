@@ -107,6 +107,18 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
             return {0, e.literal, true};
         return {ParseDecimal(Scale(e.type.get()), e.literal)};
     }
+    if (e.kind==Expression::EXTRACT || e.kind==Expression::DATE_TRUNC)
+    {
+        Wide seconds=Evaluate(*e.left,rg,row).number;
+        Wide unit=e.literal=="day"?86400:e.literal=="hour"?3600:e.literal=="minute"?60:1;
+        Wide remainder=seconds%unit;
+        if (remainder<0) remainder+=unit;
+        Wide rounded=seconds-remainder;
+        if (e.kind==Expression::DATE_TRUNC) return {rounded};
+        Wide value=(rounded/unit)%(e.literal=="hour"?24:60);
+        if (value<0) value+=e.literal=="hour"?24:60;
+        return {value};
+    }
     if (e.kind==Expression::LENGTH)
         return {Wide(Evaluate(*e.left,rg,row).text.size())};
     auto l = Evaluate(*e.left, rg, row).number, r = Evaluate(*e.right, rg, row).number;

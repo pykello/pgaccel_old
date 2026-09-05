@@ -111,6 +111,28 @@ struct Parser
             e = expr();
             need(")");
         }
+        else if (eat("extract"))
+        {
+            e->kind=Expression::EXTRACT;
+            need("("); e->literal=ToLower(take().text); need("from"); e->left=expr(); need(")");
+            if (e->left->type->type_num()!=TIMESTAMP_TYPE)
+                throw std::invalid_argument("EXTRACT requires a timestamp");
+            if (e->literal!="minute" && e->literal!="hour" && e->literal!="second")
+                throw std::invalid_argument("EXTRACT supports second, minute, and hour");
+            e->type=std::make_shared<Int64Type>();
+        }
+        else if (eat("date_trunc"))
+        {
+            e->kind=Expression::DATE_TRUNC;
+            need("("); auto unit=take();
+            if (!unit.quoted) throw std::invalid_argument("DATE_TRUNC unit must be a string");
+            e->literal=ToLower(unit.text); need(","); e->left=expr(); need(")");
+            if (e->left->type->type_num()!=TIMESTAMP_TYPE)
+                throw std::invalid_argument("DATE_TRUNC requires a timestamp");
+            if (e->literal!="second" && e->literal!="minute" && e->literal!="hour" && e->literal!="day")
+                throw std::invalid_argument("Unsupported DATE_TRUNC unit");
+            e->type=std::make_shared<TimestampType>();
+        }
         else if (eat("length"))
         {
             need("("); e->left=expr(); need(")");

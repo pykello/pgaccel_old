@@ -101,3 +101,12 @@ TEST(Expressions, ByteLength) {
     Check(t,"SELECT sum(length(s)),min(length(s)),max(length(s)) FROM t",{{"5","0","3"}});
     EXPECT_FALSE(ParseSelect("SELECT length(1) FROM t",t).ok());
 }
+
+TEST(Expressions, TimestampUnitsAndNegativeEpoch) {
+    auto t=test::Table({{test::Raw({-61,-1,0,59,60,3661})}},{{"ts",std::make_shared<TimestampType>()}});
+    Check(t,"SELECT extract(minute FROM ts) AS m,count(*) FROM t GROUP BY m ORDER BY m",{{"0","2"},{"1","2"},{"58","1"},{"59","1"}});
+    Check(t,"SELECT date_trunc('minute',ts) AS m,count(*) FROM t GROUP BY m ORDER BY m LIMIT 2",{{"1969-12-31 23:58:00","1"},{"1969-12-31 23:59:00","1"}});
+    Check(t,"SELECT date_trunc('day',ts) AS d,count(*) FROM t GROUP BY d ORDER BY d",{{"1969-12-31 00:00:00","2"},{"1970-01-01 00:00:00","4"}});
+    EXPECT_FALSE(ParseSelect("SELECT extract(year FROM ts) FROM t",t).ok());
+    EXPECT_FALSE(ParseSelect("SELECT date_trunc('minute',1) FROM t",t).ok());
+}
