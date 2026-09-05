@@ -102,6 +102,7 @@ struct QueryDesc {
     std::vector<AggregateClause> aggregateClauses;
     struct Ordering { size_t output; bool descending; };
     std::vector<Ordering> orderBy;
+    std::optional<size_t> outputColumnCount;
     std::optional<uint64_t> limit;
     uint64_t offset = 0;
     bool grouped = false;

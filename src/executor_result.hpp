@@ -9,6 +9,7 @@ class QueryResults
     const QueryDesc &q;
     Budget &budget;
     size_t n;
+    size_t visible;
     uint64_t capacity;
     QueryOutput output;
     std::vector<FinalRow> rows;
@@ -36,11 +37,11 @@ class QueryResults
 
   public:
     QueryResults(const QueryDesc &query, Budget &memory)
-        : q(query), budget(memory), n(q.aggregateClauses.size()),
+        : q(query), budget(memory), n(q.aggregateClauses.size()), visible(q.outputColumnCount.value_or(n)),
           capacity(q.limit ? *q.limit + q.offset : UINT64_MAX)
     {
-        for (const auto &a : q.aggregateClauses)
-            output.fieldNames.push_back(a.ToString());
+        for (size_t i=0;i<visible;++i)
+            output.fieldNames.push_back(q.aggregateClauses[i].ToString());
     }
     size_t size() const { return rows.size(); }
     void add(FinalRow row)
@@ -81,8 +82,9 @@ class QueryResults
         {
             const auto &r = rows[index];
             Row row;
-            for (const auto &v : r)
+            for (size_t column=0;column<visible;++column)
             {
+                const auto &v=r[column];
                 budget.charge(v.value.string ? v.value.text.size() + 32 : 128);
                 row.push_back(Format(v));
             }

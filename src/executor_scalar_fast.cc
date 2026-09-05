@@ -4,7 +4,8 @@ namespace pgaccel
 // Reuse column statistics and one vector sum for equivalent affine sums.
 std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &q, bool avx, bool parallel)
 {
-    if (q.grouped || !q.groupBy.empty() || !q.filterClauses.empty())
+    if (q.grouped || !q.groupBy.empty() || !q.filterClauses.empty() ||
+        q.outputColumnCount.value_or(q.aggregateClauses.size())!=q.aggregateClauses.size())
         return {};
     struct Binding
     {

@@ -332,11 +332,24 @@ struct Parser
         need("select");
         do
         {
+            if (eat("*"))
+            {
+                for (const auto &column:q.tables[0]->Schema())
+                {
+                    AggregateClause a; a.type=AggregateClause::AGGREGATE_PROJECT;
+                    a.expression=std::make_shared<Expression>(); a.expression->kind=Expression::COLUMN;
+                    a.columnRef=resolve(column.name); a.expression->column=a.columnRef;
+                    a.expression->type=column.type; a.sql=ToLower(column.name)+" ";
+                    q.aggregateClauses.push_back(std::move(a));
+                }
+                continue;
+            }
             auto a = aggregate();
             if (eat("as"))
                 a.alias = take().text;
             q.aggregateClauses.push_back(std::move(a));
         } while (eat(","));
+        q.outputColumnCount=q.aggregateClauses.size();
         need("from");
         take();
         if (eat("where"))
@@ -420,15 +433,10 @@ struct Parser
                 {
                     auto a = aggregate();
                     for (size_t i = 0; i < q.aggregateClauses.size(); ++i)
-                        if (a.sql == q.aggregateClauses[i].sql)
-                        {
-                            index = i;
-                            break;
-                        }
+                        if (a.sql == q.aggregateClauses[i].sql) { index=i; break; }
+                    if (index == q.aggregateClauses.size())
+                        q.aggregateClauses.push_back(std::move(a));
                 }
-                if (index == q.aggregateClauses.size())
-                    throw std::invalid_argument(
-                        "ORDER BY must reference a selected expression or alias");
                 bool desc = eat("desc");
                 if (!desc)
                     eat("asc");

@@ -110,3 +110,13 @@ TEST(Expressions, TimestampUnitsAndNegativeEpoch) {
     EXPECT_FALSE(ParseSelect("SELECT extract(year FROM ts) FROM t",t).ok());
     EXPECT_FALSE(ParseSelect("SELECT date_trunc('minute',1) FROM t",t).ok());
 }
+
+TEST(Projection, StarAndHiddenSortColumns) {
+    auto t=test::Table({{test::Raw({3,1,2}),test::Dict<StringType>({"a","c","b"})}},
+                      {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    Check(t,"SELECT count(*) FROM t ORDER BY sum(v)",{{"3"}});
+    Check(t,"SELECT s FROM t ORDER BY v LIMIT 2",{{"c"},{"b"}});
+    Check(t,"SELECT * FROM t ORDER BY v LIMIT 2",{{"1","c"},{"2","b"}});
+    Check(t,"SELECT s FROM t GROUP BY s ORDER BY count(*) DESC,s LIMIT 2",{{"a"},{"b"}});
+    EXPECT_FALSE(ParseSelect("SELECT s,count(*) FROM t GROUP BY s ORDER BY v",t).ok());
+}
