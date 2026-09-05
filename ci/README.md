@@ -25,3 +25,9 @@ the data and metadata files. Readers reject unsupported versions and mismatched
 pairs, and still read legacy snapshots. Version 1 payloads remain native-endian;
 the header detects incompatibility rather than promising cross-platform input.
 The identity is a pairing guard, not a content checksum or atomic publication.
+
+The default full-query gate now requires the 31-query stage-4 subset. Its
+ClickHouse fixture must include those queries. Supply `refinements.jsonl`
+from `benchmarks/clickbench/validate_ties.py` for tied LIMIT outputs; the gate
+checks the original SQL, refinement, and exact typed rows before accepting
+SQL-equivalent alternatives. Keep unchanged-query mismatches in the raw audit.

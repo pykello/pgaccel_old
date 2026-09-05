@@ -17,7 +17,11 @@ if [[ ${1:-} == --full ]]; then
         --queries benchmarks/clickbench/queries.sql \
         --oracle "$PGACCEL_FIXTURES/clickhouse.jsonl" \
         --output "$output_dir/audit.jsonl"
-    "$python_bin" benchmarks/clickbench/gate.py \
+    refinement_args=()
+    if [[ -f "$PGACCEL_FIXTURES/refinements.jsonl" ]]; then
+        refinement_args=(--refinements "$PGACCEL_FIXTURES/refinements.jsonl")
+    fi
+    "$python_bin" benchmarks/clickbench/gate.py "${refinement_args[@]}" \
         --results "$output_dir/audit.jsonl" \
         --wide-oracle "$PGACCEL_FIXTURES/wide-average.json" \
         --output "$output_dir/gate.json"
