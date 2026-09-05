@@ -7,7 +7,13 @@ with the ClickBench 10 ms shift, on the complete 99,997,497-row fixture.
 
 ## Current entry points
 
+The target is met in the final indexed warm comparison: **39/43 wins** and
+**0.368585** paired shifted geometric latency ratio. See the final report for
+preprocessing costs, correctness policy and the limits of this claim.
+
 - [Status and latest complete comparison](STATUS.md)
+- [Final checkpoint: all 43 timings and evidence](36-checkpoint3-target.md)
+- [Staged follow-up plan](37-follow-up-plan.md)
 - [Reproduce the indexed comparison](reproduce.md)
 - [Unindexed checkpoint 1](12-checkpoint1.md)
 - [Indexed checkpoint 2](26-checkpoint2-indexed.md)
