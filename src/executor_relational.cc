@@ -136,6 +136,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         auto baseRead = [&](const ColumnRef &column) {
             if (column.tableIdx < 0) throw std::invalid_argument("Invalid relational column binding");
             RowId id = bound[column.tableIdx];
+            if (id == UINT64_MAX) throw std::invalid_argument("Unsupported nullable column read");
             return Read(q.tables[column.tableIdx]->GetRowGroup(id >> 32), column, uint32_t(id));
         };
         auto read = [&](const ColumnRef &column) {
@@ -159,7 +160,13 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         };
         std::vector<const QueryDesc::ExistenceJoin *> existence(tables, nullptr);
         for (const auto &join : q.existenceJoins) existence[join.table] = &join;
+        std::vector<const QueryDesc::LeftJoin *> left(tables, nullptr);
+        for (const auto &join : q.leftJoins) left[join.table] = &join;
         std::vector<std::shared_ptr<Expression>> edges = q.predicates;
+        for (const auto &join : q.leftJoins)
+            for (const auto &e : join.predicates)
+                if (e->kind == Expression::EQ && e->left->column && e->right->column &&
+                    (e->left->column->tableIdx == join.table || e->right->column->tableIdx == join.table)) edges.push_back(e);
         for (const auto &join : q.existenceJoins)
             for (const auto &e : join.predicates)
                 if (e->kind == Expression::EQ && e->left->column && e->right->column &&
@@ -177,6 +184,9 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 if (auto projected = LocalPredicate(predicate, uint64_t(1) << table)) local.push_back(projected);
             if (existence[table])
                 for (const auto &predicate : existence[table]->predicates)
+                    if (auto projected = LocalPredicate(predicate, uint64_t(1) << table)) local.push_back(projected);
+            if (left[table])
+                for (const auto &predicate : left[table]->predicates)
                     if (auto projected = LocalPredicate(predicate, uint64_t(1) << table)) local.push_back(projected);
             auto filter = clauses.empty() ? FilterNodeP{} : CreateFilterNode(clauses, avx);
             for (int g = 0; g < q.tables[table]->RowGroupCount(); ++g) {
@@ -200,7 +210,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         }
         size_t probe = 0;
         for (size_t t = 1; t < tables; ++t)
-            if (!existence[t] && (existence[probe] || rows[t].size() > rows[probe].size())) probe = t;
+            if (!existence[t] && !left[t] && (existence[probe] || left[probe] || rows[t].size() > rows[probe].size())) probe = t;
         struct Join {
             size_t table;
             ColumnRef build, probe;
@@ -235,7 +245,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             std::optional<std::pair<ColumnRef, ColumnRef>> edge;
             bool ordinaryRemaining = false;
             for (size_t t = 0; t < tables; ++t)
-                ordinaryRemaining |= !existence[t] && !(joined & (uint64_t(1) << t));
+                ordinaryRemaining |= !existence[t] && !left[t] && !(joined & (uint64_t(1) << t));
             for (const auto &predicate : edges) {
                 if (predicate->kind != Expression::EQ || !predicate->left->column || !predicate->right->column)
                     continue;
@@ -243,7 +253,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 if (a.tableIdx < 0 || b.tableIdx < 0) continue;
                 if (Scale(a.Type().get()) != Scale(b.Type().get())) continue;
                 if (joined & (uint64_t(1) << a.tableIdx)) std::swap(a, b);
-                if (ordinaryRemaining && existence[a.tableIdx]) continue;
+                if (ordinaryRemaining && (existence[a.tableIdx] || left[a.tableIdx])) continue;
                 if (!(joined & (uint64_t(1) << a.tableIdx)) && (joined & (uint64_t(1) << b.tableIdx)) &&
                     (!edge || cost(a) < cost(edge->first) ||
                      (cost(a) == cost(edge->first) && rows[a.tableIdx].size() < rows[edge->first.tableIdx].size())))
@@ -292,6 +302,9 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             for (size_t i = 0; i < outputs; ++i) {
                 auto &state = states[i]; const auto &a = q.aggregateClauses[i];
                 if (a.type == AggregateClause::AGGREGATE_PROJECT || a.type == AggregateClause::AGGREGATE_FORMULA) continue;
+                if ((a.type == AggregateClause::AGGREGATE_COUNT || a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT) &&
+                    a.expression && a.expression->column && a.expression->column->tableIdx >= 0 &&
+                    bound[a.expression->column->tableIdx] == UINT64_MAX) continue;
                 if (a.type == AggregateClause::AGGREGATE_COUNT) { ++state.count; continue; }
                 Cell value = EvaluateWith(*a.expression, read);
                 if (a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT) Insert(state, value, budget);
@@ -315,6 +328,18 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                         if (!keep(*predicate)) { matched = false; break; }
                 }
                 if (matched != exists->anti) visit(stage + 1, next);
+                return;
+            }
+            if (const auto *outer = left[join.table]) {
+                bool matched = false;
+                for (auto it = range.first; it != range.second; ++it) {
+                    bound[join.table] = it->second;
+                    bool selected = true;
+                    for (const auto &predicate : outer->predicates)
+                        if (!keep(*predicate)) { selected = false; break; }
+                    if (selected) { matched = true; visit(stage + 1, next); }
+                }
+                if (!matched) { bound[join.table] = UINT64_MAX; visit(stage + 1, next); }
                 return;
             }
             for (auto it = range.first; it != range.second; ++it) {

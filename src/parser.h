@@ -124,6 +124,11 @@ struct QueryDesc {
         std::vector<std::shared_ptr<Expression>> predicates;
     };
     std::vector<ExistenceJoin> existenceJoins;
+    struct LeftJoin {
+        int table;
+        std::vector<std::shared_ptr<Expression>> predicates;
+    };
+    std::vector<LeftJoin> leftJoins;
     struct MembershipQuery {
         std::shared_ptr<QueryDesc> query;
         ColumnRef column;

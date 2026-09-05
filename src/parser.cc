@@ -490,7 +490,7 @@ struct Parser
             Parser correlated = nested(std::move(subTokens));
             correlated.parent = this; correlated.tableOffset = q.tables.size();
             inner = correlated.parse();
-            if (!correlated.derivedColumns.empty() || !inner.materializedSources.empty() || inner.grouped || inner.limit || inner.offset ||
+            if (!correlated.derivedColumns.empty() || !inner.materializedSources.empty() || !inner.leftJoins.empty() || inner.grouped || inner.limit || inner.offset ||
                 !inner.having.empty() || !inner.orderBy.empty() || !inner.existenceJoins.empty())
                 throw std::invalid_argument("Correlated scalars require an ungrouped base-table aggregate");
             int offset = correlated.tableOffset;
@@ -600,7 +600,7 @@ struct Parser
         Parser sub = nested(std::move(subTokens));
         sub.parent = this; sub.tableOffset = q.tables.size();
         auto inner = sub.parse();
-        if (inner.tables.size() != 1 || !inner.materializedSources.empty() || !inner.scalarQueries.empty() || !inner.membershipQueries.empty() || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
+        if (inner.tables.size() != 1 || !inner.leftJoins.empty() || !inner.materializedSources.empty() || !inner.scalarQueries.empty() || !inner.membershipQueries.empty() || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
             !inner.orderBy.empty() || !inner.having.empty() ||
             std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                 return a.type != AggregateClause::AGGREGATE_PROJECT;
@@ -905,6 +905,31 @@ struct Parser
             for (const auto &required : requiredEqualities(e)) q.predicates.push_back(required);
         q.predicates.push_back(e);
     }
+    bool touches(const std::shared_ptr<Expression> &e, int table) {
+        return e && ((e->column && (e->column->tableIdx == table ||
+            (e->column->dependencies & (uint64_t(1) << table)))) ||
+            touches(e->left, table) || touches(e->right, table) || touches(e->condition, table));
+    }
+    void validateLeftJoins() {
+        if (q.leftJoins.empty()) return;
+        if (q.tables.size() != 2 || q.leftJoins.size() != 1 || !q.existenceJoins.empty() ||
+            !q.scalarQueries.empty() || !q.membershipQueries.empty())
+            throw std::invalid_argument("LEFT JOIN currently requires two inputs without subqueries in predicates");
+        int right = q.leftJoins[0].table;
+        for (const auto &filter : q.filterClauses)
+            if (filter.columnRef.tableIdx == right)
+                throw std::invalid_argument("Nullable LEFT JOIN columns are supported only by direct COUNT");
+        for (const auto &e : q.predicates)
+            if (touches(e, right)) throw std::invalid_argument("Nullable LEFT JOIN WHERE predicates are unsupported");
+        for (const auto &e : q.groupExpressions)
+            if (touches(e, right)) throw std::invalid_argument("Nullable LEFT JOIN grouping is unsupported");
+        for (const auto &a : q.aggregateClauses) if (touches(a.expression, right)) {
+            bool count = a.type == AggregateClause::AGGREGATE_COUNT || a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT;
+            if (!count || a.expression->kind != Expression::COLUMN || !a.expression->column ||
+                a.expression->column->tableIdx != right)
+                throw std::invalid_argument("Nullable LEFT JOIN columns are supported only by direct COUNT");
+        }
+    }
     QueryDesc parse()
     {
         if (eat("with")) {
@@ -973,6 +998,7 @@ struct Parser
             q.filterClauses = std::move(inner.filterClauses);
             q.predicates = std::move(inner.predicates);
             q.existenceJoins = std::move(inner.existenceJoins);
+            q.leftJoins = std::move(inner.leftJoins);
             q.membershipQueries = std::move(inner.membershipQueries);
             q.scalarQueries = std::move(inner.scalarQueries);
             for (const auto &a : inner.aggregateClauses) {
@@ -984,6 +1010,7 @@ struct Parser
             }
             }
         } else {
+        bool leftSource = false;
         do {
             auto name = ToLower(take().text);
             auto table = registry.find(name);
@@ -994,14 +1021,30 @@ struct Parser
             else if (at < tokens.size() && !tokens[at].quoted) {
                 auto next = ToLower(tokens[at].text);
                 if (next != "," && next != "where" && next != "group" && next != "order" &&
-                    next != "having" && next != "limit" && next != "offset" && next != ";")
+                    next != "having" && next != "limit" && next != "offset" && next != ";" &&
+                    next != "left" && next != "join" && next != "inner" && next != "right" && next != "full" && next != "on")
                     alias = ToLower(take().text);
             }
             if (!sources.emplace(alias, q.tables.size()).second)
                 throw std::invalid_argument("Duplicate table alias: " + alias);
             if (cte != ctes.end()) materialize(alias, cte->second);
             else q.tables.push_back(table->second.get());
-        } while (eat(","));
+            if (leftSource) {
+                sourceCount = q.tables.size(); need("on");
+                auto predicate = expr();
+                if (containsExists(predicate) || containsScalar(predicate))
+                    throw std::invalid_argument("Subqueries in LEFT JOIN conditions are unsupported");
+                QueryDesc::LeftJoin join{int(q.tables.size() - 1), {}};
+                auto flatten = [&](auto &&self, const std::shared_ptr<Expression> &e) -> void {
+                    if (e->kind == Expression::AND) { self(self, e->left); self(self, e->right); }
+                    else join.predicates.push_back(e);
+                };
+                flatten(flatten, predicate); q.leftJoins.push_back(std::move(join));
+            }
+            if (eat("left")) { eat("outer"); need("join"); leftSource = true; }
+            else if (eat(",")) leftSource = false;
+            else break;
+        } while (true);
         }
         size_t afterSources = at;
         sourceCount = q.tables.size();
@@ -1190,6 +1233,7 @@ struct Parser
                 auto expression = q.aggregateClauses[i].expression;
                 lowerFormula(expression);
             }
+        validateLeftJoins();
         return std::move(q);
     }
     void lowerFormula(const std::shared_ptr<Expression> &e) {
