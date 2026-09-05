@@ -29,6 +29,10 @@ class GlobalDictionary {
     // For nearly unique raw columns, preserve actual inverse row locations
     // with sparse duplicate exceptions instead of a dense posting array.
     bool HasSparsePostings() const;
+    // Dense CSR postings retain every physical row position, grouped by value.
+    bool HasDensePostings() const;
+    std::span<const uint32_t> PostingRows(uint32_t id) const;
+    std::span<const uint32_t> PostingOffsets() const;
     uint64_t RowOffset(int group) const;
     uint32_t FirstRow(uint32_t id) const;
     std::span<const AdditionalPosting> AdditionalRows(uint32_t id) const;

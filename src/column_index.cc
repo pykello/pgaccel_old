@@ -11,11 +11,12 @@ struct GlobalDictionary::Impl {
     std::pmr::vector<std::pmr::vector<uint32_t>> codes;
     std::pmr::vector<StringSignature> signatures;
     std::pmr::vector<uint64_t> rowOffsets;
-    std::pmr::vector<uint32_t> repeatBoundaries, repeatedRows;
+    std::pmr::vector<uint32_t> repeatBoundaries, repeatedRows, postingOffsets, postingRows;
     std::pmr::vector<AdditionalPosting> additionalRows;
-    bool string = false, sparsePostings = false;
+    bool string = false, sparsePostings = false, densePostings = false;
     explicit Impl(uint64_t limit) : memory(limit), numbers(memory), strings(memory), codes(&memory),
-        signatures(&memory), rowOffsets(&memory), repeatBoundaries(&memory), repeatedRows(&memory), additionalRows(&memory) {
+        signatures(&memory), rowOffsets(&memory), repeatBoundaries(&memory), repeatedRows(&memory),
+        postingOffsets(&memory), postingRows(&memory), additionalRows(&memory) {
         memory.charge(sizeof(Impl) + sizeof(GlobalDictionary));
     }
 };
@@ -32,6 +33,13 @@ uint64_t GlobalDictionary::bytes() const { return impl->memory.used.load(); }
 uint64_t GlobalDictionary::peakBytes() const { return impl->memory.peak.load(); }
 
 bool GlobalDictionary::HasSparsePostings() const { return impl->sparsePostings; }
+bool GlobalDictionary::HasDensePostings() const { return impl->densePostings; }
+std::span<const uint32_t> GlobalDictionary::PostingOffsets() const { return impl->postingOffsets; }
+std::span<const uint32_t> GlobalDictionary::PostingRows(uint32_t id) const {
+    if (!HasDensePostings() || id >= size()) throw std::out_of_range("Invalid dense posting identity");
+    return std::span<const uint32_t>(impl->postingRows).subspan(
+        impl->postingOffsets[id], impl->postingOffsets[id + 1] - impl->postingOffsets[id]);
+}
 uint64_t GlobalDictionary::RowOffset(int group) const { return impl->rowOffsets[group]; }
 uint32_t GlobalDictionary::FirstRow(uint32_t id) const {
     if (!HasSparsePostings() || id >= size()) throw std::out_of_range("Invalid sparse posting identity");
@@ -122,6 +130,22 @@ Result<std::shared_ptr<const GlobalDictionary>> GlobalDictionary::Build(
                 previous = repeat.id;
             }
             std::sort(index.repeatedRows.begin(), index.repeatedRows.end());
+        }
+        if (rawOnly && rows && rows <= UINT32_MAX && !index.sparsePostings) {
+            index.postingOffsets.resize(result->size() + 1, 0);
+            for (const auto &codes : index.codes)
+                for (uint32_t id : codes) ++index.postingOffsets[id + 1];
+            for (size_t id = 1; id < index.postingOffsets.size(); ++id)
+                index.postingOffsets[id] += index.postingOffsets[id - 1];
+            index.postingRows.resize(rows);
+            // Cursor storage is temporary, charged to the construction budget.
+            std::pmr::vector<uint32_t> cursor(index.postingOffsets, &index.memory);
+            for (int g = 0; g < table.RowGroupCount(); ++g)
+                for (size_t row = 0; row < index.codes[g].size(); ++row) {
+                    uint32_t id = index.codes[g][row];
+                    index.postingRows[cursor[id]++] = uint32_t(index.rowOffsets[g] + row);
+                }
+            index.densePostings = true;
         }
         return std::shared_ptr<const GlobalDictionary>(std::move(result));
     } catch (const std::exception &error) {
