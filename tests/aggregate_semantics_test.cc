@@ -81,3 +81,16 @@ TEST(Aggregation, CompositeMergesAcrossDictionaryCodeSpaces) {
     Check(t,"SELECT v,s,sum(w),count(*) AS n FROM t GROUP BY v,s ORDER BY n DESC LIMIT 1",{{"1","c","8","3"}});
     Check(t,"SELECT v,s,count(distinct w),min(w),max(w),count(*) AS n FROM t GROUP BY v,s ORDER BY n DESC LIMIT 1",{{"1","c","2","2","4","3"}});
 }
+TEST(Predicates, LikeAndMembership) {
+    auto t=test::Table({{test::Raw({1,2,3,4,5}),test::Dict<StringType>({"google","Google","¥","a_b","a%b"})}},
+                       {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    Check(t,"SELECT count(*) FROM t WHERE s LIKE '%google%'",{{"1"}});
+    Check(t,"SELECT s FROM t WHERE s LIKE '_'",{{"¥"}});
+    Check(t,"SELECT s FROM t WHERE s LIKE 'a\\_b'",{{"a_b"}});
+    Check(t,"SELECT s FROM t WHERE s LIKE 'a\\%b'",{{"a%b"}});
+    Check(t,"SELECT count(*) FROM t WHERE s NOT LIKE '%google%' AND v IN (1,2,2,3)",{{"2"}});
+    Check(t,"SELECT count(*) FROM t WHERE s IN ('¥','google') AND v NOT IN (2,3)",{{"1"}});
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE v LIKE '%1%'",t).ok());
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE v IN ()",t).ok());
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE v IN (1,NULL)",t).ok());
+}

@@ -56,11 +56,13 @@ struct FilterClause {
         FILTER_GTE,
         FILTER_LT,
         FILTER_LTE,
+        FILTER_LIKE, FILTER_NOT_LIKE, FILTER_IN, FILTER_NOT_IN,
         INVALID
     } op;
 
     ColumnRef columnRef;
     std::string value;
+    std::vector<std::string> values;
 
     std::string ToString() const;
 };

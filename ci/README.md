@@ -31,3 +31,5 @@ ClickHouse fixture must include those queries. Supply `refinements.jsonl`
 from `benchmarks/clickbench/validate_ties.py` for tied LIMIT outputs; the gate
 checks the original SQL, refinement, and exact typed rows before accepting
 SQL-equivalent alternatives. Keep unchanged-query mismatches in the raw audit.
+
+String predicates also require RE2 (`libre2-dev` on Ubuntu) and pkg-config.

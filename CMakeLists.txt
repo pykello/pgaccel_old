@@ -19,6 +19,8 @@ FetchContent_MakeAvailable(touca)
 set_property(TARGET touca PROPERTY CXX_STANDARD 17)
 endif()
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(RE2 REQUIRED IMPORTED_TARGET re2)
 find_package(PAPI REQUIRED)
 find_package(Arrow REQUIRED)
 find_package(Parquet REQUIRED)
@@ -37,7 +39,7 @@ file(GLOB_RECURSE pgaccel_lib_SRC
 
 add_library(pgaccel_static STATIC ${pgaccel_lib_SRC})
 target_link_libraries(pgaccel_static PRIVATE
-                      Arrow::arrow_shared Parquet::parquet_shared tbb)
+                      Arrow::arrow_shared Parquet::parquet_shared tbb PkgConfig::RE2)
 
 add_executable(pgaccel "pgaccel.cc")
 target_include_directories(pgaccel PRIVATE "src")

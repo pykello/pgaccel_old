@@ -243,6 +243,35 @@ struct Parser
         a.sql = signature(start, at);
         return a;
     }
+    std::string filterValue(const ColumnRef &column)
+    {
+                std::string sign;
+                if (eat("-"))
+                    sign = "-";
+                else
+                    eat("+");
+                auto literal = take();
+                std::string value = sign + literal.text;
+                auto type = column.Type()->type_num();
+                if ((type == STRING_TYPE || type == DATE_TYPE || type == TIMESTAMP_TYPE) !=
+                    literal.quoted)
+                    throw std::invalid_argument("Incorrect literal type");
+                if (type == DATE_TYPE)
+                    ParseDate(value);
+                if (type == TIMESTAMP_TYPE)
+                    ParseTimestamp(value);
+                if (type == DECIMAL_TYPE)
+                    ParseDecimal(static_cast<DecimalType *>(column.Type().get())->scale,
+                                 value);
+                if (type == INT32_TYPE || type == INT64_TYPE)
+                {
+                    size_t n;
+                    std::stoll(value, &n);
+                    if (n != value.size())
+                        throw std::invalid_argument("Invalid integer literal");
+                }
+        return value;
+    }
     bool same(const Expression &a,const Expression &b)
     {
         if (a.kind!=b.kind || a.column!=b.column || a.literal!=b.literal) return false;
@@ -286,7 +315,8 @@ struct Parser
             {
                 FilterClause f;
                 f.columnRef = resolve(take().text);
-                auto op = take().text;
+                auto op = ToLower(take().text);
+                if (op=="not") op += " " + ToLower(take().text);
                 if (op == "=")
                     f.op = FilterClause::FILTER_EQ;
                 else if (op == "!=" || op == "<>")
@@ -299,33 +329,22 @@ struct Parser
                     f.op = FilterClause::FILTER_GT;
                 else if (op == ">=")
                     f.op = FilterClause::FILTER_GTE;
+                else if (op=="like") f.op=FilterClause::FILTER_LIKE;
+                else if (op=="not like") f.op=FilterClause::FILTER_NOT_LIKE;
+                else if (op=="in") f.op=FilterClause::FILTER_IN;
+                else if (op=="not in") f.op=FilterClause::FILTER_NOT_IN;
                 else
                     throw std::invalid_argument("Unsupported filter operator " + op);
-                std::string sign;
-                if (eat("-"))
-                    sign = "-";
-                else
-                    eat("+");
-                auto literal = take();
-                f.value = sign + literal.text;
-                auto type = f.columnRef.Type()->type_num();
-                if ((type == STRING_TYPE || type == DATE_TYPE || type == TIMESTAMP_TYPE) !=
-                    literal.quoted)
-                    throw std::invalid_argument("Incorrect literal type");
-                if (type == DATE_TYPE)
-                    ParseDate(f.value);
-                if (type == TIMESTAMP_TYPE)
-                    ParseTimestamp(f.value);
-                if (type == DECIMAL_TYPE)
-                    ParseDecimal(static_cast<DecimalType *>(f.columnRef.Type().get())->scale,
-                                 f.value);
-                if (type == INT32_TYPE || type == INT64_TYPE)
+                if (f.op==FilterClause::FILTER_IN || f.op==FilterClause::FILTER_NOT_IN)
                 {
-                    size_t n;
-                    std::stoll(f.value, &n);
-                    if (n != f.value.size())
-                        throw std::invalid_argument("Invalid integer literal");
+                    need("(");
+                    do { f.values.push_back(filterValue(f.columnRef)); } while (eat(","));
+                    need(")");
                 }
+                else f.value=filterValue(f.columnRef);
+                if ((f.op==FilterClause::FILTER_LIKE || f.op==FilterClause::FILTER_NOT_LIKE) &&
+                    f.columnRef.Type()->type_num()!=STRING_TYPE)
+                    throw std::invalid_argument("LIKE requires string operands");
                 q.filterClauses.push_back(std::move(f));
             } while (eat("and"));
         if (eat("group"))
