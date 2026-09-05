@@ -17,6 +17,12 @@ namespace pgaccel
 /*
  * Data Structures
 */
+inline void* AllocateAligned(size_t alignment, size_t bytes) {
+    auto p = std::aligned_alloc(alignment, ((std::max(bytes, size_t(1)) + alignment - 1) / alignment) * alignment);
+    if (!p) throw std::bad_alloc();
+    return p;
+}
+
 const int RowGroupSize = 1 << 16;
 
 struct ColumnDataBase;

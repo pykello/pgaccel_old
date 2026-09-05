@@ -63,19 +63,19 @@ GenerateRawColumnData(parquet::ColumnReader &untypedReader)
 
         if (maxValue <= INT8_MAX && minValue >= INT8_MIN) {
             columnData->bytesPerValue = 1;
-            columnData->values = (uint8_t *) aligned_alloc(512, rowGroupSize);
+            columnData->values = (uint8_t *) AllocateAligned(512, rowGroupSize);
             FILL_RAW_DATA(int8_t);
         } else if (maxValue <= INT16_MAX && minValue >= INT16_MIN) {
             columnData->bytesPerValue = 2;
-            columnData->values = (uint8_t *) aligned_alloc(512, 2 * rowGroupSize);
+            columnData->values = (uint8_t *) AllocateAligned(512, 2 * rowGroupSize);
             FILL_RAW_DATA(int16_t);
         } else if (maxValue <= INT32_MAX && minValue >= INT32_MIN) {
             columnData->bytesPerValue = 4;
-            columnData->values = (uint8_t *) aligned_alloc(512, 4 * rowGroupSize);
+            columnData->values = (uint8_t *) AllocateAligned(512, 4 * rowGroupSize);
             FILL_RAW_DATA(int32_t);
         } else {
             columnData->bytesPerValue = 8;
-            columnData->values = (uint8_t *) aligned_alloc(512, 8 * rowGroupSize);
+            columnData->values = (uint8_t *) AllocateAligned(512, 8 * rowGroupSize);
             FILL_RAW_DATA(int64_t);
         }
 
@@ -146,13 +146,13 @@ GenerateDictColumnData(parquet::ColumnReader &untypedReader)
         }
 
         if (dictSize < 256) {
-            uint8_t *values8 = (uint8_t *) aligned_alloc(512, rowGroupSize);
+            uint8_t *values8 = (uint8_t *) AllocateAligned(512, rowGroupSize);
             for (int i = offset; i < offset + rowGroupSize; i++) {
                 values8[i - offset] = dictIndexMap[convertedValues[i]];
             }
             columnData->values = values8;
         } else {
-            uint16_t *values16 = (uint16_t *) aligned_alloc(512, 2 * rowGroupSize);
+            uint16_t *values16 = (uint16_t *) AllocateAligned(512, 2 * rowGroupSize);
             for (int i = offset; i < offset + rowGroupSize; i++) {
                 values16[i - offset] = dictIndexMap[convertedValues[i]];
             }

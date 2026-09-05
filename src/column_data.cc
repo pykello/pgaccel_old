@@ -56,7 +56,7 @@ LoadDictColumnData(std::istream &in)
 
     in.read((char *) &result->size, sizeof(result->size));
     int bytesPerValue = (dictSize < 256) ? 1 : 2;
-    result->values = (uint8_t *) aligned_alloc(512, bytesPerValue * result->size);
+    result->values = (uint8_t *) AllocateAligned(512, bytesPerValue * result->size);
     in.read((char *) result->values, bytesPerValue * result->size);
 
     ColumnDataP resultCasted = std::move(result);
@@ -96,7 +96,7 @@ LoadRawColumnData(std::istream &in)
     in.read((char *) &result->maxValue, sizeof (result->maxValue));
 
     result->values =
-        (uint8_t *) aligned_alloc(512, result->bytesPerValue * result->size);
+        (uint8_t *) AllocateAligned(512, result->bytesPerValue * result->size);
     in.read((char *) result->values, result->bytesPerValue * result->size);
 
     ColumnDataP resultCasted = std::move(result);
