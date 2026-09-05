@@ -16,6 +16,18 @@ struct KeyHash {
         return hash;
     }
 };
+uint64_t OutputFootprint(const QueryOutput &output) {
+    // Include owned container capacities and conservative allocation overhead.
+    uint64_t bytes = sizeof(QueryOutput) + 64;
+    auto strings = [&](const Row &row) {
+        bytes += row.capacity() * sizeof(std::string) + 64;
+        for (const auto &value : row) bytes += value.capacity() + 17;
+    };
+    strings(output.fieldNames);
+    bytes += output.values.capacity() * sizeof(Row) + 64;
+    for (const auto &row : output.values) strings(row);
+    return bytes;
+}
 struct JoinedGroup {
     States states;
     std::pmr::vector<RowId> representative;
@@ -58,13 +70,19 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             child.spillByteBudget = std::min(child.spillByteBudget, q.spillByteBudget - subquerySpillBytes);
             return child;
         };
+        auto childOutputBytes = [&](const QueryOutput &output) {
+            // Child hash states are gone before result conversion starts.
+            // Preserve that earlier peak, then charge only retained output.
+            { Scratch executed(budget, output.peakMemoryBytes); }
+            return OutputFootprint(output);
+        };
         std::pmr::vector<std::optional<Cell>> scalarValues(&budget);
         for (const auto &scalar : q.scalarQueries) {
             auto sub = childPlan(*scalar.query);
             auto result = ExecuteQuery(sub, avx, false);
             if (!result.ok()) return Status::Invalid("Scalar subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
-            Scratch childMemory(budget, result->peakMemoryBytes);
+            Scratch childMemory(budget, childOutputBytes(*result));
             if (result->values.size() > 1) return Status::Invalid("Scalar subquery returned multiple rows");
             if (result->values.empty() || result->values[0][0] == "NULL") scalarValues.push_back(std::nullopt);
             else scalarValues.push_back(Cell{ResultNumber(result->values[0][0], Scale(scalar.resultType.get()))});
@@ -83,9 +101,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             auto result = ExecuteQuery(sub, avx, false);
             if (!result.ok()) return Status::Invalid("Membership subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
-            // Conservatively retain the child's reported peak while its output
-            // is converted, accounting for both child output and the new set.
-            Scratch childMemory(budget, result->peakMemoryBytes);
+            Scratch childMemory(budget, childOutputBytes(*result));
             for (const auto &row : result->values) {
                 Cell key;
                 auto type = membership.resultType->type_num();

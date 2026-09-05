@@ -108,3 +108,19 @@ TEST(InnerJoin, RejectNestedPlansThatCannotRetainExistenceScope) {
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE NOT EXISTS "
         "(SELECT * FROM u WHERE u.id=t.id AND u.value>(SELECT avg(value) FROM u))", registry).ok());
 }
+TEST(InnerJoin, ChildPeakDoesNotRemainResidentDuringSetConversion) {
+    auto registry = test::Table({{test::Raw({1, 99999})}}, {{"id", std::make_shared<Int64Type>()}});
+    std::vector<int64_t> values; for (int i=0; i<5000; ++i) values.push_back(i); values.push_back(1);
+    auto other = test::Table({{test::Raw(values)}}, {{"id", std::make_shared<Int64Type>()}});
+    registry.emplace("u", std::move(other.at("t")));
+    auto parsed = ParseSelect("SELECT count(*) FROM t WHERE id IN "
+        "(SELECT id FROM u GROUP BY id HAVING count(*)>1)", registry);
+    ASSERT_TRUE(parsed.ok()); auto q = std::move(parsed).ValueUnsafe();
+    auto child = ExecuteQuery(*q.membershipQueries[0].query, false, false);
+    ASSERT_TRUE(child.ok()); ASSERT_GT(child->peakMemoryBytes, 4096);
+    q.memoryBudgetBytes = child->peakMemoryBytes + 32; q.allowSpill = false;
+    auto result = ExecuteQuery(q, false, false);
+    ASSERT_TRUE(result.ok()) << result.status().Message();
+    EXPECT_EQ(result->values, (Rows{{"1"}}));
+    EXPECT_LE(result->peakMemoryBytes, q.memoryBudgetBytes);
+}
