@@ -12,7 +12,7 @@ scale; its actual physical storage and resident sizes will be measured.
   is still distinct from these focused checks.
 - SF10 Q21 query allocation peak fell from 12.81 to 4.18 GiB, with identical
   answers; Q3 fell 52.2% and Q13 fell 40.6%. See the coverage checkpoint.
-- Native and ASan/UBSan suites both pass 128/128 tests. UBSan exposed a
+- Native and ASan/UBSan suites both pass 129/129 tests. UBSan exposed a
   temporary descriptor's uninitialized layout enum; `ffc3b3c` initializes
   it before moving the descriptor, without changing stored layouts.
 - The three-engine driver passes all 22 queries across three trials on
@@ -23,7 +23,16 @@ Frozen PGAccel binary:
 `/home/hadi/projects/tpch-work/checkpoints/sf100-query-runner`
 
 SHA-256:
-`a2ce581626bdd091ceb137d41cd87e803331b9356053ae0f0935d0c0e861118e`
+`be6fd84981b9300c255ef6b2b60f5fb31299fc8dc311b22ae15d8522d442ab3b`
+
+The first PGAccel attempt exposed a runner configuration bug: the root
+received 64 GiB, but nested plans retained their default 8 GiB limit. Q2
+stopped at that child cap while total process RSS was about 106 GiB.
+`5eb5fc4` applies statement limits throughout the parsed plan; runtime
+remaining-parent accounting still bounds combined allocations. The full
+PGAccel phase is restarted from Q1 with this corrected binary. The partial
+attempt is archived as `inherited-child-limit-pgaccel.jsonl` and its log.
+The completed DuckDB phase remains valid and supplies the saved oracle.
 
 ## Host and resource contract
 
