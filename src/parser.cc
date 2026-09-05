@@ -302,12 +302,17 @@ struct Parser
                 bool negate = op == "not";
                 if (negate) op = ToLower(take().text);
                 if (op == "in") {
-                    need("("); std::shared_ptr<Expression> choices;
-                    do {
-                        auto equal = predicate(Expression::EQ, e, expr(3));
-                        choices = choices ? predicate(Expression::OR, choices, equal) : equal;
-                    } while (eat(","));
-                    need(")"); e = choices;
+                    need("(");
+                    if (at < tokens.size() && !tokens[at].quoted && ToLower(tokens[at].text) == "select") {
+                        --at; e = existence(e);
+                    } else {
+                        std::shared_ptr<Expression> choices;
+                        do {
+                            auto equal = predicate(Expression::EQ, e, expr(3));
+                            choices = choices ? predicate(Expression::OR, choices, equal) : equal;
+                        } while (eat(","));
+                        need(")"); e = choices;
+                    }
                 } else if (op == "between") {
                     auto low = expr(3); need("and"); auto high = expr(3);
                     e = predicate(Expression::AND, predicate(Expression::GTE, e, low),
@@ -398,7 +403,7 @@ struct Parser
         return e && (e->kind == Expression::EXISTS || containsExists(e->left) ||
                      containsExists(e->right) || containsExists(e->condition));
     }
-    std::shared_ptr<Expression> existence() {
+    std::shared_ptr<Expression> existence(std::shared_ptr<Expression> needle = {}) {
         if (parent) throw std::invalid_argument("Nested existence subqueries are not yet supported");
         need("("); size_t start = at; int nesting = 1;
         while (at < tokens.size() && nesting) {
@@ -418,6 +423,11 @@ struct Parser
             std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                 return a.type != AggregateClause::AGGREGATE_PROJECT;
             })) throw std::invalid_argument("EXISTS currently requires one ungrouped base table");
+        if (needle) {
+            if (!needle->column || inner.aggregateClauses.size() != 1 || !inner.aggregateClauses[0].columnRef)
+                throw std::invalid_argument("IN subqueries require one non-null source column and a column operand");
+            inner.predicates.push_back(predicate(Expression::EQ, needle, inner.aggregateClauses[0].expression));
+        }
         auto e = std::make_shared<Expression>(); e->kind = Expression::EXISTS;
         e->subqueryIndex = q.existenceJoins.size(); e->type = std::make_shared<Int64Type>();
         q.existenceJoins.push_back({int(q.tables.size()), false, std::move(inner.predicates)});

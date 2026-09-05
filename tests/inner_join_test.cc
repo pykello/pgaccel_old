@@ -69,3 +69,13 @@ TEST(InnerJoin, ExistencePreservesOuterCardinalityAndAntiScope) {
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE EXISTS (SELECT count(*) FROM u WHERE u.id=t.id)", registry).ok());
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE EXISTS (SELECT * FROM u b WHERE b.id=t.id) GROUP BY b.id", registry).ok());
 }
+TEST(InnerJoin, NonNullMembershipSubqueriesPreserveDuplicatesAndEmptySets) {
+    auto registry = JoinTables();
+    for (const auto &[predicate, count] : std::vector<std::pair<std::string, std::string>>{
+        {"id IN (SELECT id FROM u)", "3"}, {"id NOT IN (SELECT id FROM u)", "1"},
+        {"id IN (SELECT id FROM u WHERE value=99)", "0"},
+        {"id NOT IN (SELECT id FROM u WHERE value=99)", "4"}})
+        EXPECT_EQ(RunJoin("SELECT count(*) FROM t WHERE " + predicate, registry), (Rows{{count}}));
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE id IN (SELECT id,value FROM u)", registry).ok());
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE id NOT IN (SELECT sum(value) FROM u)", registry).ok());
+}
