@@ -3,6 +3,7 @@
 #include "regex_capture_prefix.hpp"
 #include "regex_delimited_capture.hpp"
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <iomanip>
 #include <numeric>
@@ -193,6 +194,20 @@ Cell EvaluateWith(const Expression &e, const Reader &read)
     if (e.kind==Expression::EXTRACT || e.kind==Expression::DATE_TRUNC)
     {
         Wide seconds=EvaluateWith(*e.left, read).number;
+        if (e.kind == Expression::EXTRACT &&
+            (e.literal == "year" || e.literal == "month" || e.literal == "day")) {
+            Wide days = seconds;
+            if (e.left->type->type_num() == TIMESTAMP_TYPE) {
+                days = seconds / 86400;
+                if (seconds % 86400 < 0) --days;
+            }
+            if (days < -719528 || days > 2932896)
+                throw std::out_of_range("Calendar EXTRACT supports years 0000 through 9999");
+            using namespace std::chrono;
+            year_month_day date{sys_days{std::chrono::days{int64_t(days)}}};
+            return {e.literal == "year" ? Wide(int(date.year())) :
+                    e.literal == "month" ? Wide(unsigned(date.month())) : Wide(unsigned(date.day()))};
+        }
         Wide unit=e.literal=="day"?86400:e.literal=="hour"?3600:e.literal=="minute"?60:1;
         Wide remainder=seconds%unit;
         if (remainder<0) remainder+=unit;

@@ -190,10 +190,12 @@ struct Parser
         {
             e->kind=Expression::EXTRACT;
             need("("); e->literal=ToLower(take().text); need("from"); e->left=expr(); need(")");
-            if (e->left->type->type_num()!=TIMESTAMP_TYPE)
-                throw std::invalid_argument("EXTRACT requires a timestamp");
-            if (e->literal!="minute" && e->literal!="hour" && e->literal!="second")
-                throw std::invalid_argument("EXTRACT supports second, minute, and hour");
+            auto input = e->left->type->type_num();
+            bool calendar = e->literal == "year" || e->literal == "month" || e->literal == "day";
+            if (input != TIMESTAMP_TYPE && !(calendar && input == DATE_TYPE))
+                throw std::invalid_argument("EXTRACT requires a date or timestamp for calendar fields");
+            if (!calendar && e->literal!="minute" && e->literal!="hour" && e->literal!="second")
+                throw std::invalid_argument("Unsupported EXTRACT field");
             e->type=std::make_shared<Int64Type>();
         }
         else if (eat("date_trunc"))

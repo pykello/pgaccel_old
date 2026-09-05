@@ -32,3 +32,17 @@ TEST(TpchDates, TypedLiteralsAndInclusiveBetweenUseNativeFilters)
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE d = CAST('1994-01-01' AS integer)", registry).ok());
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE d = DATE '2000-02-30'", registry).ok());
 }
+TEST(TpchDates, CalendarExtractionGroupsDatesAndFloorsNegativeTimestamps) {
+    auto registry = test::Table({{test::Dict<DateType>({ParseDate("1999-12-31"),
+        ParseDate("2000-02-29"), ParseDate("2000-12-31")}), test::Raw({-1, 0, 951782400})}},
+        {{"d", std::make_shared<DateType>()}, {"ts", std::make_shared<TimestampType>()}});
+    auto q = ParseSelect("SELECT extract(year FROM d) AS y,count(*) FROM t GROUP BY y ORDER BY y", registry);
+    ASSERT_TRUE(q.ok()); auto result = ExecuteQuery(*q, true, true);
+    ASSERT_TRUE(result.ok()) << result.status().Message();
+    EXPECT_EQ(result->values, (Rows{{"1999", "1"}, {"2000", "2"}}));
+    q = ParseSelect("SELECT extract(year FROM ts),extract(month FROM ts),extract(day FROM ts) FROM t ORDER BY ts", registry);
+    ASSERT_TRUE(q.ok()); result = ExecuteQuery(*q, false, false);
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(result->values, (Rows{{"1969", "12", "31"}, {"1970", "1", "1"}, {"2000", "2", "29"}}));
+    EXPECT_FALSE(ParseSelect("SELECT extract(hour FROM d) FROM t", registry).ok());
+}
