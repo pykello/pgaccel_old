@@ -1,6 +1,9 @@
+For the current build, SQL subset, loading workflow, and reproducible
+benchmarks, see [the benchmark guide](benchmarks/README.md).
+
 ## Requirements
 
-* sudo apt install build-essential cmake googletest libreadline-dev libtbb-dev libpapi-dev linux-tools-generic linux-cloud-tools-generic linux-tools-command
+* sudo apt install build-essential cmake googletest libreadline-dev libtbb-dev libpapi-dev libre2-dev pkg-config linux-tools-generic linux-cloud-tools-generic linux-tools-command
 * Install libarrow-dev && libparquet-dev: https://arrow.apache.org/install/
 * enable perf counters: `sudo sh -c 'echo -1 > /proc/sys/kernel/perf_event_paranoid'`
 
