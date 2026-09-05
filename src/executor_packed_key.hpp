@@ -8,7 +8,7 @@ namespace {
 // Exact bounded identities, not truncated hashes. Unsupported or wider keys
 // retain the normal logical comparison path.
 class PackedGroupKey {
-    enum Kind { ID, NUMBER, MINUTE, HOUR, SECOND };
+    enum Kind { ID, NUMBER, MINUTE, HOUR, SECOND, TRUNC_MINUTE, TRUNC_HOUR, TRUNC_DAY };
     struct Frame {
         const uint8_t *values = nullptr;
         const void *mapping = nullptr;
@@ -37,6 +37,10 @@ class PackedGroupKey {
     }
     static uint32_t code(const Frame &f, int row) {
         return f.width == 1 ? f.values[row] : reinterpret_cast<const uint16_t *>(f.values)[row];
+    }
+    template <int Unit> static int64_t quotient(int64_t seconds) {
+        int64_t value = seconds / Unit;
+        return seconds < 0 && seconds % Unit ? value - 1 : value;
     }
     template <int Unit, int Modulus> static uint64_t part(int64_t seconds) {
         int64_t quotient = seconds / Unit;
@@ -97,6 +101,30 @@ class PackedGroupKey {
                 else return;
                 for (int g = 0; g < table.RowGroupCount(); ++g)
                     if (table.GetRowGroup(g).columns[plan.column]->type != ColumnDataBase::RAW_COLUMN_DATA) return;
+            } else if (expression->kind == Expression::DATE_TRUNC &&
+                       expression->left->kind == Expression::COLUMN &&
+                       expression->left->type->type_num() == TIMESTAMP_TYPE) {
+                plan.column = expression->left->column->columnIdx;
+                int unit;
+                if (expression->literal == "minute") { plan.kind = TRUNC_MINUTE; unit = 60; }
+                else if (expression->literal == "hour") { plan.kind = TRUNC_HOUR; unit = 3600; }
+                else if (expression->literal == "day") { plan.kind = TRUNC_DAY; unit = 86400; }
+                else return;
+                int64_t minimum = INT64_MAX, maximum = INT64_MIN;
+                for (int g = 0; g < table.RowGroupCount(); ++g) {
+                    auto data = table.GetRowGroup(g).columns[plan.column].get();
+                    if (data->type != ColumnDataBase::RAW_COLUMN_DATA) return;
+                    if (!data->size) continue;
+                    auto raw = static_cast<const RawColumnData<TimestampType> *>(data);
+                    auto floor = [&](int64_t seconds) {
+                        int64_t value = seconds / unit;
+                        return seconds < 0 && seconds % unit ? value - 1 : value;
+                    };
+                    minimum = std::min(minimum, floor(raw->minValue));
+                    maximum = std::max(maximum, floor(raw->maxValue));
+                }
+                plan.minimum = minimum;
+                plan.bits = minimum <= maximum ? std::bit_width(uint64_t(maximum) - uint64_t(minimum)) : 0;
             } else return;
             if (plan.bits > 64 - total) return;
             total += plan.bits;
@@ -147,6 +175,9 @@ class PackedGroupKey {
             case MINUTE: value = part<60, 60>(raw(frame, row)); break;
             case HOUR: value = part<3600, 24>(raw(frame, row)); break;
             case SECOND: value = part<1, 60>(raw(frame, row)); break;
+            case TRUNC_MINUTE: value = uint64_t(quotient<60>(raw(frame, row))) - uint64_t(component.minimum); break;
+            case TRUNC_HOUR: value = uint64_t(quotient<3600>(raw(frame, row))) - uint64_t(component.minimum); break;
+            case TRUNC_DAY: value = uint64_t(quotient<86400>(raw(frame, row))) - uint64_t(component.minimum); break;
             }
             result |= value << component.shift;
         }
