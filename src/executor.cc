@@ -29,10 +29,13 @@ std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &, bool, 
 std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
 std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &, bool, bool);
+Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool);
 Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
+    if (query.tables.size() > 1 || !query.predicates.empty())
+        return ExecuteRelational(query, useAvx);
     try {
         // Preserve the vectorized/metadata COUNT fast path; other shapes use typed execution.
         if (query.having.empty() && !query.grouped && query.groupBy.empty() && query.aggregateClauses.size() == 1 &&

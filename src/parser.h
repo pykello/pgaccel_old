@@ -104,6 +104,8 @@ struct AggregateClause {
 struct QueryDesc {
     std::vector<ColumnarTable *> tables;
     std::vector<FilterClause> filterClauses;
+    // Bound column comparisons, evaluated by the relational executor.
+    std::vector<std::shared_ptr<Expression>> predicates;
     std::vector<ColumnRef> groupBy;
     std::vector<std::shared_ptr<Expression>> groupExpressions;
     std::vector<AggregateClause> aggregateClauses;

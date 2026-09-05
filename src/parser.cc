@@ -81,6 +81,7 @@ struct Parser
     size_t at = 0;
     QueryDesc q;
     const TableRegistry &registry;
+    std::map<std::string, int> sources;
     bool eat(const std::string &s)
     {
         if (at < tokens.size() && !tokens[at].quoted && ToLower(tokens[at].text) == ToLower(s))
@@ -103,10 +104,21 @@ struct Parser
     }
     ColumnRef resolve(const std::string &s)
     {
-        auto i = q.tables[0]->ColumnIndex(s);
-        if (!i)
-            throw std::invalid_argument("Unknown column: " + s);
-        return {q.tables[0]->Schema()[*i], 0, *i};
+        std::string name = ToLower(s), qualifier;
+        if (auto dot = name.find('.'); dot != std::string::npos) {
+            qualifier = name.substr(0, dot); name.erase(0, dot + 1);
+        }
+        std::optional<ColumnRef> found;
+        for (size_t table = 0; table < q.tables.size(); ++table) {
+            if (!qualifier.empty() && (!sources.contains(qualifier) || sources.at(qualifier) != int(table)))
+                continue;
+            auto index = q.tables[table]->ColumnIndex(name);
+            if (!index) continue;
+            if (found) throw std::invalid_argument("Ambiguous column: " + s);
+            found = ColumnRef{q.tables[table]->Schema()[*index], int(table), *index};
+        }
+        if (!found) throw std::invalid_argument("Unknown column: " + s);
+        return *found;
     }
     std::shared_ptr<Expression> expr(int precedence = 0)
     {
@@ -416,10 +428,25 @@ struct Parser
         }
         if (from + 1 >= tokens.size())
             throw std::invalid_argument("Expected FROM table");
-        auto table = registry.find(ToLower(tokens[from + 1].text));
-        if (table == registry.end())
-            throw std::invalid_argument("Unknown table");
-        q.tables.push_back(table->second.get());
+        at = from + 1;
+        do {
+            auto name = ToLower(take().text);
+            auto table = registry.find(name);
+            if (table == registry.end()) throw std::invalid_argument("Unknown table: " + name);
+            std::string alias = name;
+            if (eat("as")) alias = ToLower(take().text);
+            else if (at < tokens.size() && !tokens[at].quoted) {
+                auto next = ToLower(tokens[at].text);
+                if (next != "," && next != "where" && next != "group" && next != "order" &&
+                    next != "having" && next != "limit" && next != "offset" && next != ";")
+                    alias = ToLower(take().text);
+            }
+            if (!sources.emplace(alias, q.tables.size()).second)
+                throw std::invalid_argument("Duplicate table alias: " + alias);
+            q.tables.push_back(table->second.get());
+        } while (eat(","));
+        size_t afterSources = at;
+        at = 0;
         need("select");
         do
         {
@@ -442,7 +469,7 @@ struct Parser
         } while (eat(","));
         q.outputColumnCount=q.aggregateClauses.size();
         need("from");
-        take();
+        at = afterSources;
         if (eat("where"))
             do
             {
@@ -485,7 +512,33 @@ struct Parser
                     do { f.values.push_back(filterValue(f.columnRef)); } while (eat(","));
                     need(")");
                 }
-                else f.value=filterValue(f.columnRef);
+                else {
+                    bool columnValue = at < tokens.size() && !tokens[at].quoted &&
+                        (std::isalpha((unsigned char)tokens[at].text[0]) || tokens[at].text[0] == '_') &&
+                        ToLower(tokens[at].text) != "date" && ToLower(tokens[at].text) != "cast";
+                    if (columnValue && f.op <= FilterClause::FILTER_LTE) {
+                        auto right = resolve(take().text);
+                        auto lt = f.columnRef.Type()->type_num(), rt = right.Type()->type_num();
+                        if (lt != rt && !((lt == INT32_TYPE || lt == INT64_TYPE) &&
+                                          (rt == INT32_TYPE || rt == INT64_TYPE)))
+                            throw std::invalid_argument("Column comparison types differ");
+                        auto predicate = std::make_shared<Expression>();
+                        predicate->kind = f.op == FilterClause::FILTER_EQ ? Expression::EQ :
+                            f.op == FilterClause::FILTER_NE ? Expression::NE :
+                            f.op == FilterClause::FILTER_LT ? Expression::LT :
+                            f.op == FilterClause::FILTER_LTE ? Expression::LTE :
+                            f.op == FilterClause::FILTER_GT ? Expression::GT : Expression::GTE;
+                        predicate->type = std::make_shared<Int64Type>();
+                        auto column = [](ColumnRef ref) {
+                            auto e = std::make_shared<Expression>(); e->kind = Expression::COLUMN;
+                            e->column = ref; e->type = ref.Type(); return e;
+                        };
+                        predicate->left = column(f.columnRef); predicate->right = column(right);
+                        q.predicates.push_back(std::move(predicate));
+                        continue;
+                    }
+                    f.value=filterValue(f.columnRef);
+                }
                 if ((f.op==FilterClause::FILTER_LIKE || f.op==FilterClause::FILTER_NOT_LIKE) &&
                     f.columnRef.Type()->type_num()!=STRING_TYPE)
                     throw std::invalid_argument("LIKE requires string operands");
