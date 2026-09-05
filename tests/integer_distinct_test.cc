@@ -73,3 +73,34 @@ TEST(IntegerDistinct, GrowthFailurePreservesExactSetAndReleasesBudget)
     }
     EXPECT_EQ(budget.used.load(), 0);
 }
+
+TEST(IntegerDistinct, RadixPartitionedInputMatchesIndependentSet)
+{
+    std::vector<std::vector<ColumnDataP>> groups;
+    std::set<int64_t> all, positive;
+    for (int group = 0; group < 17; ++group)
+    {
+        std::vector<int64_t> values(RowGroupSize);
+        for (int row = 0; row < RowGroupSize; ++row)
+        {
+            int64_t value = (int64_t(group) * RowGroupSize + row) % 70001 - 35000;
+            values[row] = value;
+            all.insert(value);
+            if (value >= 0) positive.insert(value);
+        }
+        groups.push_back({test::Raw(values, 4)});
+    }
+    auto registry = test::Table(std::move(groups), {{"v", std::make_shared<Int64Type>()}});
+    for (const auto &[predicate, expected] : std::vector<std::pair<std::string, size_t>>{
+             {"", all.size()}, {" WHERE v >= 0", positive.size()}, {" WHERE v > 35000", 0}})
+    {
+        auto query = ParseSelect("SELECT count(DISTINCT v) FROM t" + predicate, registry);
+        ASSERT_TRUE(query.ok());
+        for (bool parallel : {false, true})
+        {
+            auto result = ExecuteQuery(*query, true, parallel);
+            ASSERT_TRUE(result.ok());
+            EXPECT_EQ(result->values, Rows({{std::to_string(expected)}}));
+        }
+    }
+}
