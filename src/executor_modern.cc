@@ -56,6 +56,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
         else
         {
             int threads = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
+            using Partitions = std::vector<Groups>;
             auto task = [&](int thread)
             {
                 Groups groups(&budget);
@@ -160,74 +161,95 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                                  });
                     }
                 }
+                Partitions partitions;
+                for (int owner = 0; owner < threads; ++owner)
+                    partitions.emplace_back(&budget);
+                for (auto it = groups.begin(); it != groups.end();)
+                {
+                    int owner = Hash{}(it->first) % threads;
+                    partitions[owner].insert(groups.extract(it++));
+                }
+                return partitions;
+            };
+            auto launch = threads == 1 ? std::launch::deferred : std::launch::async;
+            std::vector<std::future<Partitions>> scans;
+            for (int t = 0; t < threads; ++t)
+                scans.push_back(std::async(launch, task, t));
+            std::vector<Partitions> partials;
+            for (auto &scan : scans)
+                partials.push_back(scan.get());
+            auto combine = [&](int owner)
+            {
+                Groups groups(&budget);
+                for (auto &worker : partials)
+                {
+                    auto &source = worker[owner];
+                    for (auto it = source.begin(); it != source.end();)
+                    {
+                        auto found = groups.find(it->first);
+                        if (found == groups.end())
+                            groups.insert(source.extract(it++));
+                        else
+                        {
+                            Merge(found->second, it->second, aggregates, budget);
+                            it = source.erase(it);
+                        }
+                    }
+                }
                 return groups;
             };
-            Groups groups(&budget);
-            if (threads == 1)
-                groups = task(0);
-            else
+            std::vector<std::future<Groups>> merged;
+            for (int owner = 0; owner < threads; ++owner)
+                merged.push_back(std::async(launch, combine, owner));
+            for (auto &future : merged)
             {
-                std::vector<std::future<Groups>> futures;
-                for (int t = 0; t < threads; ++t)
-                    futures.push_back(std::async(std::launch::async, task, t));
-                for (auto &future : futures)
+                auto groups = future.get();
+                for (auto &entry : groups)
                 {
-                    auto local = future.get();
-                    for (auto &entry : local)
+                    FinalRow row;
+                    row.reserve(n);
+                    for (size_t i = 0; i < n; ++i)
                     {
-                        auto found = groups.find(entry.first);
-                        if (found == groups.end())
-                            groups.emplace(entry.first, std::move(entry.second));
-                        else
-                            Merge(found->second, entry.second, aggregates, budget);
+                        auto &a = q.aggregateClauses[i];
+                        State projected;
+                        auto &s = stateIndex[i] < 0 ? projected : entry.second[stateIndex[i]];
+                        FinalCell v;
+                        v.type = a.expression ? a.expression->type.get() : nullptr;
+                        switch (a.type)
+                        {
+                        case AggregateClause::AGGREGATE_PROJECT:
+                            v.value = a.expression->kind == Expression::CONSTANT
+                                          ? Evaluate(*a.expression, RowGroup{}, 0)
+                                          : entry.first;
+                            break;
+                        case AggregateClause::AGGREGATE_COUNT:
+                            v.type = nullptr;
+                            v.value.number = s.count;
+                            break;
+                        case AggregateClause::AGGREGATE_COUNT_DISTINCT:
+                            v.type = nullptr;
+                            v.value.number = s.distinct ? s.distinct->size() : 0;
+                            break;
+                        case AggregateClause::AGGREGATE_SUM:
+                            v.value.number = s.sum;
+                            v.null = !s.count;
+                            break;
+                        case AggregateClause::AGGREGATE_AVG:
+                            v.average = true;
+                            v.null = !s.count;
+                            if (s.count)
+                                v.mean = (long double)s.sum / s.count /
+                                         (long double)Power(Scale(v.type));
+                            break;
+                        default:
+                            v.value = s.extreme;
+                            v.null = !s.count;
+                            break;
+                        }
+                        row.push_back(v);
                     }
+                    results.add(std::move(row));
                 }
-            }
-            for (auto &entry : groups)
-            {
-                FinalRow row;
-                row.reserve(n);
-                for (size_t i = 0; i < n; ++i)
-                {
-                    auto &a = q.aggregateClauses[i];
-                    State projected;
-                    auto &s = stateIndex[i] < 0 ? projected : entry.second[stateIndex[i]];
-                    FinalCell v;
-                    v.type = a.expression ? a.expression->type.get() : nullptr;
-                    switch (a.type)
-                    {
-                    case AggregateClause::AGGREGATE_PROJECT:
-                        v.value = a.expression->kind == Expression::CONSTANT
-                                      ? Evaluate(*a.expression, RowGroup{}, 0)
-                                      : entry.first;
-                        break;
-                    case AggregateClause::AGGREGATE_COUNT:
-                        v.type = nullptr;
-                        v.value.number = s.count;
-                        break;
-                    case AggregateClause::AGGREGATE_COUNT_DISTINCT:
-                        v.type = nullptr;
-                        v.value.number = s.distinct ? s.distinct->size() : 0;
-                        break;
-                    case AggregateClause::AGGREGATE_SUM:
-                        v.value.number = s.sum;
-                        v.null = !s.count;
-                        break;
-                    case AggregateClause::AGGREGATE_AVG:
-                        v.average = true;
-                        v.null = !s.count;
-                        if (s.count)
-                            v.mean =
-                                (long double)s.sum / s.count / (long double)Power(Scale(v.type));
-                        break;
-                    default:
-                        v.value = s.extreme;
-                        v.null = !s.count;
-                        break;
-                    }
-                    row.push_back(v);
-                }
-                results.add(std::move(row));
             }
         }
         return results.finish();
