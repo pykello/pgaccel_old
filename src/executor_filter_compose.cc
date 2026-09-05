@@ -26,6 +26,7 @@ public:
             else
                 result = child->ExecuteAnd(rowGroup, bitmask);
             first = false;
+            if (!result) break;
         }
 
         return result;
@@ -35,8 +36,10 @@ public:
     {
         int result = 0;
 
-        for (const auto &child: children)
+        for (const auto &child: children) {
             result = child->ExecuteAnd(rowGroup, bitmask);
+            if (!result) break;
+        }
 
         return result;
     }
