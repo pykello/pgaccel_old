@@ -1,12 +1,13 @@
-project(PgAccel)
-
 cmake_minimum_required(VERSION 3.18)
+project(PgAccel)
 set(CMAKE_CXX_STANDARD 20)
 
 include(FetchContent)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake;${CMAKE_MODULE_PATH}")
 
+option(PGACCEL_BUILD_TOUCA_TESTS "Build optional Touca service tests" OFF)
+if(PGACCEL_BUILD_TOUCA_TESTS)
 FetchContent_Declare(
     touca
     GIT_REPOSITORY https://github.com/trytouca/trytouca
@@ -14,6 +15,9 @@ FetchContent_Declare(
     SOURCE_SUBDIR  sdk/cpp
 )
 FetchContent_MakeAvailable(touca)
+# Touca 1.8 and its bundled fmt require the older language mode.
+set_property(TARGET touca PROPERTY CXX_STANDARD 17)
+endif()
 
 find_package(PAPI REQUIRED)
 find_package(Arrow REQUIRED)
@@ -72,6 +76,7 @@ target_link_libraries(
 include(GoogleTest)
 gtest_discover_tests(run_tests)
 
+if(PGACCEL_BUILD_TOUCA_TESTS)
 file(GLOB pgaccel_touca_tests_SRC
      "touca_tests/*.h"
      "touca_tests/*.cc"
@@ -89,3 +94,5 @@ target_link_libraries(
   touca
   pgaccel_static
 )
+
+endif()
