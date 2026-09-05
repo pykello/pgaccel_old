@@ -63,17 +63,10 @@ ExecuteAggNoGroupByNoFilter(const QueryDesc &query,
             auto columnarTable = query.tables[0];
             QueryOutput output;
             output.fieldNames.push_back("count");
-            output.values = ExecuteAgg<int64_t>(
-                [](const RowGroup& r, uint8_t *bitmap) {
-                    return r.columns[0]->size;
-                },
-                [](int64_t &a, int64_t b) { a += b; },
-                [](int64_t a) {
-                    return Rows({{ std::to_string(a) }});
-                },
-                *columnarTable,
-                useParallelism
-            );
+            uint64_t count=0;
+            for(int group=0;group<columnarTable->RowGroupCount();++group)
+                count+=columnarTable->GetRowGroup(group).size;
+            output.values={{std::to_string(count)}};
 
             return output;
         }
