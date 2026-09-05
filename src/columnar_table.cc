@@ -164,7 +164,7 @@ ColumnarTable::Load(const std::string &tableName,
             (!column_groups.empty() && groupCount != column_groups[0]))
             return Status::Invalid("Invalid native group count");
 
-        ColumnDesc columnDesc;
+        ColumnDesc columnDesc{};
         columnDesc.name = ToLower(columnName);
 
         switch (typeNum)
