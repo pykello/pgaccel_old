@@ -5,7 +5,7 @@ dataset download, and ClickHouse setup remain in ../docs/tpch/ and
 ../docs/clickbench/README.md. This measures complete resident warm queries;
 it does not produce an official cold-cache leaderboard submission.
 
-Checkpoint 3 source is 6e704b6 on research/clickbench-20260905. The paths below
+Checkpoint 4 source is e7dd247 on research/clickbench-20260905. The paths below
 already exist. Use new output names to preserve earlier evidence.
 
 ## Build and correctness tests
@@ -89,7 +89,7 @@ exp(mean(log((PG_ms + 10) / (CH_ms + 10))))
 ```
 
 The extended goal requires **43 of 43 wins** and a ratio below 1.
-The preceding checkpoint satisfied the earlier 39/43 target. Also report the unshifted ratio,
+Checkpoint 4 satisfies that target; checkpoint 3 satisfied the earlier 39/43 target. Also report the unshifted ratio,
 sum of warm times, raw trials, setup costs, and memory. Never replace a
 complete checkpoint with best times picked from separate subsets.
 

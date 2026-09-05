@@ -1,28 +1,26 @@
 # ClickBench improvement research
 
-Started 2026-09-05 06:42:57 UTC. Initial research window: eight hours.
-The subsequently requested stopping goal takes precedence over that window:
-beat ClickHouse on at least 39/43 queries and in paired geometric mean latency
-with the ClickBench 10 ms shift, on the complete 99,997,497-row fixture.
+Started 2026-09-05 06:42:57 UTC. The original eight-hour research window was
+superseded by successive performance targets: first at least 39/43 wins,
+then all 43. Both targets are now met in their documented full-data warm
+comparisons. The final indexed checkpoint beats a fresh ClickHouse run on
+**43/43 queries**, with a **0.267877** shifted geometric PG/CH latency ratio.
 
 ## Current entry points
 
-The user subsequently extended the goal to **43/43 wins**. That follow-up
-is active; the 39/43 checkpoint below is preserved as the completed prior target.
-
-The target is met in the final indexed warm comparison: **39/43 wins** and
-**0.368585** paired shifted geometric latency ratio. See the final report for
-preprocessing costs, correctness policy and the limits of this claim.
-
-- [Status and latest complete comparison](STATUS.md)
-- [Final checkpoint: all 43 timings and evidence](36-checkpoint3-target.md)
-- [Staged follow-up plan](37-follow-up-plan.md)
+- [Current status](STATUS.md)
+- [Final checkpoint: all 43 timings and evidence](46-checkpoint4-all-queries.md)
+- [Current staged follow-up plan](47-follow-up-plan.md)
 - [Reproduce the indexed comparison](reproduce.md)
+- [Historical 39/43 checkpoint](36-checkpoint3-target.md)
 - [Unindexed checkpoint 1](12-checkpoint1.md)
 - [Indexed checkpoint 2](26-checkpoint2-indexed.md)
 - [Indexing boundary and structural plan](11-structural-encoding-plan.md)
 - [Bitmap proposal experiment](08-bitmap-probe.md)
-- [Conditional composite-key layouts](34-conditional-layouts.md)
+- [Final regex experiment](45-delimited-capture.md)
+
+The final report discloses preprocessing, memory, arithmetic policy and the
+limits of this experimental resident warm comparison.
 
 Numbered reports preserve accepted and rejected experiments. Raw timings,
 gates, and metadata are mirrored in ../docs/clickbench/research-20260905/.
