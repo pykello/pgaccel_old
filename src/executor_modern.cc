@@ -5,7 +5,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
 {
     try
     {
-        Budget budget{{0}, q.memoryBudgetBytes};
+        Budget budget(q.memoryBudgetBytes);
         auto filter =
             q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
         auto &table = *q.tables[0];
@@ -89,7 +89,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
             int threads = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
             auto task = [&](int thread)
             {
-                Groups groups;
+                Groups groups(&budget);
                 if (q.groupBy.empty() && !q.grouped)
                     Get(groups, {}, n, budget);
                 for (int g = thread; g < table.RowGroupCount(); g += threads)
@@ -187,7 +187,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 }
                 return groups;
             };
-            Groups groups;
+            Groups groups(&budget);
             if (threads == 1)
                 groups = task(0);
             else

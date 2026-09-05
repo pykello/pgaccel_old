@@ -1,20 +1,38 @@
 #pragma once
 #include "executor_value.hpp"
+#include <memory_resource>
 namespace pgaccel
 {
 namespace
 {
-struct Budget
+struct Budget : std::pmr::memory_resource
 {
-    std::atomic<uint64_t> used{0};
+    std::atomic<uint64_t> used{0}, peak{0};
     uint64_t limit;
+    explicit Budget(uint64_t bytes) : limit(bytes) {}
     void charge(uint64_t n)
     {
-        auto old = used.fetch_add(n);
-        if (n > limit || old > limit - n)
-            throw std::runtime_error(
-                "Query memory budget exceeded (exact results require more memory)");
+        auto old = used.load();
+        do {
+            if (n > limit || old > limit - n)
+                throw std::runtime_error("Query memory budget exceeded (exact results require more memory)");
+        } while (!used.compare_exchange_weak(old, old + n));
+        auto high = peak.load();
+        while (high < old + n && !peak.compare_exchange_weak(high, old + n)) {}
     }
+    void *do_allocate(size_t bytes, size_t alignment) override
+    {
+        charge(bytes);
+        try { return std::pmr::new_delete_resource()->allocate(bytes, alignment); }
+        catch (...) { used.fetch_sub(bytes); throw; }
+    }
+    void do_deallocate(void *p, size_t bytes, size_t alignment) override
+    {
+        std::pmr::new_delete_resource()->deallocate(p, bytes, alignment);
+        used.fetch_sub(bytes);
+    }
+    bool do_is_equal(const std::pmr::memory_resource &other) const noexcept override
+    { return this == &other; }
 };
 struct Scratch
 {
@@ -23,26 +41,24 @@ struct Scratch
     Scratch(Budget &b, uint64_t n) : budget(b), bytes(n) { budget.charge(bytes); }
     ~Scratch() { budget.used.fetch_sub(bytes); }
 };
-using Set = std::unordered_set<Cell, Hash>;
+using Set = std::pmr::unordered_set<Cell, Hash>;
 struct State
 {
     uint64_t count = 0;
     Wide sum = 0;
     Cell extreme;
-    std::unique_ptr<Set> distinct;
+    std::shared_ptr<Set> distinct;
 };
-using States = std::vector<State>;
-using Groups = std::unordered_map<Cell, States, Hash>;
+using States = std::pmr::vector<State>;
+using Groups = std::pmr::unordered_map<Cell, States, Hash>;
 void Insert(State &state, Cell v, Budget &budget)
 {
     if (!state.distinct)
     {
-        budget.charge(128);
-        state.distinct = std::make_unique<Set>();
+        state.distinct = std::allocate_shared<Set>(std::pmr::polymorphic_allocator<Set>(&budget));
     }
     if (state.distinct->find(v) == state.distinct->end())
     {
-        budget.charge(96);
         state.distinct->insert(v);
     }
 }
@@ -115,8 +131,7 @@ States &Get(Groups &groups, Cell key, size_t n, Budget &budget)
     auto it = groups.find(key);
     if (it != groups.end())
         return it->second;
-    budget.charge(128 + n * sizeof(State));
-    return groups.emplace(key, States(n)).first->second;
+    return groups.emplace(key, States(n, &budget)).first->second;
 }
 struct FinalCell
 {
