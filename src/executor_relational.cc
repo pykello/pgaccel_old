@@ -323,7 +323,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                                 if (!std::isfinite(scaled) || scaled < (long double)std::numeric_limits<Wide>::min() ||
                                     scaled >= -(long double)std::numeric_limits<Wide>::min())
                                     throw std::overflow_error("Average arithmetic overflow");
-                                return Cell{Wide(scaled)};
+                                return Cell{Wide(std::round(scaled))};
                             }
                             return input.value;
                         });

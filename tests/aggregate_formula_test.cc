@@ -35,3 +35,10 @@ TEST(AggregateFormula, HavingUsesAggregateScaleAndRejectsNullComparisons) {
         EXPECT_EQ(result->values, expected);
     }
 }
+TEST(AggregateFormula, AverageBindingRoundsAtItsDeclaredDecimalScale) {
+    auto decimal = std::make_shared<DecimalType>(); decimal->scale = 2;
+    auto registry = test::Table({{test::Raw({3005})}}, {{"v", decimal}});
+    auto q = ParseSelect("SELECT avg(v)*0.2 FROM t", registry);
+    ASSERT_TRUE(q.ok()); auto result = ExecuteQuery(*q, false, false);
+    ASSERT_TRUE(result.ok()); EXPECT_EQ(result->values, (Rows{{"6.0100000000000"}}));
+}
