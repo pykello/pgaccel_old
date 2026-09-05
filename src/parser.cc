@@ -100,7 +100,7 @@ struct Parser {
         else if (eat("max")) a.type = AggregateClause::AGGREGATE_MAX;
         if (a.type != AggregateClause::AGGREGATE_PROJECT) {
             need("(");
-            
+            if (a.type == AggregateClause::AGGREGATE_COUNT && eat("distinct")) a.type = AggregateClause::AGGREGATE_COUNT_DISTINCT;
             if (a.type == AggregateClause::AGGREGATE_COUNT && eat("*")) {}
             else a.expression = expr();
             need(")");
