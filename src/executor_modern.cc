@@ -1,4 +1,4 @@
-#include "executor_state.hpp"
+#include "executor_dense.hpp"
 namespace pgaccel {
 Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
     try {
@@ -35,6 +35,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
                     const DictColumnDataBase *dict = nullptr;
                     if (!q.groupBy.empty() && rg.columns[q.groupBy[0].columnIdx]->type == ColumnDataBase::DICT_COLUMN_DATA)
                         dict = static_cast<const DictColumnDataBase*>(rg.columns[q.groupBy[0].columnIdx].get());
+                    if (dict && DenseAggregate(q,rg,selection,dict,groups,budget)) continue;
                     if (dict && !distinct) {
                         // Dense local codes, contiguous accumulators, only selected rows and visited labels.
                         std::vector<States> local(dict->dictSize()); std::vector<int> visited;
