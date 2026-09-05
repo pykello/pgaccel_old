@@ -36,3 +36,14 @@ The surrounding exact sets, flat maps, indexes, group layouts, and query
 executors are implemented in this repository. No GPL/AGPL or restricted
 source-available algorithm dependency was added. Abseil remains a rejected,
 removed build dependency; its installed development package is historical.
+
+## Continued 43-query work
+
+The dense string-length executor, weighted dictionary aggregation, local/SIMD
+signature layout, sparse predicate evaluation, inclusive top-K bounds, and
+restricted regex capture plans are original implementations. They add no
+external library or copied implementation. The regex paths continue to use
+the already-audited RE2 dependency as the semantic reference and fallback.
+The strict UTF-8 guard and bounded literal-alternative compiler were written
+for this repository and tested against explicit byte expectations and RE2.
+No new restrictive license was introduced by the continued work.
