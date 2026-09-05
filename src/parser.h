@@ -101,6 +101,8 @@ struct QueryDesc {
     std::vector<Ordering> orderBy;
     std::optional<uint64_t> limit;
     bool grouped = false;
+    bool allowSpill = true;
+    uint64_t spillByteBudget = uint64_t(64) << 30;
     // Conservative accounting for hash groups, exact sets, and output buffers.
     uint64_t memoryBudgetBytes = uint64_t(8) << 30;
 
