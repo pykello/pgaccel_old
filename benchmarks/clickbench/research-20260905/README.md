@@ -5,6 +5,21 @@ The subsequently requested stopping goal takes precedence over that window:
 beat ClickHouse on at least 39/43 queries and in paired geometric mean latency
 with the ClickBench 10 ms shift, on the complete 99,997,497-row fixture.
 
+## Current entry points
+
+- [Status and latest complete comparison](STATUS.md)
+- [Reproduce the indexed comparison](reproduce.md)
+- [Unindexed checkpoint 1](12-checkpoint1.md)
+- [Indexed checkpoint 2](26-checkpoint2-indexed.md)
+- [Indexing boundary and structural plan](11-structural-encoding-plan.md)
+- [Bitmap proposal experiment](08-bitmap-probe.md)
+- [Conditional composite-key layouts](34-conditional-layouts.md)
+
+Numbered reports preserve accepted and rejected experiments. Raw timings,
+gates, and metadata are mirrored in ../docs/clickbench/research-20260905/.
+The installed Abseil trial was rejected and removed from the build; the
+dependency record is historical.
+
 ## Measurement and acceptance
 
 Baseline source: `b273cfd0094a33619fad4dabd29bbc881631d89c`.
