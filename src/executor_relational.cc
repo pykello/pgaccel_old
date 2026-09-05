@@ -16,6 +16,15 @@ struct KeyHash {
         return hash;
     }
 };
+Cell ResultKey(const std::string &text, const AccelType *type, int scale, Budget &budget) {
+    if (type->type_num() == STRING_TYPE) {
+        auto owner = std::allocate_shared<std::pmr::string>(std::pmr::polymorphic_allocator<std::pmr::string>(&budget), text);
+        return {0, *owner, true, owner};
+    }
+    Wide value = type->type_num() == DATE_TYPE ? ParseDate(text) :
+        type->type_num() == TIMESTAMP_TYPE ? ParseTimestamp(text) : ResultNumber(text, Scale(type));
+    return {Multiply(value, Power(scale - Scale(type)))};
+}
 uint64_t OutputFootprint(const QueryOutput &output) {
     // Include owned container capacities and conservative allocation overhead.
     uint64_t bytes = sizeof(QueryOutput) + 64;
@@ -35,7 +44,7 @@ struct JoinedGroup {
         : states(n, &budget), representative(row, &budget) {}
 };
 uint64_t References(const Expression &e) {
-    uint64_t mask = e.column && e.column->tableIdx >= 0 ? uint64_t(1) << e.column->tableIdx : 0;
+    uint64_t mask = e.column ? (e.column->tableIdx >= 0 ? uint64_t(1) << e.column->tableIdx : e.column->dependencies) : 0;
     for (const auto &child : {e.left, e.right, e.condition})
         if (child) mask |= References(*child);
     return mask;
@@ -76,16 +85,31 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             { Scratch executed(budget, output.peakMemoryBytes); }
             return OutputFootprint(output);
         };
-        std::pmr::vector<std::optional<Cell>> scalarValues(&budget);
+        struct ScalarCache {
+            std::pmr::unordered_map<Key, Cell, KeyHash> values;
+            explicit ScalarCache(Budget &budget) : values(&budget) {}
+        };
+        std::vector<ScalarCache> scalarValues; scalarValues.reserve(q.scalarQueries.size());
         for (const auto &scalar : q.scalarQueries) {
+            scalarValues.emplace_back(budget);
             auto sub = childPlan(*scalar.query);
             auto result = ExecuteQuery(sub, avx, false);
             if (!result.ok()) return Status::Invalid("Scalar subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
             Scratch childMemory(budget, childOutputBytes(*result));
-            if (result->values.size() > 1) return Status::Invalid("Scalar subquery returned multiple rows");
-            if (result->values.empty() || result->values[0][0] == "NULL") scalarValues.push_back(std::nullopt);
-            else scalarValues.push_back(Cell{ResultNumber(result->values[0][0], Scale(scalar.resultType.get()))});
+            if (scalar.keyOutputs.empty() && result->values.size() > 1)
+                return Status::Invalid("Scalar subquery returned multiple rows");
+            for (const auto &row : result->values) {
+                if (row[0] == "NULL") continue;
+                Key key(&budget);
+                for (size_t i = 0; i < scalar.keyOutputs.size(); ++i) {
+                    int scale = std::max(Scale(scalar.outerKeys[i].Type().get()), Scale(scalar.innerKeys[i].Type().get()));
+                    key.push_back(ResultKey(row[scalar.keyOutputs[i]], scalar.innerKeys[i].Type().get(), scale, budget));
+                }
+                Cell value{ResultNumber(row[0], Scale(scalar.resultType.get()))};
+                if (!scalarValues.back().values.emplace(std::move(key), value).second)
+                    return Status::Invalid("Scalar correlation produced duplicate result keys");
+            }
         }
         struct Membership {
             std::pmr::unordered_set<Cell, Hash> values;
@@ -103,29 +127,31 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             subquerySpillBytes += result->spillBytes;
             Scratch childMemory(budget, childOutputBytes(*result));
             for (const auto &row : result->values) {
-                Cell key;
-                auto type = membership.resultType->type_num();
-                if (type == STRING_TYPE) {
-                    auto owner = std::allocate_shared<std::pmr::string>(std::pmr::polymorphic_allocator<std::pmr::string>(&budget), row[0]);
-                    key = {0, *owner, true, owner};
-                } else {
-                    int64_t value = type == DATE_TYPE ? ParseDate(row[0]) :
-                        type == TIMESTAMP_TYPE ? ParseTimestamp(row[0]) : ParseDecimal(sourceScale, row[0]);
-                    key.number = Multiply(value, Power(scale - sourceScale));
-                }
+                Cell key = ResultKey(row[0], membership.resultType.get(), scale, budget);
                 memberships.back().values.insert(std::move(key));
             }
         }
         std::pmr::vector<RowId> bound(tables, 0, &budget);
         struct MissingScalar {};
-        auto read = [&](const ColumnRef &column) {
-            if (column.tableIdx == -2) {
-                if (!scalarValues.at(column.columnIdx)) throw MissingScalar{};
-                return *scalarValues[column.columnIdx];
-            }
+        auto baseRead = [&](const ColumnRef &column) {
             if (column.tableIdx < 0) throw std::invalid_argument("Invalid relational column binding");
             RowId id = bound[column.tableIdx];
             return Read(q.tables[column.tableIdx]->GetRowGroup(id >> 32), column, uint32_t(id));
+        };
+        auto read = [&](const ColumnRef &column) {
+            if (column.tableIdx != -2) return baseRead(column);
+            const auto &scalar = q.scalarQueries.at(column.columnIdx);
+            Key key(&budget);
+            for (size_t i = 0; i < scalar.outerKeys.size(); ++i) {
+                auto value = baseRead(scalar.outerKeys[i]);
+                int scale = std::max(Scale(scalar.outerKeys[i].Type().get()), Scale(scalar.innerKeys[i].Type().get()));
+                if (!value.string) value.number = Multiply(value.number, Power(scale - Scale(scalar.outerKeys[i].Type().get())));
+                key.push_back(value);
+            }
+            auto &cache = scalarValues.at(column.columnIdx).values;
+            auto found = cache.find(key);
+            if (found == cache.end()) throw MissingScalar{};
+            return found->second;
         };
         auto keep = [&](const Expression &predicate) {
             try { return bool(EvaluateWith(predicate, read).number); }
@@ -159,8 +185,6 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 if (filter && !filter->ExecuteSet(rg, bitmap)) continue;
                 Selected(rg, filter ? bitmap : nullptr, [&](int row) {
                     bound[table] = (uint64_t(g) << 32) | uint32_t(row);
-                    for (const auto &predicate : local)
-                        if (!keep(*predicate)) return;
                     for (size_t i = 0; i < q.membershipQueries.size(); ++i) {
                         const auto &query = q.membershipQueries[i];
                         if (query.column.tableIdx != int(table)) continue;
@@ -168,6 +192,8 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                         if (!key.string) key.number = Multiply(key.number, Power(memberships[i].scale - Scale(query.column.Type().get())));
                         if (memberships[i].values.contains(key) == query.anti) return;
                     }
+                    for (const auto &predicate : local)
+                        if (!keep(*predicate)) return;
                     rows.back().push_back(bound[table]);
                 });
             }

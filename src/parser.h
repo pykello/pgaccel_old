@@ -18,6 +18,8 @@ struct ColumnRef {
 
     int tableIdx;
     int columnIdx;
+    // Source-table mask for a virtual scalar-result column (tableIdx -2).
+    uint64_t dependencies = 0;
 
     bool operator<(const ColumnRef &b) const
     {
@@ -126,6 +128,8 @@ struct QueryDesc {
     struct ScalarQuery {
         std::shared_ptr<QueryDesc> query;
         std::shared_ptr<AccelType> resultType;
+        std::vector<ColumnRef> outerKeys, innerKeys;
+        std::vector<size_t> keyOutputs;
     };
     std::vector<ScalarQuery> scalarQueries;
     std::vector<ColumnRef> groupBy;

@@ -5,6 +5,7 @@
 #include <cctype>
 #include <chrono>
 #include <limits>
+#include <unordered_set>
 #include <stdexcept>
 #include <re2/re2.h>
 
@@ -432,15 +433,78 @@ struct Parser
         }
         if (nesting) throw std::invalid_argument("Unclosed scalar subquery");
         std::vector<Token> subTokens(tokens.begin() + start, tokens.begin() + at); ++at;
-        auto inner = Parser{std::move(subTokens), 0, {}, registry}.parse();
+        QueryDesc inner;
+        QueryDesc::ScalarQuery scalar;
+        uint64_t dependencies = 0;
+        try { inner = Parser{subTokens, 0, {}, registry}.parse(); }
+        catch (const std::exception &) {
+            if (parent) throw std::invalid_argument("Nested correlated scalar subqueries are unsupported");
+            Parser correlated{std::move(subTokens), 0, {}, registry};
+            correlated.parent = this; correlated.tableOffset = q.tables.size();
+            inner = correlated.parse();
+            if (!correlated.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
+                !inner.having.empty() || !inner.orderBy.empty() || !inner.existenceJoins.empty())
+                throw std::invalid_argument("Correlated scalars require an ungrouped base-table aggregate");
+            int offset = correlated.tableOffset;
+            std::vector<std::shared_ptr<Expression>> residual;
+            for (const auto &condition : inner.predicates) {
+                if (condition->kind == Expression::EQ && condition->left->column && condition->right->column) {
+                    auto outer = *condition->left->column, local = *condition->right->column;
+                    if (outer.tableIdx >= offset) std::swap(outer, local);
+                    if (outer.tableIdx >= 0 && outer.tableIdx < offset && local.tableIdx >= offset) {
+                        if (outer.tableIdx >= 63) throw std::invalid_argument("Too many correlation sources");
+                        scalar.outerKeys.push_back(outer); local.tableIdx -= offset;
+                        scalar.innerKeys.push_back(local); dependencies |= uint64_t(1) << outer.tableIdx;
+                        continue;
+                    }
+                }
+                residual.push_back(condition);
+            }
+            if (scalar.outerKeys.empty()) throw std::invalid_argument("Correlated scalars require equality keys");
+            inner.predicates = std::move(residual);
+            auto remapColumn = [&](ColumnRef &column) {
+                if (column.tableIdx < 0) return;
+                if (column.tableIdx < offset) throw std::invalid_argument("Unsupported residual outer reference in scalar subquery");
+                column.tableIdx -= offset;
+            };
+            std::unordered_set<Expression *> visited;
+            std::function<void(const std::shared_ptr<Expression> &)> remap = [&](const auto &e) {
+                if (!e || !visited.insert(e.get()).second) return;
+                if (e->column) remapColumn(*e->column);
+                remap(e->left); remap(e->right); remap(e->condition);
+            };
+            for (auto &a : inner.aggregateClauses) {
+                if (a.type == AggregateClause::AGGREGATE_COUNT || a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT)
+                    throw std::invalid_argument("Correlated COUNT requires default-row semantics");
+                if (a.columnRef) remapColumn(*a.columnRef);
+                remap(a.expression);
+            }
+            for (auto &condition : inner.predicates) remap(condition);
+            for (auto &filter : inner.filterClauses) remapColumn(filter.columnRef);
+            for (auto &membership : inner.membershipQueries) remapColumn(membership.column);
+        }
         if (inner.outputColumnCount != 1 || inner.aggregateClauses[0].type == AggregateClause::AGGREGATE_PROJECT)
             throw std::invalid_argument("Scalar subqueries require one aggregate output");
         auto type = aggregateType(inner.aggregateClauses[0]);
         if (type->type_num() != INT32_TYPE && type->type_num() != INT64_TYPE && type->type_num() != DECIMAL_TYPE)
             throw std::invalid_argument("Scalar subqueries currently require numeric output");
+        if (!scalar.outerKeys.empty()) {
+            inner.grouped = true;
+            for (const auto &key : scalar.innerKeys) {
+                auto e = std::make_shared<Expression>(); e->kind = Expression::COLUMN; e->column = key; e->type = key.Type();
+                inner.groupExpressions.push_back(e);
+                AggregateClause projection; projection.type = AggregateClause::AGGREGATE_PROJECT;
+                projection.expression = e; projection.columnRef = key;
+                scalar.keyOutputs.push_back(inner.aggregateClauses.size());
+                inner.aggregateClauses.push_back(std::move(projection));
+            }
+            if (scalar.innerKeys.size() == 1) inner.groupBy = scalar.innerKeys;
+            inner.outputColumnCount = inner.aggregateClauses.size();
+        }
         auto e = std::make_shared<Expression>(); e->kind = Expression::COLUMN; e->type = type;
-        e->column = ColumnRef{{"scalar", type, ColumnDataBase::RAW_COLUMN_DATA}, -2, int(q.scalarQueries.size())};
-        q.scalarQueries.push_back({std::make_shared<QueryDesc>(std::move(inner)), type});
+        e->column = ColumnRef{{"scalar", type, ColumnDataBase::RAW_COLUMN_DATA}, -2, int(q.scalarQueries.size()), dependencies};
+        scalar.query = std::make_shared<QueryDesc>(std::move(inner)); scalar.resultType = type;
+        q.scalarQueries.push_back(std::move(scalar));
         return e;
     }
     bool containsExists(const std::shared_ptr<Expression> &e) {
@@ -940,6 +1004,7 @@ struct Parser
                 else throw std::invalid_argument("Unsupported HAVING comparison");
                 if (at < tokens.size() && tokens[at].text == "(") {
                     auto expression = scalar();
+                    if (expression->column->dependencies) throw std::invalid_argument("HAVING scalar bounds must be independent");
                     q.having.push_back({index, comparison, 0, 0, expression});
                 } else {
                     ColumnRef bound{{"having", boundType, ColumnDataBase::RAW_COLUMN_DATA}, 0, 0};
