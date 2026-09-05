@@ -96,3 +96,7 @@ target_link_libraries(
 )
 
 endif()
+
+add_executable(query_runner benchmarks/query_runner.cc)
+target_include_directories(query_runner PRIVATE src)
+target_link_libraries(query_runner PRIVATE pgaccel_static)
