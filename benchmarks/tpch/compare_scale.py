@@ -2,6 +2,7 @@
 """Run one engine per phase; consume saved oracle answers without a second engine."""
 import argparse
 from decimal import Decimal
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -70,7 +71,7 @@ def main():
     oracle = {}
     if args.oracle:
         oracle = {r['id']: r for r in map(json.loads, args.oracle.read_text().splitlines()) if 'id' in r}
-    metadata = {'status': 'loaded', 'engine': args.engine, 'settings': vars(args).copy(),
+    metadata = {'status': 'loaded', 'started_at_utc': datetime.now(timezone.utc).isoformat(), 'engine': args.engine, 'settings': vars(args).copy(),
                 'source_revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
                 'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], text=True)),
                 'timing': 'client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase',
@@ -179,7 +180,10 @@ def main():
                         io_after = process_io(engine_pid)
                         diagnostics['process_io_delta'] = {key: io_after[key]-value for key, value in io_before.items() if key in io_after}
                         if args.engine == 'duckdb' and args.temp_directory:
-                            diagnostics['temp_file_bytes_after'] = sum(path.stat().st_size for path in args.temp_directory.rglob('*') if path.is_file())
+                            try:
+                                diagnostics['temp_file_bytes_after'] = sum(path.stat().st_size for path in args.temp_directory.rglob('*') if path.is_file())
+                            except OSError:
+                                diagnostics['temp_file_bytes_after'] = None  # Concurrent temporary-file cleanup.
                         if expected_rows is None:
                             expected_rows = rows
                         record['trials'].append(dict(diagnostics, client_ms=elapsed, rows=rows,
@@ -195,6 +199,7 @@ def main():
                 if args.oracle and not valid_oracle:
                     record['correct'] = None
                     record['validation'] = 'oracle_unavailable'
+                record['finished_at_utc'] = datetime.now(timezone.utc).isoformat()
                 record['oracle_rows'] = expected_rows; record['oracle_types'] = types
                 out.write(json.dumps(record, default=str)+'\n'); out.flush()
                 print(number, record['status'], record['correct'], record.get('error', '')[:200], flush=True)
