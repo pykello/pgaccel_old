@@ -71,10 +71,11 @@ struct FilterClause {
 
 class DelimitedCapture;
 struct Expression {
-    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND, OR, NOT, LIKE, AGGREGATE, EXISTS, MEMBERSHIP } kind = CONSTANT;
+    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND, OR, NOT, LIKE, AGGREGATE, EXISTS, MEMBERSHIP, SUBSTRING } kind = CONSTANT;
     std::optional<ColumnRef> column;
     int aggregateKind = -1;
     int subqueryIndex = -1;
+    uint64_t sliceStart = 1, sliceLength = UINT64_MAX;
     std::string literal = "0";
     std::string replacement;
     std::shared_ptr<const re2::RE2> regexp;

@@ -240,6 +240,23 @@ struct Parser
             e->kind = Expression::AGGREGATE; e->aggregateKind = int(a.type); e->left = a.expression;
             e->type = aggregateType(a);
         }
+        else if (eat("substring")) {
+            need("("); e->left = expr();
+            if (e->left->type->type_num() != STRING_TYPE) throw std::invalid_argument("SUBSTRING requires a string");
+            bool comma = eat(","); if (!comma) need("from");
+            auto position = [&] {
+                auto token = take(); size_t used;
+                if (token.quoted || token.text.empty() || !std::isdigit((unsigned char)token.text[0]))
+                    throw std::invalid_argument("SUBSTRING positions must be unsigned integer literals");
+                uint64_t value = std::stoull(token.text, &used);
+                if (used != token.text.size()) throw std::invalid_argument("Invalid SUBSTRING position");
+                return value;
+            };
+            e->sliceStart = position();
+            if (!e->sliceStart) throw std::invalid_argument("SUBSTRING start must be positive");
+            if (comma ? eat(",") : eat("for")) e->sliceLength = position();
+            need(")"); e->kind = Expression::SUBSTRING; e->type = std::make_shared<StringType>();
+        }
         else if (eat("length"))
         {
             need("("); e->left=expr(); need(")");
@@ -635,7 +652,8 @@ struct Parser
     }
     bool same(const Expression &a,const Expression &b)
     {
-        if (a.kind!=b.kind || a.column!=b.column || a.literal!=b.literal || a.replacement!=b.replacement) return false;
+        if (a.kind!=b.kind || a.column!=b.column || a.literal!=b.literal || a.replacement!=b.replacement ||
+            a.sliceStart != b.sliceStart || a.sliceLength != b.sliceLength) return false;
         if (bool(a.condition)!=bool(b.condition) || (a.condition && !same(*a.condition,*b.condition))) return false;
         if (bool(a.left)!=bool(b.left) || bool(a.right)!=bool(b.right)) return false;
         return (!a.left || same(*a.left,*b.left)) && (!a.right || same(*a.right,*b.right));

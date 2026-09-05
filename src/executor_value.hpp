@@ -221,6 +221,24 @@ Cell EvaluateWith(const Expression &e, const Reader &read)
         if (value<0) value+=e.literal=="hour"?24:60;
         return {value};
     }
+    if (e.kind == Expression::SUBSTRING) {
+        Cell input = EvaluateWith(*e.left, read);
+        size_t begin = 0, end = 0;
+        if (IsAscii(input.text)) {
+            begin = std::min<uint64_t>(input.text.size(), e.sliceStart - 1);
+            end = begin + std::min<uint64_t>(input.text.size() - begin, e.sliceLength);
+        } else {
+            if (!IsValidUtf8(input.text)) throw std::invalid_argument("SUBSTRING requires valid UTF-8");
+            auto advance = [&](size_t at) {
+                unsigned char c = input.text[at];
+                return at + (c < 0x80 ? 1 : c < 0xe0 ? 2 : c < 0xf0 ? 3 : 4);
+            };
+            for (uint64_t skip = e.sliceStart - 1; skip && begin < input.text.size(); --skip) begin = advance(begin);
+            end = begin;
+            for (uint64_t count = e.sliceLength; count && end < input.text.size(); --count) end = advance(end);
+        }
+        return {0, input.text.substr(begin, end - begin), true, input.owner};
+    }
     if (e.kind==Expression::LENGTH)
         return {Wide(EvaluateWith(*e.left, read).text.size())};
     auto l = EvaluateWith(*e.left, read).number, r = EvaluateWith(*e.right, read).number;
