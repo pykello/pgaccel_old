@@ -26,3 +26,17 @@ TEST(DateTypes, TimestampUTCAndNativeRoundTrip) {
     auto q=ParseSelect("SELECT min(ts),max(ts) FROM t WHERE ts >= '1970-01-01 00:00:00'",t);ASSERT_TRUE(q.ok());
     auto r=ExecuteQuery(*q,true,true);ASSERT_TRUE(r.ok());EXPECT_EQ(r->values,Rows({{"1970-01-01 00:00:00","1970-01-02 00:00:00"}}));
 }
+TEST(NativeValidation, VersionAndPairIdentity) {
+    auto t=test::Table({{test::Raw({7,9})}},{{"v",std::make_shared<Int64Type>()}});
+    std::stringstream data1,meta1,data2,meta2;
+    ASSERT_TRUE(t.at("t")->Save(meta1,data1).ok());
+    ASSERT_TRUE(t.at("t")->Save(meta2,data2).ok());
+    EXPECT_EQ(meta1.str().find("PGACCEL_SNAPSHOT 1 "),0);
+    data1.seekg(0);meta1.seekg(0);
+    EXPECT_TRUE(ColumnarTable::Load("t",meta1,data1).ok());
+    data1.clear();data1.seekg(0);meta2.seekg(0);
+    EXPECT_FALSE(ColumnarTable::Load("t",meta2,data1).ok());
+    auto bad=meta1.str();bad.replace(bad.find(" 1 "),3," 99 ");
+    std::stringstream unsupported(bad);data1.clear();data1.seekg(0);
+    EXPECT_FALSE(ColumnarTable::Load("t",unsupported,data1).ok());
+}

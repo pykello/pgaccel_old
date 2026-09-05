@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <bit>
+#include <random>
+#include <cstring>
 
 namespace pgaccel 
 {
@@ -26,7 +29,7 @@ ColumnarTable::ColumnIndex(const std::string& name) const
 Result<bool>
 ColumnarTable::Save(const std::string &path)
 {
-    std::ofstream dataStream(path);
+    std::ofstream dataStream(path, std::ios::binary);
     std::ofstream metadataStream(path + ".metadata");
     return Save(metadataStream, dataStream);
 }
@@ -36,6 +39,19 @@ Result<bool>
 ColumnarTable::Save(std::ostream& metadataStream,
                     std::ostream& dataStream) const
 {
+    // Pair the two files and declare the native payload ABI explicitly.
+    std::random_device random;
+    uint64_t identity[2] = {
+        (uint64_t(random()) << 32) | random(),
+        (uint64_t(random()) << 32) | random()};
+    dataStream.write("PGACCEL1", 8);
+    dataStream.write(reinterpret_cast<const char *>(identity), sizeof(identity));
+    metadataStream << "PGACCEL_SNAPSHOT 1 "
+                   << (std::endian::native == std::endian::little ? "little" : "big")
+                   << " " << sizeof(int) << " " << sizeof(int64_t)
+                   << " " << sizeof(ColumnDataBase::Type) << " " << RowGroupSize
+                   << " " << identity[0] << " " << identity[1] << "\n";
+
     std::vector<uint64_t> column_positions;
 
     int numCols = schema_.size();
@@ -79,7 +95,7 @@ ColumnarTable::Load(const std::string &tableName,
                     const std::string &path,
                     std::optional<std::set<std::string>> fields)
 {
-    std::ifstream dataStream(path);
+    std::ifstream dataStream(path, std::ios::binary);
     std::ifstream metadataStream(path + ".metadata");
     return Load(tableName, metadataStream, dataStream, fields);
 }
@@ -110,7 +126,31 @@ ColumnarTable::Load(const std::string &tableName,
     std::vector<ColumnDesc> column_descs;
 
     int numCols = 0;
-    metadataStream >> numCols;
+    std::string first;
+    metadataStream >> first;
+    if (first == "PGACCEL_SNAPSHOT") {
+        unsigned version = 0, integerBytes = 0, wideBytes = 0, enumBytes = 0, groupSize = 0;
+        std::string endian;
+        uint64_t expected[2] = {}, actual[2] = {};
+        metadataStream >> version >> endian >> integerBytes >> wideBytes >> enumBytes >> groupSize
+                       >> expected[0] >> expected[1];
+        if (!metadataStream || version != 1 || integerBytes != sizeof(int) ||
+            wideBytes != sizeof(int64_t) || enumBytes != sizeof(ColumnDataBase::Type) ||
+            groupSize != RowGroupSize ||
+            endian != (std::endian::native == std::endian::little ? "little" : "big"))
+            return Status::Invalid("Unsupported snapshot version or native ABI");
+        char magic[8] = {};
+        dataStream.read(magic, sizeof(magic));
+        dataStream.read(reinterpret_cast<char *>(actual), sizeof(actual));
+        if (!dataStream || std::memcmp(magic, "PGACCEL1", 8) ||
+            actual[0] != expected[0] || actual[1] != expected[1])
+            return Status::Invalid("Snapshot data and metadata do not match");
+        metadataStream >> numCols;
+    } else {
+        // Compatibility reader for snapshots created before versioning.
+        std::istringstream legacy(first);
+        if (!(legacy >> numCols) || !legacy.eof()) return Status::Invalid("Invalid native schema");
+    }
     if (!metadataStream || numCols <= 0 || numCols > 16384) return Status::Invalid("Invalid native schema");
     for (int colIdx = 0; colIdx < numCols; colIdx++)
     {
