@@ -33,6 +33,7 @@ typedef std::unique_ptr<FilterNodeImpl> FilterNodeP;
 
 class FilterNodeImpl {
 public:
+    virtual ~FilterNodeImpl() = default;
     virtual int ExecuteCount(const RowGroup &rowGroup) const = 0;
     virtual int ExecuteSet(const RowGroup &rowGroup, uint8_t *bitmask) const = 0;
     virtual int ExecuteAnd(const RowGroup &rowGroup, uint8_t *bitmask) const = 0;
