@@ -46,6 +46,20 @@ class QueryResults
     size_t size() const { return rows.size(); }
     void add(FinalRow row)
     {
+        for (const auto &h:q.having)
+        {
+            auto value=row[h.output].value.number; bool keep=false;
+            switch(h.op) {
+            case FilterClause::FILTER_EQ:keep=value==h.value;break;
+            case FilterClause::FILTER_NE:keep=value!=h.value;break;
+            case FilterClause::FILTER_GT:keep=value>h.value;break;
+            case FilterClause::FILTER_GTE:keep=value>=h.value;break;
+            case FilterClause::FILTER_LT:keep=value<h.value;break;
+            case FilterClause::FILTER_LTE:keep=value<=h.value;break;
+            default:break;
+            }
+            if(!keep)return;
+        }
         if (q.limit && !*q.limit)
             return;
         if (!q.limit || rows.size() < capacity)

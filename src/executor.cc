@@ -28,7 +28,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
     try {
         // Preserve the vectorized/metadata COUNT fast path; other shapes use typed execution.
-        if (!query.grouped && query.groupBy.empty() && query.aggregateClauses.size() == 1 &&
+        if (query.having.empty() && !query.grouped && query.groupBy.empty() && query.aggregateClauses.size() == 1 &&
             query.aggregateClauses[0].type == AggregateClause::AGGREGATE_COUNT &&
             !query.aggregateClauses[0].expression && !query.limit && !query.offset) {
             if (query.filterClauses.empty()) return ExecuteAggNoGroupByNoFilter(query,useAvx,useParallelism);

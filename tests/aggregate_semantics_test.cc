@@ -120,3 +120,12 @@ TEST(Projection, StarAndHiddenSortColumns) {
     Check(t,"SELECT s FROM t GROUP BY s ORDER BY count(*) DESC,s LIMIT 2",{{"a"},{"b"}});
     EXPECT_FALSE(ParseSelect("SELECT s,count(*) FROM t GROUP BY s ORDER BY v",t).ok());
 }
+
+TEST(Aggregation, HavingBeforeOrderAndLimit) {
+    auto t=test::Table({{test::Raw({1,1,2,3,3,3})}},{{"v",std::make_shared<Int64Type>()}});
+    Check(t,"SELECT v,count(*) AS n FROM t GROUP BY v HAVING count(*) > 1 ORDER BY n DESC LIMIT 1",{{"3","3"}});
+    Check(t,"SELECT v FROM t GROUP BY v HAVING count(*) >= 2 ORDER BY v",{{"1"},{"3"}});
+    Check(t,"SELECT count(*) FROM t HAVING count(*) > 6",{});
+    Check(t,"SELECT count(*) FROM t HAVING count(*) = 6",{{"6"}});
+    Check(t,"SELECT v,sum(v) FROM t GROUP BY v HAVING count(*) > 10",{});
+}

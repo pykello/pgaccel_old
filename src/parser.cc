@@ -415,6 +415,31 @@ struct Parser
         // Legacy dense paths apply only when every varying key is one column.
         if (q.groupExpressions.size()!=1 || q.groupExpressions[0]->kind!=Expression::COLUMN)
             q.groupBy.clear();
+        if (eat("having"))
+        {
+            do
+            {
+                auto a=aggregate();
+                if (a.type!=AggregateClause::AGGREGATE_COUNT)
+                    throw std::invalid_argument("HAVING currently requires COUNT");
+                size_t index=0;
+                while (index<q.aggregateClauses.size() && q.aggregateClauses[index].sql!=a.sql) ++index;
+                if (index==q.aggregateClauses.size()) q.aggregateClauses.push_back(std::move(a));
+                auto op=take().text; FilterClause::Op comparison;
+                if(op==">")comparison=FilterClause::FILTER_GT;
+                else if(op==">=")comparison=FilterClause::FILTER_GTE;
+                else if(op=="<")comparison=FilterClause::FILTER_LT;
+                else if(op=="<=")comparison=FilterClause::FILTER_LTE;
+                else if(op=="=")comparison=FilterClause::FILTER_EQ;
+                else if(op=="<>" || op=="!=")comparison=FilterClause::FILTER_NE;
+                else throw std::invalid_argument("Unsupported HAVING comparison");
+                std::string sign=eat("-")?"-":""; auto literal=take(); size_t used;
+                if(literal.quoted)throw std::invalid_argument("HAVING requires an integer bound");
+                int64_t value=std::stoll(sign+literal.text,&used);
+                if(used!=sign.size()+literal.text.size())throw std::invalid_argument("Invalid HAVING bound");
+                q.having.push_back({index,comparison,value});
+            } while(eat("and"));
+        }
         if (eat("order"))
         {
             need("by");
