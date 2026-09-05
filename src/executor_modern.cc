@@ -2,7 +2,6 @@
 namespace pgaccel {
 Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
     try {
-        if (q.grouped) return Status::Invalid("Grouped execution is not enabled yet");
         Budget budget{{0},q.memoryBudgetBytes};
         auto filter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses,avx);
         auto &table = *q.tables[0]; size_t n = q.aggregateClauses.size();
@@ -36,10 +35,30 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel) {
                     const DictColumnDataBase *dict = nullptr;
                     if (!q.groupBy.empty() && rg.columns[q.groupBy[0].columnIdx]->type == ColumnDataBase::DICT_COLUMN_DATA)
                         dict = static_cast<const DictColumnDataBase*>(rg.columns[q.groupBy[0].columnIdx].get());
-                    States &state = Get(groups,{},n,budget);
-                    Selected(rg,selection,[&](int r) {
-                        for (size_t i = 0; i < n; ++i) Update(state[i],q.aggregateClauses[i],rg,r,budget);
-                    });
+                    if (dict && !distinct) {
+                        // Dense local codes, contiguous accumulators, only selected rows and visited labels.
+                        std::vector<States> local(dict->dictSize()); std::vector<int> visited;
+                        Selected(rg,selection,[&](int r) {
+                            int code = Code(dict,r); auto &state = local[code];
+                            if (state.empty()) { state.resize(n); visited.push_back(code); }
+                            for (size_t i = 0; i < n; ++i) Update(state[i],q.aggregateClauses[i],rg,r,budget);
+                        });
+                        for (int code : visited) {
+                            auto &state = Get(groups,Label(dict,code,q.groupBy[0].Type()->type_num()),n,budget);
+                            Merge(state,local[code],q,budget);
+                        }
+                    } else {
+                        std::vector<States*> cache(dict ? dict->dictSize() : 0,nullptr);
+                        States *single = q.groupBy.empty() ? &Get(groups,{},n,budget) : nullptr;
+                        Selected(rg,selection,[&](int r) {
+                            States *state = single;
+                            if (dict) {
+                                int code = Code(dict,r); state = cache[code];
+                                if (!state) state = cache[code] = &Get(groups,Label(dict,code,q.groupBy[0].Type()->type_num()),n,budget);
+                            } else if (!state) state = &Get(groups,Read(rg,q.groupBy[0],r),n,budget);
+                            for (size_t i = 0; i < n; ++i) Update((*state)[i],q.aggregateClauses[i],rg,r,budget);
+                        });
+                    }
                 }
                 return groups;
             };
