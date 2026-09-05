@@ -100,6 +100,28 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                     if (!selected)
                         continue;
                     const uint8_t *selection = filter && selected != rg.size ? bitmap : nullptr;
+                    if (q.groupBy.empty() && n == 1 &&
+                        q.aggregateClauses[0].type == AggregateClause::AGGREGATE_COUNT_DISTINCT &&
+                        q.aggregateClauses[0].columnRef)
+                    {
+                        const auto &column = *q.aggregateClauses[0].columnRef;
+                        auto data = rg.columns[column.columnIdx].get();
+                        if (data->type == ColumnDataBase::DICT_COLUMN_DATA)
+                        {
+                            auto dictionary = static_cast<const DictColumnDataBase *>(data);
+                            Scratch scratch(budget, dictionary->dictSize());
+                            std::vector<uint8_t> seen(dictionary->dictSize(), 0);
+                            Selected(rg, selection,
+                                     [&](int row) { seen[Code(dictionary, row)] = 1; });
+                            auto &state = Get(groups, {}, n, budget)[0];
+                            for (int code = 0; code < dictionary->dictSize(); ++code)
+                                if (seen[code])
+                                    Insert(state,
+                                           Label(dictionary, code, column.Type()->type_num()),
+                                           budget);
+                            continue;
+                        }
+                    }
                     const DictColumnDataBase *dict = nullptr;
                     if (!q.groupBy.empty() && rg.columns[q.groupBy[0].columnIdx]->type ==
                                                   ColumnDataBase::DICT_COLUMN_DATA)

@@ -24,6 +24,8 @@ TEST(Aggregation, DistinctUsesValuesAcrossDictionaries) {
                         {test::Raw({2,3,3}),test::Dict<StringType>({"c","a","b"})}},
                        {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
     Check(t,"SELECT count(distinct v),count(distinct s) FROM t",{{"3","3"}});
+    Check(t,"SELECT count(distinct s) FROM t",{{"3"}});
+    Check(t,"SELECT count(distinct s) FROM t WHERE v = 1",{{"2"}});
     Check(t,"SELECT s,count(distinct v) AS n,count(*) FROM t GROUP BY s ORDER BY n DESC,s",{{"a","3","3"},{"c","2","2"},{"b","1","1"}});
     auto q=ParseSelect("SELECT count(distinct v) FROM t",t); ASSERT_TRUE(q.ok());
     auto plan=std::move(q).ValueUnsafe(); plan.memoryBudgetBytes=1;
