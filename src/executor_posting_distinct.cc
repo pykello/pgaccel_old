@@ -78,29 +78,22 @@ std::optional<Result<QueryOutput>> ExecutePostingDistinct(const QueryDesc &q, bo
     Scratch metadata(budget, (workers * 2 + 1) * sizeof(std::pmr::vector<Counter>));
     auto partials = RunTasks(workers, [&](int worker) {
         std::pmr::vector<Counter> counts(domain, Counter{}, &budget);
-        std::pmr::vector<uint64_t> overflow(&budget);
         size_t begin = index->size() * worker / workers, end = index->size() * (worker + 1) / workers;
         auto visit = [&](size_t id) {
-            auto postings = index->PostingRows(id);
-            std::array<uint64_t, 16> small;
-            uint64_t *values;
-            size_t n = 0;
-            if (postings.size() <= small.size()) values = small.data();
-            else { overflow.resize(postings.size()); values = overflow.data(); }
-            for (uint32_t row : postings) {
+            std::array<uint32_t, 8> small;
+            size_t used = 0;
+            IntegerSet overflow(budget);
+            for (uint32_t row : index->PostingRows(id)) {
                 uint32_t group = groups[row];
-                if (group) values[n++] = (uint64_t(group) << 32) | row;
-            }
-            std::sort(values, values + n);
-            uint32_t previous = 0;
-            for (size_t i = 0; i < n; ++i) {
-                uint32_t group = values[i] >> 32;
-                if (group != previous) {
-                    auto &counter = counts[group - 1];
-                    ++counter.count;
-                    counter.row = uint32_t(values[i]);
-                    previous = group;
-                }
+                if (!group) continue;
+                size_t slot = 0;
+                while (slot < used && small[slot] != group) ++slot;
+                if (slot < used) continue;
+                if (used < small.size()) small[used++] = group;
+                else if (!overflow.insert(group)) continue;
+                auto &counter = counts[group - 1];
+                ++counter.count;
+                counter.row = row;
             }
         };
         if (filter) {
