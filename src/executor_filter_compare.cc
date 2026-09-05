@@ -469,9 +469,9 @@ public:
 template<typename AccelTy>
 class FilterRawDataNode: public CompareFilterNode {
 public:
-    FilterRawDataNode(typename AccelTy::c_type value,
+    FilterRawDataNode(int64_t value,
                       FilterClause::Op op,
-                      typename AccelTy::c_type fusedVal,
+                      int64_t fusedVal,
                       FilterClause::Op fusedOp,
                       bool useAvx): 
         value(value),

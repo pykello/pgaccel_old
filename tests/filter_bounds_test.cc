@@ -45,3 +45,49 @@ TEST(FilterBounds, RandomizedAgainstIndependentScalarPredicates) {
         }
     }
 }
+
+TEST(FilterBounds, Int32ColumnsRetainWideLiteralBounds) {
+    const std::vector<int32_t> values{INT32_MIN, -1, 0, 1, INT32_MAX};
+    auto column = std::make_shared<RawColumnData<Int32Type>>();
+    column->type = ColumnDataBase::RAW_COLUMN_DATA;
+    column->size = values.size();
+    column->bytesPerValue = sizeof(int32_t);
+    column->minValue = INT32_MIN;
+    column->maxValue = INT32_MAX;
+    column->values = static_cast<uint8_t *>(AllocateAligned(512, values.size() * sizeof(int32_t)));
+    std::memcpy(column->values, values.data(), values.size() * sizeof(int32_t));
+    auto registry = test::Table({{column}}, {{"v", std::make_shared<Int32Type>()}});
+    const char *operators[] = {"=", "!=", "<", "<=", ">", ">="};
+    for (int64_t bound : {INT64_MIN, int64_t(INT32_MIN) - 1,
+                          int64_t(INT32_MAX) + 1, INT64_MAX}) {
+        for (int op = 0; op < 6; ++op) {
+            uint64_t expected = 0;
+            for (int64_t value : values) {
+                switch (op) {
+                case 0: expected += value == bound; break;
+                case 1: expected += value != bound; break;
+                case 2: expected += value < bound; break;
+                case 3: expected += value <= bound; break;
+                case 4: expected += value > bound; break;
+                case 5: expected += value >= bound; break;
+                }
+            }
+            auto sql = "SELECT count(*) FROM t WHERE v " + std::string(operators[op]) +
+                       " " + std::to_string(bound);
+            auto query = ParseSelect(sql, registry);
+            ASSERT_TRUE(query.ok()) << sql;
+            for (bool avx : {false, true}) {
+                auto result = ExecuteQuery(*query, avx, false);
+                ASSERT_TRUE(result.ok()) << sql;
+                EXPECT_EQ(result->values, Rows({{std::to_string(expected)}})) << sql;
+            }
+        }
+    }
+    auto query = ParseSelect("SELECT count(*) FROM t WHERE v > -2147483649 AND v < 1", registry);
+    ASSERT_TRUE(query.ok());
+    for (bool avx : {false, true}) {
+        auto result = ExecuteQuery(*query, avx, false);
+        ASSERT_TRUE(result.ok());
+        EXPECT_EQ(result->values, Rows({{"3"}}));
+    }
+}
