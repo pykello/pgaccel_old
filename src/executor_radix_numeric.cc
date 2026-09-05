@@ -57,16 +57,17 @@ Result<QueryOutput> RadixNumeric(const QueryDesc &q, GroupKeys &keys, Budget &bu
     Scratch metadata(budget, (workers * 2 + 1) * sizeof(Input));
     auto partition = [&](const GroupKey &key) { return GroupHash{&keys}(key) >> 54; };
     auto filter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
+    const uint64_t inputBudget = (q.memoryBudgetBytes - budget.used.load()) / 2;
     auto inputs = RunTasks(workers, [&](int worker) {
         ScopedValueResource valuesMemory(budget);
         Input input(budget);
         {
             size_t rows = 0;
             for (int g = worker; g < table.RowGroupCount(); g += workers) rows += table.GetRowGroup(g).size;
-            // Reserve at most half the shared query budget for filtered input.
+            // Reserve at most half the remaining budget for filtered input.
             // Capacity does not construct records or touch unselected pages.
             size_t capacity = filter
-                ? std::min<uint64_t>(rows, q.memoryBudgetBytes / 2 / workers / sizeof(Record)) : rows;
+                ? std::min<uint64_t>(rows, inputBudget / workers / sizeof(Record)) : rows;
             input.records.reserve(capacity);
         }
         for (int g = worker; g < table.RowGroupCount(); g += workers) {

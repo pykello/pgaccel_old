@@ -37,3 +37,19 @@ TEST(RadixGroupCount, CompletePartitionsPreserveFiltersAndGlobalOrdering)
         }
     }
 }
+TEST(RadixGroupCount, SelectiveInputReservationLeavesRoomAfterPlanning)
+{
+    std::vector<int64_t> keys;
+    std::vector<std::string> labels;
+    for (int i = 0; i < 10000; ++i) { keys.push_back(i); labels.push_back(i % 2 ? "b" : "a"); }
+    auto registry = test::Table({{test::Raw(keys,4),test::Dict<StringType>(labels)}},
+        {{"k",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    ASSERT_TRUE(registry.at("t")->BuildDictionaries(1 << 24).ok());
+    auto q = ParseSelect("SELECT k,s,count(*) FROM t WHERE k=0 GROUP BY k,s ORDER BY k,s LIMIT 10",registry);
+    ASSERT_TRUE(q.ok());
+    QueryDesc bounded = *q; bounded.memoryBudgetBytes = 32768; bounded.allowSpill = false;
+    auto result = ExecuteQuery(bounded,true,true);
+    ASSERT_TRUE(result.ok()) << result.status().Message();
+    EXPECT_EQ(result->values,Rows({{"0","a","1"}}));
+    EXPECT_LE(result->peakMemoryBytes,bounded.memoryBudgetBytes);
+}
