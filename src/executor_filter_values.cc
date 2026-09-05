@@ -2,6 +2,7 @@
 #include <re2/re2.h>
 #include <array>
 #include <immintrin.h>
+#include "column_index.hpp"
 namespace pgaccel {
 namespace {
 class ValuePredicate : public FilterNodeImpl {
@@ -9,6 +10,7 @@ class ValuePredicate : public FilterNodeImpl {
   std::unique_ptr<RE2> pattern;
   std::string needle;
   bool substring = false, negate = false, avx;
+  StringSignature required;
   std::unordered_set<Cell, Hash> members;
   bool matches(Cell value) const {
     bool yes =
@@ -29,9 +31,13 @@ class ValuePredicate : public FilterNodeImpl {
     if (dict) {
       // At most 65,536 local labels: the complete membership map fits in 8 KiB.
       std::array<uint32_t, RowGroupSize / 32> labels{};
-      for (int i = 0; i < dict->dictSize(); ++i)
-        if (matches(Label(dict, i, f.columnRef.Type()->type_num())))
-          labels[i / 32] |= uint32_t(1) << (i % 32);
+      auto signatures = data->globalDictionary && substring && needle.size() >= 3
+          ? data->globalDictionary->StringSignatures() : std::span<const StringSignature>{};
+      for (int i = 0; i < dict->dictSize(); ++i) {
+        bool yes = !signatures.empty() && !signatures[data->globalIds[i]].mayContain(required)
+            ? negate : matches(Label(dict, i, f.columnRef.Type()->type_num()));
+        if (yes) labels[i / 32] |= uint32_t(1) << (i % 32);
+      }
       auto apply = [&]<class CodeType>() {
         auto codes = reinterpret_cast<const CodeType *>(dict->values);
         int count = 0, base = 0;
@@ -124,6 +130,7 @@ public:
           f.value.back() == '%') {
         needle = f.value.substr(1, f.value.size() - 2);
         substring = needle.find_first_of("%_\\") == std::string::npos;
+        if (substring) required = StringSignature::Build(needle);
       }
     } else {
       for (const auto &literal : f.values) {

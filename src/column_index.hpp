@@ -1,5 +1,6 @@
 #pragma once
 #include "columnar_table.h"
+#include "string_signature.hpp"
 #include <span>
 #include <string_view>
 
@@ -19,6 +20,7 @@ class GlobalDictionary {
     std::span<const uint32_t> Codes(int group) const;
     std::span<const int64_t> Numbers() const;
     std::span<const std::string_view> Strings() const;
+    std::span<const StringSignature> StringSignatures() const;
     uint32_t Find(int64_t value) const;
     uint32_t Find(std::string_view value) const;
     size_t size() const;

@@ -9,12 +9,13 @@ struct GlobalDictionary::Impl {
     ColumnIntern<int64_t, IntegerHash> numbers;
     ColumnIntern<std::string_view, std::hash<std::string_view>> strings;
     std::pmr::vector<std::pmr::vector<uint32_t>> codes;
+    std::pmr::vector<StringSignature> signatures;
     std::pmr::vector<uint64_t> rowOffsets;
     std::pmr::vector<uint32_t> repeatBoundaries, repeatedRows;
     std::pmr::vector<AdditionalPosting> additionalRows;
     bool string = false, sparsePostings = false;
     explicit Impl(uint64_t limit) : memory(limit), numbers(memory), strings(memory), codes(&memory),
-        rowOffsets(&memory), repeatBoundaries(&memory), repeatedRows(&memory), additionalRows(&memory) {
+        signatures(&memory), rowOffsets(&memory), repeatBoundaries(&memory), repeatedRows(&memory), additionalRows(&memory) {
         memory.charge(sizeof(Impl) + sizeof(GlobalDictionary));
     }
 };
@@ -23,6 +24,7 @@ GlobalDictionary::~GlobalDictionary() = default;
 std::span<const uint32_t> GlobalDictionary::Codes(int group) const { return impl->codes[group]; }
 std::span<const int64_t> GlobalDictionary::Numbers() const { return impl->numbers.keys(); }
 std::span<const std::string_view> GlobalDictionary::Strings() const { return impl->strings.keys(); }
+std::span<const StringSignature> GlobalDictionary::StringSignatures() const { return impl->signatures; }
 uint32_t GlobalDictionary::Find(int64_t value) const { return impl->numbers.find(value); }
 uint32_t GlobalDictionary::Find(std::string_view value) const { return impl->strings.find(value); }
 size_t GlobalDictionary::size() const { return impl->string ? Strings().size() : Numbers().size(); }
@@ -95,6 +97,10 @@ Result<std::shared_ptr<const GlobalDictionary>> GlobalDictionary::Build(
             }
         }
         index.rowOffsets.push_back(rows);
+        if (index.string) {
+            index.signatures.reserve(index.strings.keys().size());
+            for (auto value : index.strings.keys()) index.signatures.push_back(StringSignature::Build(value));
+        }
         if (rawOnly && rows && rows <= UINT32_MAX && rows - result->size() <= result->size() / 1024) {
             index.sparsePostings = true;
             uint32_t next = 0;
@@ -151,6 +157,11 @@ Result<DictionaryBuildStats> ColumnarTable::BuildDictionaries(uint64_t limit) {
         stats.columns.push_back({column, index->size(), index->bytes(), index->peakBytes(),
             std::chrono::duration<double, std::milli>(Clock::now() - start).count()});
         dictionaries_[column] = std::move(index);
+        for (int g = 0; g < RowGroupCount(); ++g) {
+            auto &data = *row_groups_[g].columns[column];
+            data.globalDictionary = dictionaries_[column].get();
+            data.globalIds = dictionaries_[column]->Codes(g);
+        }
     }
     return stats;
 }

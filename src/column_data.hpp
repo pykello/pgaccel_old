@@ -7,6 +7,7 @@
 #include <set>
 #include <cstdint>
 #include <iostream>
+#include <span>
 
 #include "result_type.hpp"
 #include "types.hpp"
@@ -25,6 +26,7 @@ inline void* AllocateAligned(size_t alignment, size_t bytes) {
 
 const int RowGroupSize = 1 << 16;
 
+class GlobalDictionary;
 struct ColumnDataBase;
 typedef std::shared_ptr<ColumnDataBase> ColumnDataP;
 
@@ -34,6 +36,9 @@ struct ColumnDataBase {
         RAW_COLUMN_DATA = 1
     } type;
     int size;
+    // Optional immutable auxiliary encoding, attached before query readers.
+    const GlobalDictionary *globalDictionary = nullptr;
+    std::span<const uint32_t> globalIds;
 
     virtual Result<bool> Save(std::ostream &out) const = 0;
 
