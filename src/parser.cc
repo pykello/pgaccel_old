@@ -67,6 +67,23 @@ struct Parser {
                 } else { size_t consumed; std::stoll(t.text,&consumed); if (consumed != t.text.size()) throw std::invalid_argument("Invalid integer"); e->type = std::make_shared<Int64Type>(); }
             } else { e->kind = Expression::COLUMN; e->column = resolve(t.text); e->type = e->column->Type(); }
         }
+        while (at < tokens.size()) {
+            auto op = tokens[at].text;
+            int p = op == "+" || op == "-" ? 1 : op == "*" || op == "/" ? 2 : 0;
+            if (!p || p <= precedence) break;
+            ++at;
+            auto parent = std::make_shared<Expression>(); parent->left = e; parent->right = expr(p);
+            parent->kind = op == "+" ? Expression::ADD : op == "-" ? Expression::SUBTRACT : op == "*" ? Expression::MULTIPLY : Expression::DIVIDE;
+            auto numeric = [](TypeNum t) { return t == INT32_TYPE || t == INT64_TYPE || t == DECIMAL_TYPE; };
+            if (!numeric(e->type->type_num()) || !numeric(parent->right->type->type_num())) throw std::invalid_argument("Arithmetic requires numeric operands");
+            auto scale = [](const auto &ty) { return ty->type_num() == DECIMAL_TYPE ? static_cast<DecimalType*>(ty.get())->scale : 0; };
+            int l = scale(e->type), r = scale(parent->right->type);
+            int s = parent->kind == Expression::MULTIPLY ? l+r : parent->kind == Expression::DIVIDE ? std::max(6,l) : std::max(l,r);
+            if (s > 18) throw std::invalid_argument("Expression scale exceeds 18");
+            if (s) { auto ty = std::make_shared<DecimalType>(); ty->scale = s; parent->type = ty; }
+            else parent->type = std::make_shared<Int64Type>();
+            e = parent;
+        }
         return e;
     }
     std::string signature(size_t start, size_t end) {
