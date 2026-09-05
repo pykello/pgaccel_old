@@ -1,5 +1,10 @@
 # Research status
 
+The goal has been extended: continue until **43/43 queries** are faster than
+a fresh paired ClickHouse run. Work is active on Q22, Q24, Q28 and Q29.
+The complete checkpoint below remains the latest validated full comparison;
+individual experiments do not replace it.
+
 The requested resident warm comparison target is met: **39/43 query wins
 (90.70%)** and a **0.368585** paired geometric PGAccel/ClickHouse latency
 ratio with a 10 ms shift. Summed warm minima are **17.982 s vs 21.694 s**.

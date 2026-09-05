@@ -7,6 +7,9 @@ with the ClickBench 10 ms shift, on the complete 99,997,497-row fixture.
 
 ## Current entry points
 
+The user subsequently extended the goal to **43/43 wins**. That follow-up
+is active; the 39/43 checkpoint below is preserved as the completed prior target.
+
 The target is met in the final indexed warm comparison: **39/43 wins** and
 **0.368585** paired shifted geometric latency ratio. See the final report for
 preprocessing costs, correctness policy and the limits of this claim.

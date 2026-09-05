@@ -88,7 +88,8 @@ The agreed overall ratio is:
 exp(mean(log((PG_ms + 10) / (CH_ms + 10))))
 ```
 
-Require 39 of 43 wins and a ratio below 1. Also report the unshifted ratio,
+The extended goal requires **43 of 43 wins** and a ratio below 1.
+The preceding checkpoint satisfied the earlier 39/43 target. Also report the unshifted ratio,
 sum of warm times, raw trials, setup costs, and memory. Never replace a
 complete checkpoint with best times picked from separate subsets.
 
