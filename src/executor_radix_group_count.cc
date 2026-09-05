@@ -30,10 +30,14 @@ std::optional<Result<QueryOutput>> ExecuteRadixGroupCount(const QueryDesc &q, bo
     auto inputs = RunTasks(workers, [&](int worker) {
         ScopedValueResource valuesMemory(budget);
         Input input(budget);
-        if (!filter) {
+        {
             size_t rows = 0;
             for (int g = worker; g < table.RowGroupCount(); g += workers) rows += table.GetRowGroup(g).size;
-            input.keys.reserve(rows);
+            // Reserve at most half the shared query budget for filtered input.
+            // Capacity does not construct records or touch unselected pages.
+            size_t capacity = filter
+                ? std::min<uint64_t>(rows, q.memoryBudgetBytes / 2 / workers / sizeof(GroupKey)) : rows;
+            input.keys.reserve(capacity);
         }
         for (int g = worker; g < table.RowGroupCount(); g += workers) {
             const auto &rg = table.GetRowGroup(g);
