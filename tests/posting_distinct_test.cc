@@ -42,3 +42,16 @@ TEST(PostingDistinct, CrossStripeDuplicatesFiltersAndCompositeKeysAreExact)
         }
     }
 }
+TEST(PostingDistinct, MixedDecimalAveragesRetainTheirSourceScale)
+{
+    auto decimal = std::make_shared<DecimalType>(); decimal->scale = 2;
+    auto registry = test::Table({{test::Raw({1,1,2,2,2}), test::Raw({INT64_MIN,INT64_MIN,7,8,8}),
+        test::Raw({-105,206,-301,400,503})}}, {{"k", std::make_shared<Int64Type>()},
+        {"u", std::make_shared<Int64Type>()}, {"d", decimal}});
+    auto query = ParseSelect("SELECT k,sum(d),avg(d),count(DISTINCT u) FROM t GROUP BY k ORDER BY k", registry);
+    ASSERT_TRUE(query.ok());
+    auto expected = ExecuteQuery(*query, true, false); ASSERT_TRUE(expected.ok());
+    ASSERT_TRUE(registry.at("t")->BuildDictionaries(1 << 20).ok());
+    auto result = ExecuteQuery(*query, true, true); ASSERT_TRUE(result.ok());
+    EXPECT_EQ(result->values, expected->values);
+}
