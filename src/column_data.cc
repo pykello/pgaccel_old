@@ -112,7 +112,23 @@ LoadRawColumnData(std::istream &in)
         (uint8_t *) AllocateAligned(512, result->bytesPerValue * result->size);
     in.read((char *) result->values, result->bytesPerValue * result->size);
     if (!in) return Status::Invalid("Truncated raw column");
+    // Range pruning trusts these bounds; validate them against stored values.
+    int64_t actualMin = INT64_MAX, actualMax = INT64_MIN;
+    for (int row = 0; row < result->size; ++row) {
+        int64_t value = 0;
+        switch (result->bytesPerValue) {
+        case 1: value = ((int8_t*)result->values)[row]; break;
+        case 2: value = ((int16_t*)result->values)[row]; break;
+        case 4: value = ((int32_t*)result->values)[row]; break;
+        case 8: value = ((int64_t*)result->values)[row]; break;
+        }
+        actualMin = std::min(actualMin,value); actualMax = std::max(actualMax,value);
+        if (value < result->minValue || value > result->maxValue)
+            return Status::Invalid("Native value outside declared bounds");
+    }
 
+    if (result->size && (actualMin != result->minValue || actualMax != result->maxValue))
+        return Status::Invalid("Native bounds do not match stored values");
     ColumnDataP resultCasted = std::move(result);
     return resultCasted;
 }
@@ -142,6 +158,9 @@ Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
     in.read((char *) &type, sizeof(type));
 
     if (!in) return Status::Invalid("Truncated column header");
+    bool dictionary = dataType->type_num() == STRING_TYPE || dataType->type_num() == DATE_TYPE;
+    if (type != (dictionary ? DICT_COLUMN_DATA : RAW_COLUMN_DATA))
+        return Status::Invalid("Unsupported native layout for logical type");
     switch (type)
     {
         case ColumnDataBase::DICT_COLUMN_DATA:
