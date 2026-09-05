@@ -2,9 +2,117 @@
 #include "executor_flat_map.hpp"
 #include "executor_integer_set.hpp"
 #include <bit>
+#include "column_index.hpp"
+#include <array>
 namespace pgaccel
 {
 namespace {
+template <class Count>
+Result<QueryOutput> IndexedGroupedCount(const QueryDesc &q, const GlobalDictionary &index,
+                                       bool avx, bool parallel)
+{
+    constexpr size_t partitions = 1024;
+    Budget budget(q.memoryBudgetBytes);
+    const auto &table = *q.tables[0];
+    const auto &column = q.groupBy[0];
+    int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
+    unsigned bits = std::bit_width(index.size() ? index.size() - 1 : size_t(0));
+    unsigned shift = bits > 10 ? bits - 10 : 0;
+    size_t width = size_t(1) << shift;
+    struct Input {
+        std::pmr::vector<uint32_t> values;
+        std::array<size_t, partitions> offsets{};
+        explicit Input(Budget &budget) : values(&budget) {}
+    };
+    Scratch metadata(budget, (2 * workers + 1) * sizeof(Input));
+    auto filter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
+    auto inputs = RunTasks(workers, [&](int worker) {
+        Input input(budget);
+        if (!filter) {
+            size_t rows = 0;
+            for (int g = worker; g < table.RowGroupCount(); g += workers) rows += table.GetRowGroup(g).size;
+            input.values.reserve(rows);
+        }
+        for (int g = worker; g < table.RowGroupCount(); g += workers) {
+            const auto &rg = table.GetRowGroup(g);
+            uint8_t bitmap[RowGroupSize / 8];
+            int count = filter ? filter->ExecuteSet(rg, bitmap) : rg.size;
+            if (!count) continue;
+            auto data = rg.columns[column.columnIdx].get();
+            auto dictionary = data->type == ColumnDataBase::DICT_COLUMN_DATA
+                ? static_cast<const DictColumnDataBase *>(data) : nullptr;
+            auto codes = index.Codes(g);
+            Selected(rg, count == rg.size ? nullptr : bitmap, [&](int row) {
+                uint32_t id = codes[dictionary ? Code(dictionary, row) : row];
+                input.values.push_back(id);
+                ++input.offsets[id >> shift];
+            });
+        }
+        return input;
+    });
+    std::array<size_t, partitions + 1> offsets{};
+    for (size_t part = 0; part < partitions; ++part) {
+        offsets[part + 1] = offsets[part];
+        for (auto &input : inputs) {
+            size_t count = input.offsets[part];
+            input.offsets[part] = offsets[part + 1];
+            offsets[part + 1] += count;
+        }
+    }
+    std::pmr::vector<uint32_t> ordered(offsets.back(), 0, &budget);
+    RunTasks(workers, [&](int worker) {
+        auto &input = inputs[worker];
+        for (uint32_t id : input.values) ordered[input.offsets[id >> shift]++] = id;
+        std::pmr::vector<uint32_t> empty(input.values.get_allocator());
+        input.values.swap(empty);
+        return 0;
+    });
+    auto candidates = RunTasks(workers, [&](int worker) {
+        QueryDesc local = q;
+        local.offset = 0;
+        if (q.limit) local.limit = *q.limit + q.offset;
+        QueryResults results(local, budget);
+        for (size_t part = worker; part < partitions; part += workers) {
+            if (offsets[part] == offsets[part + 1]) continue;
+            size_t base = part * width;
+            auto admit = [&](size_t id, Count count) {
+                results.addLazy([&](size_t output) {
+                    const auto &a = q.aggregateClauses[output];
+                    if (a.type == AggregateClause::AGGREGATE_COUNT)
+                        return FinalCell{Cell{Wide(count)}};
+                    Cell key;
+                    if (a.columnRef) {
+                        if (column.Type()->type_num() == STRING_TYPE)
+                            key = {0, index.Strings()[id], true};
+                        else key.number = index.Numbers()[id];
+                    } else key = Evaluate(*a.expression, RowGroup{}, 0);
+                    return FinalCell{key, a.expression->type.get()};
+                });
+            };
+            size_t range = std::min(width, index.size() - base);
+            if (offsets[part + 1] - offsets[part] < range / 8) {
+                // Selective filters should not clear and scan the entire domain.
+                FlatMap<uint32_t, Count, IntegerHash, std::equal_to<uint32_t>> sparse(budget);
+                for (size_t position = offsets[part]; position < offsets[part + 1]; ++position) {
+                    auto [entry, added] = sparse.get(ordered[position], [] { return Count(0); });
+                    ++sparse.at(entry).second;
+                }
+                sparse.forEach(admit);
+            } else {
+                std::pmr::vector<Count> counts(range, 0, &budget);
+                for (size_t position = offsets[part]; position < offsets[part + 1]; ++position)
+                    ++counts[ordered[position] - base];
+                for (size_t i = 0; i < counts.size(); ++i)
+                    if (counts[i]) admit(base + i, counts[i]);
+            }
+        }
+        return results.takeCandidates();
+    });
+    QueryResults results(q, budget);
+    for (auto &worker : candidates) for (auto &row : worker) results.add(std::move(row));
+    return results.finish();
+}
+
 template <class Key, class KeyHash>
 Result<QueryOutput> GroupedCount(const QueryDesc &q, bool avx, bool parallel)
 {
@@ -115,6 +223,12 @@ std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &q, bool 
             (a.type != AggregateClause::AGGREGATE_COUNT ||
              (a.expression && a.expression->kind != Expression::COLUMN)))
             return {};
+    if (auto index = q.tables[0]->Dictionary(q.groupBy[0].columnIdx)) {
+        uint64_t rows = 0;
+        for (int g = 0; g < q.tables[0]->RowGroupCount(); ++g) rows += q.tables[0]->GetRowGroup(g).size;
+        if (rows <= UINT32_MAX) return IndexedGroupedCount<uint32_t>(q, *index, avx, parallel);
+        return IndexedGroupedCount<uint64_t>(q, *index, avx, parallel);
+    }
     if (q.groupBy[0].Type()->type_num() == STRING_TYPE)
         return GroupedCount<Cell, Hash>(q, avx, parallel);
     return GroupedCount<uint64_t, IntegerHash>(q, avx, parallel);
