@@ -79,8 +79,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
       local.limit = *q.limit + q.offset;
     QueryResults results(local, budget);
     for (const auto &[key, values] : groups) {
-      FinalRow row;
-      for (size_t i = 0; i < q.aggregateClauses.size(); ++i) {
+      auto get = [&](size_t i) {
         const auto &a = q.aggregateClauses[i];
         FinalCell cell;
         cell.type = a.expression ? a.expression->type.get() : nullptr;
@@ -122,9 +121,9 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
             break;
           }
         }
-        row.push_back(cell);
-      }
-      results.add(std::move(row));
+        return cell;
+      };
+      results.addLazy(get);
     }
     return results.takeCandidates();
   };

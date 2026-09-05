@@ -63,17 +63,11 @@ std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &q, bool 
         QueryResults result(local,budget);
         for (const auto &[key, count] : counts)
         {
-            FinalRow row;
-            row.reserve(q.aggregateClauses.size());
-            for (const auto &a : q.aggregateClauses)
-            {
-                if (a.type == AggregateClause::AGGREGATE_COUNT)
-                    row.push_back({Cell{Wide(count)}});
-                else
-                    row.push_back({a.columnRef ? key : Evaluate(*a.expression, RowGroup{}, 0),
-                                   a.expression->type.get()});
-            }
-            result.add(std::move(row));
+            result.addLazy([&](size_t i) {
+                const auto &a=q.aggregateClauses[i];
+                if(a.type==AggregateClause::AGGREGATE_COUNT)return FinalCell{Cell{Wide(count)}};
+                return FinalCell{a.columnRef?key:Evaluate(*a.expression,RowGroup{},0),a.expression->type.get()};
+            });
         }
         return result.takeCandidates();
     };

@@ -13,11 +13,11 @@ class QueryResults
     uint64_t capacity;
     QueryOutput output;
     std::vector<FinalRow> rows;
-    bool compare(const FinalRow &a, const FinalRow &b) const
+    template<class Left,class Right> bool compareValues(Left a,Right b) const
     {
         for (const auto &o : q.orderBy)
         {
-            const auto &l = a[o.output], &r = b[o.output];
+            const auto &l = a(o.output), &r = b(o.output);
             if (l.null != r.null)
                 return l.null; // SQL default NULLS FIRST ascending.
             if (l.null)
@@ -29,10 +29,16 @@ class QueryResults
             return o.descending ? !less : less;
         }
         // Stable deterministic tie-breaks; ties remain SQL-equivalent.
-        for (size_t i = 0; i < a.size(); ++i)
-            if (!(a[i].value == b[i].value))
-                return Less(a[i].value, b[i].value);
+        for (size_t i = 0; i < n; ++i) {
+            const auto &l=a(i),&r=b(i);
+            if (!(l.value==r.value))return Less(l.value,r.value);
+        }
         return false;
+    }
+
+    bool compare(const FinalRow &a,const FinalRow &b) const {
+        return compareValues([&](size_t i)->const FinalCell &{return a[i];},
+                             [&](size_t i)->const FinalCell &{return b[i];});
     }
 
   public:
@@ -45,6 +51,15 @@ class QueryResults
     }
     size_t size() const { return rows.size(); }
     std::vector<FinalRow> takeCandidates() { return std::move(rows); }
+    template<class Get> void addLazy(Get get)
+    {
+        if(q.limit && !*q.limit)return;
+        if(q.limit && rows.size()>=capacity &&
+            !compareValues(get,[&](size_t i)->const FinalCell &{return rows.front()[i];}))return;
+        FinalRow row;row.reserve(n);
+        for(size_t i=0;i<n;++i)row.push_back(get(i));
+        add(std::move(row));
+    }
     void add(FinalRow row)
     {
         for (const auto &h:q.having)

@@ -181,9 +181,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 QueryResults results(local,budget);
                 for (auto &entry : groups)
                 {
-                    FinalRow row;
-                    row.reserve(n);
-                    for (size_t i = 0; i < n; ++i)
+                    auto get = [&](size_t i)
                     {
                         auto &a = q.aggregateClauses[i];
                         State projected;
@@ -221,9 +219,9 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                             v.null = !s.count;
                             break;
                         }
-                        row.push_back(v);
-                    }
-                    results.add(std::move(row));
+                        return v;
+                    };
+                    results.addLazy(get);
                 }
                 return results.takeCandidates();
             };
