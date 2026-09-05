@@ -64,10 +64,14 @@ LoadDictColumnData(std::istream &in)
     in.read((char *) result->values, bytesPerValue * result->size);
 
     if (!in) return Status::Invalid("Truncated column data");
+    std::vector<bool> used(dictSize,false);
     for (int i = 0; i < result->size; ++i) {
         int code = bytesPerValue == 1 ? result->values[i] : ((uint16_t*)result->values)[i];
         if (code >= dictSize) return Status::Invalid("Dictionary code out of bounds");
+        used[code] = true;
     }
+    if (std::find(used.begin(),used.end(),false) != used.end())
+        return Status::Invalid("Native dictionary contains unused values");
     ColumnDataP resultCasted = std::move(result);
     return resultCasted;
 }
