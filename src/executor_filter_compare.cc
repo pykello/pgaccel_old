@@ -404,14 +404,14 @@ int FilterMatchesDict(const DictColumnData<AccelTy> &columnData,
 
 template<class AccelTy, bool returnCount, BitmapAction bitmapAction>
 int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
-                     typename AccelTy::c_type value,
+                     int64_t value,
                      FilterClause::Op op,
-                     typename AccelTy::c_type fusedVal,
+                     int64_t fusedVal,
                      FilterClause::Op fusedOp,
                      uint8_t *bitmap,
                      bool useAvx)
 {
-    switch (ComputeSkipAction(value, op, fusedVal, fusedOp, columnData.minValue, columnData.maxValue))
+    switch (ComputeSkipAction(value, op, fusedVal, fusedOp, int64_t(columnData.minValue), int64_t(columnData.maxValue)))
     {
         case FILTER_NONE:
             return FilterNone<bitmapAction>(columnData.size, bitmap);
@@ -420,11 +420,11 @@ int FilterMatchesRaw(const RawColumnData<AccelTy> &columnData,
             return FilterAll<bitmapAction>(columnData.size, bitmap);
     }
 
-    if (ComputeSkipAction(value, op, value, FilterClause::INVALID, columnData.minValue, columnData.maxValue) == FILTER_ALL) {
+    if (ComputeSkipAction(value, op, value, FilterClause::INVALID, int64_t(columnData.minValue), int64_t(columnData.maxValue)) == FILTER_ALL) {
         value = fusedVal; op = fusedOp; fusedOp = FilterClause::INVALID;
     }
     if (fusedOp != FilterClause::INVALID &&
-        ComputeSkipAction(fusedVal, fusedOp, fusedVal, FilterClause::INVALID, columnData.minValue, columnData.maxValue) == FILTER_ALL)
+        ComputeSkipAction(fusedVal, fusedOp, fusedVal, FilterClause::INVALID, int64_t(columnData.minValue), int64_t(columnData.maxValue)) == FILTER_ALL)
         fusedOp = FilterClause::INVALID;
 
     switch (columnData.bytesPerValue) {
@@ -502,7 +502,7 @@ public:
     }
 
 private:
-    typename AccelTy::c_type value, fusedVal;
+    int64_t value, fusedVal;
     FilterClause::Op op, fusedOp;
     bool useAvx;
 };
@@ -565,10 +565,10 @@ CreateRawFilterNode(const ColumnDesc &columnDesc,
 
         case INT32_TYPE:
             return std::make_unique<FilterRawDataNode<Int32Type>>(
-                columnDesc.type->asInt32Type()->Parse(valueStr),
+                std::stoll(valueStr),
                 op,
                 fusedOp == FilterClause::INVALID ? 
-                    0 : columnDesc.type->asInt32Type()->Parse(value2Str),
+                    0 : std::stoll(value2Str),
                 fusedOp,
                 useAvx);
 
