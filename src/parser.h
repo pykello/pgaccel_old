@@ -71,8 +71,9 @@ struct FilterClause {
 
 class DelimitedCapture;
 struct Expression {
-    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND, OR, NOT, LIKE } kind = CONSTANT;
+    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND, OR, NOT, LIKE, AGGREGATE } kind = CONSTANT;
     std::optional<ColumnRef> column;
+    int aggregateKind = -1;
     std::string literal = "0";
     std::string replacement;
     std::shared_ptr<const re2::RE2> regexp;
@@ -90,7 +91,8 @@ struct AggregateClause {
         AGGREGATE_AVG,
         AGGREGATE_MIN,
         AGGREGATE_MAX,
-        AGGREGATE_PROJECT
+        AGGREGATE_PROJECT,
+        AGGREGATE_FORMULA
     } type;
 
     std::optional<ColumnRef> columnRef;

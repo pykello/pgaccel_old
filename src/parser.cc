@@ -227,6 +227,13 @@ struct Parser
                 throw std::invalid_argument("Unsupported DATE_TRUNC unit");
             e->type=std::make_shared<TimestampType>();
         }
+        else if (at < tokens.size() && !tokens[at].quoted &&
+            (ToLower(tokens[at].text) == "sum" || ToLower(tokens[at].text) == "avg" ||
+             ToLower(tokens[at].text) == "count" || ToLower(tokens[at].text) == "min" || ToLower(tokens[at].text) == "max")) {
+            auto a = aggregateLeaf();
+            e->kind = Expression::AGGREGATE; e->aggregateKind = int(a.type); e->left = a.expression;
+            e->type = aggregateType(a);
+        }
         else if (eat("length"))
         {
             need("("); e->left=expr(); need(")");
@@ -382,7 +389,37 @@ struct Parser
             s += (tokens[i].quoted ? "'" + tokens[i].text + "'" : ToLower(tokens[i].text)) + " ";
         return s;
     }
-    AggregateClause aggregate()
+    bool containsAggregate(const std::shared_ptr<Expression> &e) {
+        return e && (e->kind == Expression::AGGREGATE || containsAggregate(e->left) ||
+                     containsAggregate(e->right) || containsAggregate(e->condition));
+    }
+    std::shared_ptr<AccelType> aggregateType(const AggregateClause &a) {
+        if (a.type == AggregateClause::AGGREGATE_COUNT || a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT)
+            return std::make_shared<Int64Type>();
+        if (a.type == AggregateClause::AGGREGATE_AVG) {
+            auto type = std::make_shared<DecimalType>(); type->scale = 12; return type;
+        }
+        return a.expression->type;
+    }
+    AggregateClause aggregate(int precedence = 0) {
+        size_t start = at;
+        auto e = expr(precedence);
+        AggregateClause a;
+        if (e->kind == Expression::AGGREGATE) {
+            a.type = AggregateClause::Type(e->aggregateKind); a.expression = e->left;
+        } else {
+            a.type = containsAggregate(e) ? AggregateClause::AGGREGATE_FORMULA : AggregateClause::AGGREGATE_PROJECT;
+            a.expression = e;
+        }
+        if (a.expression && a.expression->kind == Expression::COLUMN) a.columnRef = a.expression->column;
+        if (!derivedColumns.empty() && at == start + 1 && a.type == AggregateClause::AGGREGATE_PROJECT) {
+            auto name = ToLower(tokens[start].text);
+            if (auto dot = name.find('.'); dot != std::string::npos) name.erase(0, dot + 1);
+            for (const auto &[column, expression] : derivedColumns) if (column == name) a.alias = name;
+        }
+        a.sql = signature(start, at); return a;
+    }
+    AggregateClause aggregateLeaf()
     {
         AggregateClause a;
         a.type = AggregateClause::AGGREGATE_PROJECT;
@@ -411,6 +448,7 @@ struct Parser
         }
         else
             a.expression = expr();
+        if (containsAggregate(a.expression)) throw std::invalid_argument("Nested aggregates are unsupported");
         if (a.expression && a.expression->kind == Expression::COLUMN)
             a.columnRef = a.expression->column;
         if (a.expression &&
@@ -592,6 +630,7 @@ struct Parser
         return left;
     }
     void addPredicates(const std::shared_ptr<Expression> &e) {
+        if (containsAggregate(e)) throw std::invalid_argument("WHERE cannot contain aggregates");
         if (e->kind == Expression::AND) { addPredicates(e->left); addPredicates(e->right); return; }
         if (e->kind == Expression::OR)
             for (const auto &required : requiredEqualities(e)) q.predicates.push_back(required);
@@ -727,6 +766,7 @@ struct Parser
                             e=a.expression; ++at; break;
                         }
                 if (!e) e=expr();
+                if (containsAggregate(e)) throw std::invalid_argument("GROUP BY cannot contain aggregates");
                 if (e->kind!=Expression::CONSTANT)
                 {
                     q.groupExpressions.push_back(e);
@@ -741,7 +781,7 @@ struct Parser
         {
             do
             {
-                auto a=aggregate();
+                auto a=aggregate(3);
                 if (a.type!=AggregateClause::AGGREGATE_COUNT)
                     throw std::invalid_argument("HAVING currently requires COUNT");
                 size_t index=0;
@@ -828,7 +868,32 @@ struct Parser
                     throw std::invalid_argument(
                         "Selected expression must be grouped or aggregated");
             }
+        size_t outputs = q.aggregateClauses.size();
+        for (size_t i = 0; i < outputs; ++i)
+            if (q.aggregateClauses[i].type == AggregateClause::AGGREGATE_FORMULA) {
+                auto expression = q.aggregateClauses[i].expression;
+                lowerFormula(expression);
+            }
         return std::move(q);
+    }
+    void lowerFormula(const std::shared_ptr<Expression> &e) {
+        if (e->kind == Expression::AGGREGATE) {
+            AggregateClause a; a.type = AggregateClause::Type(e->aggregateKind); a.expression = e->left;
+            if (a.expression && a.expression->column) a.columnRef = a.expression->column;
+            e->column = ColumnRef{{"aggregate", e->type, ColumnDataBase::RAW_COLUMN_DATA}, -1, int(q.aggregateClauses.size())};
+            q.aggregateClauses.push_back(std::move(a));
+            e->kind = Expression::COLUMN; e->left.reset(); return;
+        }
+        if (e->kind == Expression::CONSTANT) return;
+        if (e->kind == Expression::COLUMN) {
+            if (!std::any_of(q.groupExpressions.begin(), q.groupExpressions.end(), [&](const auto &g) { return same(*e, *g); }))
+                throw std::invalid_argument("Aggregate arithmetic references an ungrouped column");
+            return;
+        }
+        if (e->kind != Expression::ADD && e->kind != Expression::SUBTRACT &&
+            e->kind != Expression::MULTIPLY && e->kind != Expression::DIVIDE)
+            throw std::invalid_argument("Only arithmetic is supported around aggregate results");
+        lowerFormula(e->left); lowerFormula(e->right);
     }
 };
 } // namespace

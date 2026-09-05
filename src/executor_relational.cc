@@ -1,6 +1,7 @@
 #include "executor_result.hpp"
 #include "nodes.h"
 #include <functional>
+#include <cmath>
 
 namespace pgaccel {
 namespace {
@@ -157,7 +158,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             auto &states = found->second.states;
             for (size_t i = 0; i < outputs; ++i) {
                 auto &state = states[i]; const auto &a = q.aggregateClauses[i];
-                if (a.type == AggregateClause::AGGREGATE_PROJECT) continue;
+                if (a.type == AggregateClause::AGGREGATE_PROJECT || a.type == AggregateClause::AGGREGATE_FORMULA) continue;
                 if (a.type == AggregateClause::AGGREGATE_COUNT) { ++state.count; continue; }
                 Cell value = EvaluateWith(*a.expression, read);
                 if (a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT) Insert(state, value, budget);
@@ -188,11 +189,29 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         }
         if (aggregate) for (const auto &[key, group] : groups) {
             bound = group.representative;
-            results.addLazy([&](size_t i) {
+            struct NullArithmetic {};
+            std::function<FinalCell(size_t)> finalize = [&](size_t i) {
                 const auto &a = q.aggregateClauses[i]; const auto &state = group.states[i];
                 FinalCell value;
                 value.type = a.expression ? a.expression->type.get() : nullptr;
                 switch (a.type) {
+                case AggregateClause::AGGREGATE_FORMULA:
+                    try {
+                        value.value = EvaluateWith(*a.expression, [&](const ColumnRef &column) {
+                            if (column.tableIdx != -1) return read(column);
+                            auto input = finalize(column.columnIdx);
+                            if (input.null) throw NullArithmetic{};
+                            if (input.average) {
+                                long double scaled = input.mean * (long double)Power(Scale(column.Type().get()));
+                                if (!std::isfinite(scaled) || scaled < (long double)std::numeric_limits<Wide>::min() ||
+                                    scaled >= -(long double)std::numeric_limits<Wide>::min())
+                                    throw std::overflow_error("Average arithmetic overflow");
+                                return Cell{Wide(scaled)};
+                            }
+                            return input.value;
+                        });
+                    } catch (const NullArithmetic &) { value.null = true; }
+                    break;
                 case AggregateClause::AGGREGATE_PROJECT:
                     value.value = EvaluateWith(*a.expression, read); break;
                 case AggregateClause::AGGREGATE_COUNT:
@@ -208,7 +227,8 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 default: value.value = state.extreme; value.null = !state.count; break;
                 }
                 return value;
-            });
+            };
+            results.addLazy(finalize);
         }
         return results.finish();
     } catch (const std::exception &e) {

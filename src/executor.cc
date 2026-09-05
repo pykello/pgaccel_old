@@ -34,7 +34,10 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
-    if (query.tables.size() > 1 || !query.predicates.empty())
+    if (query.tables.size() > 1 || !query.predicates.empty() ||
+        std::any_of(query.aggregateClauses.begin(), query.aggregateClauses.end(), [](const auto &a) {
+            return a.type == AggregateClause::AGGREGATE_FORMULA;
+        }))
         return ExecuteRelational(query, useAvx);
     try {
         // Preserve the vectorized/metadata COUNT fast path; other shapes use typed execution.
