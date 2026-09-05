@@ -8,7 +8,7 @@ namespace {
 // Exact bounded identities, not truncated hashes. Unsupported or wider keys
 // retain the normal logical comparison path.
 class PackedGroupKey {
-    enum Kind { ID, NUMBER, MINUTE, HOUR, SECOND, TRUNC_MINUTE, TRUNC_HOUR, TRUNC_DAY };
+    enum Kind { ID, NUMBER, MINUTE, HOUR, SECOND, TRUNC_MINUTE, TRUNC_HOUR, TRUNC_DAY, CONDITIONAL_ID };
     struct Frame {
         const uint8_t *values = nullptr;
         const void *mapping = nullptr;
@@ -19,13 +19,18 @@ class PackedGroupKey {
         Kind kind;
         unsigned bits, shift;
         int64_t minimum;
+        const Expression *condition;
+        uint32_t fallback;
+        bool sourceOnTrue;
         std::pmr::vector<Frame> frames;
-        Component(Budget &memory, Kind k, unsigned b, unsigned s, int64_t m)
-            : kind(k), bits(b), shift(s), minimum(m), frames(&memory) {}
+        Component(Budget &memory, Kind k, unsigned b, unsigned s, int64_t m,
+                  const Expression *c, uint32_t f, bool t)
+            : kind(k), bits(b), shift(s), minimum(m), condition(c), fallback(f), sourceOnTrue(t), frames(&memory) {}
     };
     std::pmr::vector<Component> components;
     bool valid_ = false;
     unsigned bits_ = 0;
+    const ColumnarTable *table_;
     static int64_t raw(const Frame &f, int row) {
         switch (f.width) {
         case 1: return reinterpret_cast<const int8_t *>(f.values)[row];
@@ -50,8 +55,9 @@ class PackedGroupKey {
     }
   public:
     PackedGroupKey(const QueryDesc &q, const std::vector<std::shared_ptr<Expression>> &identity,
-                   Budget &memory) : components(&memory) {
-        struct Plan { Kind kind; int column; unsigned bits, shift; const GlobalDictionary *index; int64_t minimum = 0; };
+                   Budget &memory) : components(&memory), table_(q.tables[0]) {
+        struct Plan { Kind kind; int column; unsigned bits, shift; const GlobalDictionary *index;
+            int64_t minimum = 0; const Expression *condition = nullptr; uint32_t fallback = 0; bool sourceOnTrue = true; };
         std::pmr::vector<Plan> plans(&memory);
         unsigned total = 0;
         const auto &table = *q.tables[0];
@@ -125,13 +131,31 @@ class PackedGroupKey {
                 }
                 plan.minimum = minimum;
                 plan.bits = minimum <= maximum ? std::bit_width(uint64_t(maximum) - uint64_t(minimum)) : 0;
+            } else if (expression->kind == Expression::CASE && expression->type->type_num() == STRING_TYPE) {
+                auto source = expression->left, literal = expression->right;
+                if (source->kind == Expression::CONSTANT && literal->kind == Expression::COLUMN) {
+                    std::swap(source, literal); plan.sourceOnTrue = false;
+                }
+                if (source->kind != Expression::COLUMN || literal->kind != Expression::CONSTANT ||
+                    source->type->type_num() != STRING_TYPE || literal->type->type_num() != STRING_TYPE) return;
+                plan.column = source->column->columnIdx;
+                plan.index = table.Dictionary(plan.column);
+                if (!plan.index) return;
+                plan.kind = CONDITIONAL_ID;
+                plan.condition = expression->condition.get();
+                plan.fallback = plan.index->Find(literal->literal);
+                if (plan.fallback == UINT32_MAX) plan.fallback = plan.index->size();
+                size_t maximum = std::max(size_t(plan.fallback), plan.index->size() ? plan.index->size() - 1 : size_t(0));
+                // Even an equal-branch CASE must evaluate its condition.
+                plan.bits = std::max(1u, unsigned(std::bit_width(maximum)));
             } else return;
             if (plan.bits > 64 - total) return;
             total += plan.bits;
             if (plan.bits) plans.push_back(plan);
         }
         for (const auto &plan : plans) {
-            components.emplace_back(memory, plan.kind, plan.bits, plan.shift, plan.minimum);
+            components.emplace_back(memory, plan.kind, plan.bits, plan.shift, plan.minimum,
+                                    plan.condition, plan.fallback, plan.sourceOnTrue);
             auto &frames = components.back().frames;
             frames.reserve(table.RowGroupCount());
             for (int g = 0; g < table.RowGroupCount(); ++g) {
@@ -165,6 +189,11 @@ class PackedGroupKey {
             switch (component.kind) {
             case ID:
                 value = static_cast<const uint32_t *>(frame.mapping)[frame.dictionary ? code(frame, row) : row];
+                break;
+            case CONDITIONAL_ID:
+                value = (bool(Evaluate(*component.condition, table_->GetRowGroup(group), row).number) == component.sourceOnTrue)
+                    ? static_cast<const uint32_t *>(frame.mapping)[frame.dictionary ? code(frame, row) : row]
+                    : component.fallback;
                 break;
             case NUMBER: {
                 int64_t number = frame.dictionary
