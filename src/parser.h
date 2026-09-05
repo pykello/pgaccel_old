@@ -96,6 +96,7 @@ struct QueryDesc {
     std::vector<ColumnarTable *> tables;
     std::vector<FilterClause> filterClauses;
     std::vector<ColumnRef> groupBy;
+    std::vector<std::shared_ptr<Expression>> groupExpressions;
     std::vector<AggregateClause> aggregateClauses;
     struct Ordering { size_t output; bool descending; };
     std::vector<Ordering> orderBy;

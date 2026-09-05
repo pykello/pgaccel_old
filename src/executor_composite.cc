@@ -161,7 +161,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
 } // namespace
 std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &q,
                                                     bool avx, bool parallel) {
-  if (q.groupBy.size() < 2)
+  if (q.groupExpressions.empty() || !q.groupBy.empty())
     return {};
   bool count = true, numeric = true;
   for (const auto &a : q.aggregateClauses) {

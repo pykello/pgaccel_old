@@ -243,6 +243,12 @@ struct Parser
         a.sql = signature(start, at);
         return a;
     }
+    bool same(const Expression &a,const Expression &b)
+    {
+        if (a.kind!=b.kind || a.column!=b.column || a.literal!=b.literal) return false;
+        if (bool(a.left)!=bool(b.left) || bool(a.right)!=bool(b.right)) return false;
+        return (!a.left || same(*a.left,*b.left)) && (!a.right || same(*a.right,*b.right));
+    }
     QueryDesc parse()
     {
         // Resolve the one source table before parsing SELECT expressions.
@@ -328,16 +334,26 @@ struct Parser
             q.grouped = true;
             do
             {
-                auto e = expr();
-                if (e->kind == Expression::COLUMN)
+                std::shared_ptr<Expression> e;
+                if (at<tokens.size() && !tokens[at].quoted && !q.tables[0]->ColumnIndex(tokens[at].text))
+                    for (const auto &a:q.aggregateClauses)
+                        if (!a.alias.empty() && ToLower(a.alias)==ToLower(tokens[at].text))
+                        {
+                            if (a.type!=AggregateClause::AGGREGATE_PROJECT)
+                                throw std::invalid_argument("Cannot group by an aggregate alias");
+                            e=a.expression; ++at; break;
+                        }
+                if (!e) e=expr();
+                if (e->kind!=Expression::CONSTANT)
                 {
-                    if (std::find(q.groupBy.begin(),q.groupBy.end(),*e->column)==q.groupBy.end())
-                        q.groupBy.push_back(*e->column);
+                    q.groupExpressions.push_back(e);
+                    if (e->kind==Expression::COLUMN) q.groupBy.push_back(*e->column);
                 }
-                else if (e->kind != Expression::CONSTANT)
-                    throw std::invalid_argument("GROUP BY requires a column or constant");
             } while (eat(","));
         }
+        // Legacy dense paths apply only when every varying key is one column.
+        if (q.groupExpressions.size()!=1 || q.groupExpressions[0]->kind!=Expression::COLUMN)
+            q.groupBy.clear();
         if (eat("order"))
         {
             need("by");
@@ -404,7 +420,8 @@ struct Parser
             if (a.type == AggregateClause::AGGREGATE_PROJECT && (hasAgg || q.grouped))
             {
                 if (a.expression->kind != Expression::CONSTANT &&
-                    !(a.columnRef && std::find(q.groupBy.begin(),q.groupBy.end(),*a.columnRef)!=q.groupBy.end()))
+                    !std::any_of(q.groupExpressions.begin(),q.groupExpressions.end(),
+                        [&](const auto &e){return same(*a.expression,*e);}))
                     throw std::invalid_argument(
                         "Selected expression must be grouped or aggregated");
             }

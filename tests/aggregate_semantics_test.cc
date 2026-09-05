@@ -64,3 +64,12 @@ TEST(Aggregation, CompositeLogicalKeys) {
     Check(t,"SELECT v,s,count(distinct v),min(v) FROM t GROUP BY v,s ORDER BY v,s LIMIT 1",{{"1","a","1","1"}});
     EXPECT_FALSE(ParseSelect("SELECT s,count(*) FROM t GROUP BY v",t).ok());
 }
+
+TEST(Aggregation, DerivedKeysAndAliases) {
+    auto t=test::Table({{test::Raw({1,1,2,3})}},{{"v",std::make_shared<Int64Type>()}});
+    Check(t,"SELECT v,v-1,v-2,count(*) FROM t GROUP BY v,v-1,v-2 ORDER BY v",{{"1","0","-1","2"},{"2","1","0","1"},{"3","2","1","1"}});
+    Check(t,"SELECT v*0 AS k,count(*) FROM t GROUP BY k",{{"0","4"}});
+    Check(t,"SELECT v-1 AS k,sum(v) FROM t GROUP BY k ORDER BY k LIMIT 1 OFFSET 1",{{"1","2"}});
+    EXPECT_FALSE(ParseSelect("SELECT v,count(*) FROM t GROUP BY v-1",t).ok());
+    EXPECT_FALSE(ParseSelect("SELECT sum(v) AS s FROM t GROUP BY s",t).ok());
+}

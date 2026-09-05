@@ -47,5 +47,11 @@ TEST(Spill, ExactSortedAggregationWithinSmallBudget) {
     EXPECT_GT(compositeOutput->spillBytes,0);
     for(auto &row:expected)row.insert(row.begin(),"7");
     EXPECT_EQ(compositeOutput->values,expected);
+    auto derived=ParseSelect("SELECT v+1 AS k,count(*) AS n FROM t GROUP BY k ORDER BY n DESC,k LIMIT 1 OFFSET 1",table);
+    ASSERT_TRUE(derived.ok());auto derivedQuery=std::move(derived).ValueUnsafe();derivedQuery.memoryBudgetBytes=1<<20;
+    auto derivedOutput=ExecuteQuery(derivedQuery,true,true);
+    ASSERT_TRUE(derivedOutput.ok())<<derivedOutput.status().Message();
+    EXPECT_GT(derivedOutput->spillBytes,0);
+    EXPECT_EQ(derivedOutput->values,Rows({{"30002","2"}}));
     EXPECT_EQ(SpillDirectories(), directories);
 }
