@@ -60,6 +60,7 @@ struct ReplState {
     bool showQueryDesc = false;
     bool useParallelism = true;
     bool papiEnabled = false;
+    uint64_t memoryBudgetBytes = uint64_t(8) << 30;
 };
 
 struct ReplCommand {
@@ -293,6 +294,18 @@ ProcessSet(ReplState &state,
 {
     REQUIRED_ARGS(1, 2);
     std::string varName = ToLower(args[0]);
+    if (varName == "memory_mb") {
+        if (args.size() == 2) {
+            size_t consumed = 0;
+            if (args[1].empty() || args[1][0] == '-') return Status::Invalid("Invalid memory budget");
+            uint64_t mb = std::stoull(args[1], &consumed);
+            if (consumed != args[1].size() || !mb || mb > UINT64_MAX / (1 << 20))
+                return Status::Invalid("Invalid memory budget");
+            state.memoryBudgetBytes = mb << 20;
+        }
+        std::cout << "memory_mb is " << (state.memoryBudgetBytes >> 20) << std::endl;
+        return true;
+    }
     bool *var;
     if (varName == "timing")
         var = &state.timingEnabled;
@@ -365,6 +378,7 @@ ProcessSelect(ReplState &state,
 {
     QueryDesc queryDesc;
     ASSIGN_OR_RAISE(queryDesc, ParseSelect(commandText, state.tables));
+    queryDesc.memoryBudgetBytes = state.memoryBudgetBytes;
 
     if (state.showQueryDesc)
         std::cout << queryDesc.ToString() << std::endl;
