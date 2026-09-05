@@ -39,6 +39,7 @@ struct ColumnDataBase {
     // Optional immutable auxiliary encoding, attached before query readers.
     const GlobalDictionary *globalDictionary = nullptr;
     std::span<const uint32_t> globalIds;
+    uint64_t globalRowOffset = 0;
 
     virtual Result<bool> Save(std::ostream &out) const = 0;
 

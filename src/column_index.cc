@@ -185,6 +185,7 @@ Result<DictionaryBuildStats> ColumnarTable::BuildDictionaries(uint64_t limit) {
             auto &data = *row_groups_[g].columns[column];
             data.globalDictionary = dictionaries_[column].get();
             data.globalIds = dictionaries_[column]->Codes(g);
+            data.globalRowOffset = dictionaries_[column]->RowOffset(g);
         }
     }
     return stats;

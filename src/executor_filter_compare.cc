@@ -2,6 +2,7 @@
 #include "types.hpp"
 #include "executor.h"
 #include "avx_traits.hpp"
+#include "column_index.hpp"
 #include <future>
 
 namespace pgaccel
@@ -468,6 +469,37 @@ public:
 
 template<typename AccelTy>
 class FilterRawDataNode: public CompareFilterNode {
+    template<BitmapAction action>
+    std::optional<int> indexed(ColumnDataBase *data, uint8_t *bitmap) const {
+        auto index = data->globalDictionary;
+        if (op != FilterClause::FILTER_EQ || fusedOp != FilterClause::INVALID ||
+            !index || !index->HasDensePostings()) return {};
+        uint32_t id = index->Find(value);
+        std::span<const uint32_t> rows;
+        if (id != UINT32_MAX) rows = index->PostingRows(id);
+        auto first = std::lower_bound(rows.begin(), rows.end(), data->globalRowOffset);
+        auto end = std::lower_bound(first, rows.end(), data->globalRowOffset + data->size);
+        // Dense matches are cheaper through the contiguous vector scan.
+        if (end - first > data->size / 8) return {};
+        if constexpr (action == BITMAP_SET) memset(bitmap, 0, (data->size + 7) / 8);
+        if constexpr (action == BITMAP_NOOP) return int(end - first);
+        int count = 0;
+        if constexpr (action == BITMAP_AND) {
+            uint8_t selected[RowGroupSize / 8]{};
+            for (auto row = first; row != end; ++row) {
+                uint32_t local = *row - data->globalRowOffset;
+                uint8_t bit = uint8_t(1u << (local % 8));
+                if (bitmap[local / 8] & bit) { selected[local / 8] |= bit; ++count; }
+            }
+            memcpy(bitmap, selected, (data->size + 7) / 8);
+        } else {
+            for (auto row = first; row != end; ++row) {
+                uint32_t local = *row - data->globalRowOffset;
+                bitmap[local / 8] |= uint8_t(1u << (local % 8)); ++count;
+            }
+        }
+        return count;
+    }
 public:
     FilterRawDataNode(int64_t value,
                       FilterClause::Op op,
@@ -482,6 +514,7 @@ public:
 
     int ExecuteCount(ColumnDataBase *columnData) const
     {
+        if (auto count = indexed<BITMAP_NOOP>(columnData, nullptr)) return *count;
         auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
         return FilterMatchesRaw<AccelTy, true, BITMAP_NOOP>(
             *typedColumnData, value, op, fusedVal, fusedOp, nullptr, useAvx);
@@ -489,6 +522,7 @@ public:
 
     int ExecuteSet(ColumnDataBase *columnData, uint8_t *bitmask) const
     {
+        if (auto count = indexed<BITMAP_SET>(columnData, bitmask)) return *count;
         auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
         return FilterMatchesRaw<AccelTy, true, BITMAP_SET>(
             *typedColumnData, value, op, fusedVal, fusedOp, bitmask, useAvx);
@@ -496,6 +530,7 @@ public:
 
     int ExecuteAnd(ColumnDataBase *columnData, uint8_t *bitmask) const
     {
+        if (auto count = indexed<BITMAP_AND>(columnData, bitmask)) return *count;
         auto typedColumnData = static_cast<RawColumnData<AccelTy> *>(columnData);
         return FilterMatchesRaw<AccelTy, true, BITMAP_AND>(
             *typedColumnData, value, op, fusedVal, fusedOp, bitmask, useAvx);
