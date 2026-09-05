@@ -16,3 +16,9 @@ retains its copyright and license notices. The dependency is permissively
 licensed and does not require licensing pgaccel under a copyleft license.
 The API invalidates references on rehash, so it is used only where no cached
 pointer into its slots is retained.
+
+## Decision
+
+Rejected after the allocator-exception test aborted. The CMake dependency was
+removed; this is a historical license review, not an active requirement.
+See `01-abseil-rejected.md`.
