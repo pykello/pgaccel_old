@@ -1,5 +1,6 @@
 #pragma once
 #include "executor_state.hpp"
+#include "executor_dictionary_expression.hpp"
 namespace pgaccel {
 namespace {
 // A representative resident row avoids copying string payloads into each key.
@@ -12,7 +13,9 @@ struct GroupKeys {
   const QueryDesc &q;
   std::vector<std::shared_ptr<Expression>> identity;
   bool scalar = false;
-  explicit GroupKeys(const QueryDesc &query) : q(query) {
+  std::pmr::vector<DictionaryExpression> cached;
+  explicit GroupKeys(const QueryDesc &query, Budget *budget = nullptr)
+      : q(query), cached(budget ? budget : std::pmr::get_default_resource()) {
     for (const auto &expression : q.groupExpressions) {
       bool redundant = false;
       if ((expression->kind == Expression::ADD || expression->kind == Expression::SUBTRACT) &&
@@ -32,9 +35,19 @@ struct GroupKeys {
     }
     scalar = identity.size() == 1 && identity[0]->kind == Expression::COLUMN &&
              identity[0]->type->type_num() != STRING_TYPE;
+    if (budget)
+      for (const auto &expression : identity)
+        if (auto source = DictionaryExpressionSource(*expression))
+          cached.emplace_back(q, expression, *source, *budget);
+  }
+  void prepare(int group, const uint8_t *selection) {
+    for (auto &expression : cached) expression.prepare(group, selection);
   }
   Cell value(const GroupKey &key,
              const std::shared_ptr<Expression> &expression) const {
+    for (const auto &candidate : cached)
+      if (candidate.expression.get() == expression.get())
+        return candidate.value(key.group, key.row);
     return Evaluate(*expression, q.tables[0]->GetRowGroup(key.group), key.row);
   }
   GroupKey make(int group, int row) const {

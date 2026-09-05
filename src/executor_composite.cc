@@ -19,7 +19,7 @@ template <class Values>
 Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   Budget budget(q.memoryBudgetBytes);
   ScopedValueResource valuesMemory(budget);
-  GroupKeys keys{q};
+  GroupKeys keys{q, &budget};
   using Map = FlatMap<GroupKey, Values, GroupHash, GroupEqual>;
   auto map = [&] { return Map(budget, GroupHash{&keys}, GroupEqual{&keys}); };
   QueryDesc aggregates = q;
@@ -106,6 +106,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
         if (!count)
           continue;
       }
+      keys.prepare(g, count == rg.size ? nullptr : bitmap);
       const DictColumnDataBase *dictionary = nullptr;
       if (!bounded && q.groupBy.size() == 1) {
         auto data = rg.columns[q.groupBy[0].columnIdx].get();
