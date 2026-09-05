@@ -20,6 +20,8 @@ TEST(PostingDistinct, CrossStripeDuplicatesFiltersAndCompositeKeysAreExact)
         {"k", std::make_shared<Int64Type>()}, {"s", std::make_shared<StringType>()}});
     std::vector<std::string> queries{
         "SELECT k,count(DISTINCT u) AS c FROM t GROUP BY k ORDER BY c DESC,k",
+        "SELECT k,sum(u),count(*),avg(k),count(DISTINCT u) FROM t GROUP BY k ORDER BY k",
+        "SELECT k,s,sum(k),count(*),avg(k),count(DISTINCT u) FROM t WHERE k>0 GROUP BY k,s ORDER BY k,s",
         "SELECT s,count(DISTINCT u) AS c FROM t WHERE s<>'' GROUP BY s ORDER BY c DESC,s",
         "SELECT k,s,count(DISTINCT u) AS c FROM t WHERE s<>'' GROUP BY k,s ORDER BY c DESC,k,s LIMIT 5 OFFSET 2",
         "SELECT k,count(DISTINCT u) AS c FROM t WHERE k>0 GROUP BY k ORDER BY k",
