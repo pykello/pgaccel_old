@@ -31,10 +31,10 @@ class ValuePredicate : public FilterNodeImpl {
     if (dict) {
       // At most 65,536 local labels: the complete membership map fits in 8 KiB.
       std::array<uint32_t, RowGroupSize / 32> labels{};
-      auto signatures = data->globalDictionary && substring && needle.size() >= 3
-          ? data->globalDictionary->StringSignatures() : std::span<const StringSignature>{};
+      auto signatures = substring && needle.size() >= 3
+          ? data->localStringSignatures : std::span<const StringSignature>{};
       for (int i = 0; i < dict->dictSize(); ++i) {
-        bool yes = !signatures.empty() && !signatures[data->globalIds[i]].mayContain(required)
+        bool yes = !signatures.empty() && !signatures[i].mayContain(required)
             ? negate : matches(Label(dict, i, f.columnRef.Type()->type_num()));
         if (yes) labels[i / 32] |= uint32_t(1) << (i % 32);
       }

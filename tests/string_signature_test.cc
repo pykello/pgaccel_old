@@ -46,3 +46,23 @@ TEST(StringSignature, IndexedLikeStillChecksExactBytesAndNegation)
         }
     }
 }
+
+TEST(StringSignature, LocalLayoutsFollowIndependentStripeLabelOrders)
+{
+    auto registry = test::Table({{test::Dict<StringType>({"z-google", "aa", "z-google"})},
+        {test::Dict<StringType>({"aa", "b-google", "zz"})}},
+        {{"s", std::make_shared<StringType>()}});
+    auto table = registry.at("t").get();
+    ASSERT_TRUE(table->BuildDictionaries(1 << 20).ok());
+    for (int g = 0; g < table->RowGroupCount(); ++g) {
+        auto data = static_cast<const DictColumnData<StringType> *>(table->GetRowGroup(g).columns[0].get());
+        ASSERT_EQ(data->localStringSignatures.size(), data->dict.size());
+        for (size_t i = 0; i < data->dict.size(); ++i)
+            EXPECT_EQ(data->localStringSignatures[i].words, StringSignature::Build(data->dict[i]).words);
+    }
+    for (bool parallel : {false, true}) for (bool avx : {false, true}) {
+        auto query = ParseSelect("SELECT count(*) FROM t WHERE s LIKE '%google%'", registry);
+        ASSERT_TRUE(query.ok()); auto result = ExecuteQuery(*query, avx, parallel);
+        ASSERT_TRUE(result.ok()); EXPECT_EQ(result->values, Rows({{"3"}}));
+    }
+}

@@ -21,6 +21,7 @@ class GlobalDictionary {
     std::span<const int64_t> Numbers() const;
     std::span<const std::string_view> Strings() const;
     std::span<const StringSignature> StringSignatures() const;
+    std::span<const StringSignature> LocalStringSignatures(int group) const;
     uint32_t Find(int64_t value) const;
     uint32_t Find(std::string_view value) const;
     size_t size() const;

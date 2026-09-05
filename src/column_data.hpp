@@ -27,6 +27,7 @@ inline void* AllocateAligned(size_t alignment, size_t bytes) {
 const int RowGroupSize = 1 << 16;
 
 class GlobalDictionary;
+struct StringSignature;
 struct ColumnDataBase;
 typedef std::shared_ptr<ColumnDataBase> ColumnDataP;
 
@@ -39,6 +40,7 @@ struct ColumnDataBase {
     // Optional immutable auxiliary encoding, attached before query readers.
     const GlobalDictionary *globalDictionary = nullptr;
     std::span<const uint32_t> globalIds;
+    std::span<const StringSignature> localStringSignatures;
     uint64_t globalRowOffset = 0;
 
     virtual Result<bool> Save(std::ostream &out) const = 0;

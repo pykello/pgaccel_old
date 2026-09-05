@@ -10,12 +10,13 @@ struct GlobalDictionary::Impl {
     ColumnIntern<std::string_view, std::hash<std::string_view>> strings;
     std::pmr::vector<std::pmr::vector<uint32_t>> codes;
     std::pmr::vector<StringSignature> signatures;
+    std::pmr::vector<std::pmr::vector<StringSignature>> localSignatures;
     std::pmr::vector<uint64_t> rowOffsets;
     std::pmr::vector<uint32_t> repeatBoundaries, repeatedRows, postingOffsets, postingRows;
     std::pmr::vector<AdditionalPosting> additionalRows;
     bool string = false, sparsePostings = false, densePostings = false;
     explicit Impl(uint64_t limit) : memory(limit), numbers(memory), strings(memory), codes(&memory),
-        signatures(&memory), rowOffsets(&memory), repeatBoundaries(&memory), repeatedRows(&memory),
+        signatures(&memory), localSignatures(&memory), rowOffsets(&memory), repeatBoundaries(&memory), repeatedRows(&memory),
         postingOffsets(&memory), postingRows(&memory), additionalRows(&memory) {
         memory.charge(sizeof(Impl) + sizeof(GlobalDictionary));
     }
@@ -26,6 +27,9 @@ std::span<const uint32_t> GlobalDictionary::Codes(int group) const { return impl
 std::span<const int64_t> GlobalDictionary::Numbers() const { return impl->numbers.keys(); }
 std::span<const std::string_view> GlobalDictionary::Strings() const { return impl->strings.keys(); }
 std::span<const StringSignature> GlobalDictionary::StringSignatures() const { return impl->signatures; }
+std::span<const StringSignature> GlobalDictionary::LocalStringSignatures(int group) const {
+    return impl->localSignatures.empty() ? std::span<const StringSignature>{} : impl->localSignatures[group];
+}
 uint32_t GlobalDictionary::Find(int64_t value) const { return impl->numbers.find(value); }
 uint32_t GlobalDictionary::Find(std::string_view value) const { return impl->strings.find(value); }
 size_t GlobalDictionary::size() const { return impl->string ? Strings().size() : Numbers().size(); }
@@ -108,6 +112,14 @@ Result<std::shared_ptr<const GlobalDictionary>> GlobalDictionary::Build(
         if (index.string) {
             index.signatures.reserve(index.strings.keys().size());
             for (auto value : index.strings.keys()) index.signatures.push_back(StringSignature::Build(value));
+            // Duplicate conservative signatures in local label order so scans
+            // avoid a random global-ID lookup for every dictionary label.
+            index.localSignatures.resize(table.RowGroupCount());
+            for (int g = 0; g < table.RowGroupCount(); ++g) {
+                auto &local = index.localSignatures[g];
+                local.reserve(index.codes[g].size());
+                for (uint32_t id : index.codes[g]) local.push_back(index.signatures[id]);
+            }
         }
         if (rawOnly && rows && rows <= UINT32_MAX && rows - result->size() <= result->size() / 1024) {
             index.sparsePostings = true;
@@ -185,6 +197,7 @@ Result<DictionaryBuildStats> ColumnarTable::BuildDictionaries(uint64_t limit) {
             auto &data = *row_groups_[g].columns[column];
             data.globalDictionary = dictionaries_[column].get();
             data.globalIds = dictionaries_[column]->Codes(g);
+            data.localStringSignatures = dictionaries_[column]->LocalStringSignatures(g);
             data.globalRowOffset = dictionaries_[column]->RowOffset(g);
         }
     }
