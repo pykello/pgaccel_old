@@ -50,6 +50,7 @@ struct DecimalType;
 struct DateType;
 
 struct AccelType {
+    virtual ~AccelType() = default;
     virtual TypeNum type_num() const {
         return INVALID_TYPE;
     }
