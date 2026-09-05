@@ -10,7 +10,7 @@ STAGE3 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 16, 20, 26, 30, 34, 35, 37,
 def validate(records, required, wide_oracle=None):
     by_id = {r['id']: r for r in records}
     failures = []
-    if len(by_id) != 43 or len(records) != 43:
+    if set(by_id) != set(range(1, 44)) or len(records) != 43:
         failures.append('Expected exactly one result for each of 43 queries')
     for qid in required:
         r = by_id.get(qid, {})

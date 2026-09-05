@@ -15,6 +15,9 @@ class GateTests(unittest.TestCase):
             rows[0]['status'] = status
             self.assertTrue(gate.validate(rows, gate.STAGE3))
         self.assertTrue(gate.validate(self.records()[:-1], gate.STAGE3))
+        invalid_ids = self.records()
+        invalid_ids[-1]["id"] = 0
+        self.assertTrue(gate.validate(invalid_ids, gate.STAGE3))
         self.assertEqual([], gate.validate(self.records(), gate.STAGE3))
 
     def test_wide_policy_checks_the_value(self):
