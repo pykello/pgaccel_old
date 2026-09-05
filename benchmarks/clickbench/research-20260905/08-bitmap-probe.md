@@ -26,10 +26,11 @@ no new dependency. Compile with GCC 13.3, `-O3 -mavx512f -mavx512bw`.
 The scalar oracle covers all six comparisons and ranges, negative and
 out-of-domain thresholds, 30 seeded random thresholds, both random and
 clustered values, and stripe sizes 1, 63, 513, 65,535, and 65,536.
-Cardinalities are 16, 256, and 65,536. Every check passes.
+Code domains are 16, 256, and 65,536. Random samples need not visit every
+label in the nominal domain. Every check passes.
 
 Time whole scans over 1, 16, and 256 full stripes on one thread. The baseline
-uses byte codes through 256 labels and 16-bit codes above that, matching the
+uses byte codes below 256 labels and 16-bit codes from 256 onward, matching the
 engine's storage widths. Both paths dispatch operators outside the inner loop
 and write the same bitmap. Report the median of seven measurements, each
 averaging eight scans after five warmups. Construction is timed separately.
@@ -38,7 +39,10 @@ No other benchmark engine or compiler ran during these measurements.
 The initial prototype performed extra runtime dispatch and read-modify-write
 output work in its vector baseline. Its raw CSV is retained as
 `bitmap-probe-initial-runtime-dispatch.csv` but superseded by the corrected
-`bitmap-probe.csv`; only the corrected comparison below supports decisions.
+`bitmap-probe.csv`. A second correction matches the engine's strict 256-label
+width boundary; its preceding CSV is retained as
+`bitmap-probe-before-256-width-fix.csv`. Only the latest comparison below
+supports decisions.
 
 ## Corrected results
 
@@ -46,24 +50,24 @@ Random data, 256 stripes (16,777,216 rows); microseconds per complete scan:
 
 | Labels | Predicate | Threshold | Vector us | Bitmaps us | Speedup |
 | ---: | --- | ---: | ---: | ---: | ---: |
-| 16 | eq | 7 | 765.852 | 407.747 | 1.88× |
-| 16 | le | 7 | 820.584 | 190.972 | 4.30× |
-| 16 | le | 5 | 772.455 | 352.948 | 2.19× |
-| 16 | range | 7 | 770.062 | 446.656 | 1.72× |
-| 16 | range | 5 | 769.830 | 435.921 | 1.77× |
-| 256 | eq | 127 | 760.296 | 748.053 | 1.02× |
-| 256 | le | 127 | 763.333 | 188.841 | 4.04× |
-| 256 | le | 94 | 760.172 | 750.854 | 1.01× |
-| 256 | range | 127 | 773.798 | 783.596 | 0.99× |
-| 256 | range | 94 | 773.066 | 828.071 | 0.93× |
-| 65536 | eq | 32767 | 1817.380 | 1733.700 | 1.05× |
-| 65536 | le | 32767 | 1903.760 | 193.657 | 9.83× |
-| 65536 | le | 24313 | 1937.100 | 1733.490 | 1.12× |
-| 65536 | range | 32767 | 2139.650 | 1836.260 | 1.17× |
-| 65536 | range | 24313 | 2060.020 | 2141.170 | 0.96× |
+| 16 | eq | 7 | 791.513 | 407.581 | 1.94× |
+| 16 | le | 7 | 872.372 | 193.797 | 4.50× |
+| 16 | le | 5 | 823.899 | 371.757 | 2.22× |
+| 16 | range | 7 | 806.698 | 460.056 | 1.75× |
+| 16 | range | 5 | 863.251 | 461.608 | 1.87× |
+| 256 | eq | 127 | 1885.840 | 763.826 | 2.47× |
+| 256 | le | 127 | 1980.230 | 192.922 | 10.26× |
+| 256 | le | 94 | 1998.490 | 791.427 | 2.53× |
+| 256 | range | 127 | 2174.870 | 800.654 | 2.72× |
+| 256 | range | 94 | 2174.100 | 856.176 | 2.54× |
+| 65536 | eq | 32767 | 1803.330 | 1694.510 | 1.06× |
+| 65536 | le | 32767 | 1810.490 | 185.996 | 9.73× |
+| 65536 | le | 24313 | 1794.110 | 1554.590 | 1.15× |
+| 65536 | range | 32767 | 2058.660 | 1795.550 | 1.15× |
+| 65536 | range | 24313 | 2054.360 | 2056.630 | 1.00× |
 
-Index construction for these 256-stripe random inputs takes 5.62 ms at 16
-labels, 10.10 ms at 256 labels, and 37.80 ms at 65,536 labels. The corresponding
+Index construction for these 256-stripe random inputs takes 5.56 ms at 16
+labels, 9.82 ms at 256 labels, and 36.70 ms at 65,536 labels. The corresponding
 index sizes are 8, 16, and 32 MiB. These are construction measurements, not
 query latency; they must be included in an index amortization decision.
 

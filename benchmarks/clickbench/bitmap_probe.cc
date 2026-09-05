@@ -23,7 +23,7 @@ struct Stripe {
     std::vector<uint64_t> planes;
     Stripe(size_t n, unsigned cardinality, bool clustered, uint64_t seed)
         : rows(n), words(((n + 511) / 512) * 8), bits(std::bit_width(cardinality - 1)),
-          values(words * 64), narrow(cardinality <= 256 ? words * 64 : 0),
+          values(words * 64), narrow(cardinality < 256 ? words * 64 : 0),
           planes(words * bits) {
         std::mt19937_64 random(seed);
         for (size_t i = 0; i < rows; ++i)
@@ -203,7 +203,7 @@ int main() {
                     };
                     double vector = median([&] { run(false); }), bitmap = median([&] { run(true); });
                     std::cout << cardinality << ',' << clustered << ',' << count << ',' << names[op] << ',' << threshold << ','
-                              << count * 65536 * (cardinality <= 256 ? 1 : 2) << ','
+                              << count * 65536 * (cardinality < 256 ? 1 : 2) << ','
                               << count * stripes[0].planes.size() * 8 << ',' << build << ',' << vector << ',' << bitmap << '\n';
                 }
         }
