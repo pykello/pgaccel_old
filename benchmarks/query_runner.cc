@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <sys/resource.h>
 using namespace pgaccel;
 static std::string Json(const std::string &s) {
     std::string out="\""; const char *hex="0123456789abcdef";
@@ -37,13 +38,18 @@ int main(int argc,char **argv) {
         if(!parsed.ok()){std::cout<<"{\"id\":"<<id<<",\"status\":\"parse_failure\",\"error\":"<<Json(parsed.status().Message())<<"}"<<std::endl;continue;}
         auto q=std::move(parsed).ValueUnsafe();
         if(const char *b=std::getenv("PGACCEL_QUERY_MEMORY_BYTES"))q.memoryBudgetBytes=std::stoull(b);
+        if(const char *b=std::getenv("PGACCEL_SPILL_BYTES"))q.spillByteBudget=std::stoull(b);
         std::vector<double> times;QueryOutput output;std::string error;
         for(int i=0;i<repeats;++i) {
             auto start=Clock::now();auto r=ExecuteQuery(q,std::stoi(argv[6]),std::stoi(argv[5]));
             double ms=std::chrono::duration<double,std::milli>(Clock::now()-start).count();
             if(!r.ok()){error=r.status().Message();break;}output=std::move(r).ValueUnsafe();times.push_back(ms);
         }
-        std::cout<<"{\"id\":"<<id<<",\"status\":"<<Json(error.empty()?"success":"execution_failure");
+        struct rusage usage{};getrusage(RUSAGE_SELF,&usage);
+        std::cout<<"{\"id\":"<<id<<",\"status\":"<<Json(error.empty()?"success":"execution_failure")
+                 <<",\"query_peak_allocation_bytes\":"<<output.peakMemoryBytes
+                 <<",\"process_peak_rss_bytes\":"<<uint64_t(usage.ru_maxrss)*1024
+                 <<",\"spill_bytes_written\":"<<output.spillBytes;
         if(!error.empty())std::cout<<",\"error\":"<<Json(error);
         std::cout<<",\"ms\":[";for(size_t i=0;i<times.size();++i){if(i)std::cout<<',';std::cout<<times[i];}
         std::cout<<"],\"rows\":[";

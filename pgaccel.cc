@@ -61,6 +61,8 @@ struct ReplState {
     bool useParallelism = true;
     bool papiEnabled = false;
     uint64_t memoryBudgetBytes = uint64_t(8) << 30;
+    uint64_t spillByteBudget = uint64_t(64) << 30;
+    bool spillEnabled = true;
 };
 
 struct ReplCommand {
@@ -294,16 +296,17 @@ ProcessSet(ReplState &state,
 {
     REQUIRED_ARGS(1, 2);
     std::string varName = ToLower(args[0]);
-    if (varName == "memory_mb") {
+    if (varName == "memory_mb" || varName == "spill_mb") {
+        auto &target = varName == "memory_mb" ? state.memoryBudgetBytes : state.spillByteBudget;
         if (args.size() == 2) {
             size_t consumed = 0;
             if (args[1].empty() || args[1][0] == '-') return Status::Invalid("Invalid memory budget");
             uint64_t mb = std::stoull(args[1], &consumed);
             if (consumed != args[1].size() || !mb || mb > UINT64_MAX / (1 << 20))
                 return Status::Invalid("Invalid memory budget");
-            state.memoryBudgetBytes = mb << 20;
+            target = mb << 20;
         }
-        std::cout << "memory_mb is " << (state.memoryBudgetBytes >> 20) << std::endl;
+        std::cout << varName << " is " << (target >> 20) << std::endl;
         return true;
     }
     bool *var;
@@ -315,6 +318,8 @@ ProcessSet(ReplState &state,
         var = &state.showQueryDesc;
     else if (varName == "parallel")
         var = &state.useParallelism;
+    else if (varName == "spill")
+        var = &state.spillEnabled;
     else if (varName == "papi")
         var = &state.papiEnabled;
     else
@@ -379,6 +384,8 @@ ProcessSelect(ReplState &state,
     QueryDesc queryDesc;
     ASSIGN_OR_RAISE(queryDesc, ParseSelect(commandText, state.tables));
     queryDesc.memoryBudgetBytes = state.memoryBudgetBytes;
+    queryDesc.allowSpill = state.spillEnabled;
+    queryDesc.spillByteBudget = state.spillByteBudget;
 
     if (state.showQueryDesc)
         std::cout << queryDesc.ToString() << std::endl;
