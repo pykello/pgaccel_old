@@ -65,6 +65,14 @@ struct FilterClause {
     std::string ToString() const;
 };
 
+struct Expression {
+    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE } kind = CONSTANT;
+    std::optional<ColumnRef> column;
+    std::string literal = "0";
+    std::shared_ptr<Expression> left, right;
+    std::shared_ptr<AccelType> type;
+};
+
 struct AggregateClause {
     enum Type {
         AGGREGATE_COUNT,
@@ -77,7 +85,9 @@ struct AggregateClause {
     } type;
 
     std::optional<ColumnRef> columnRef;
-    // todo: expression
+    std::shared_ptr<Expression> expression;
+    std::string alias;
+    std::string sql;
 
     std::string ToString() const;
 };
@@ -87,6 +97,12 @@ struct QueryDesc {
     std::vector<FilterClause> filterClauses;
     std::vector<ColumnRef> groupBy;
     std::vector<AggregateClause> aggregateClauses;
+    struct Ordering { size_t output; bool descending; };
+    std::vector<Ordering> orderBy;
+    std::optional<uint64_t> limit;
+    bool grouped = false;
+    // Conservative accounting for hash groups, exact sets, and output buffers.
+    uint64_t memoryBudgetBytes = uint64_t(8) << 30;
 
     std::string ToString() const;
 };
