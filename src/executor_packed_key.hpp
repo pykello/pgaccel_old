@@ -87,7 +87,7 @@ class PackedGroupKey {
                             switch (expression->type->type_num()) {
                             case INT32_TYPE: bounds.template operator()<Int32Type>(); break;
                             case INT64_TYPE: bounds.template operator()<Int64Type>(); break;
-                            case TIMESTAMP_TYPE: bounds.template operator()<TimestampType>(); break;
+                            case TIMESTAMP_TYPE: bounds.template operator()<Int64Type>(); break;
                             case DECIMAL_TYPE: bounds.template operator()<DecimalType>(); break;
                             case DATE_TYPE: bounds.template operator()<DateType>(); break;
                             default: return;
@@ -121,7 +121,7 @@ class PackedGroupKey {
                     auto data = table.GetRowGroup(g).columns[plan.column].get();
                     if (data->type != ColumnDataBase::RAW_COLUMN_DATA) return;
                     if (!data->size) continue;
-                    auto raw = static_cast<const RawColumnData<TimestampType> *>(data);
+                    auto raw = static_cast<const RawColumnData<Int64Type> *>(data);
                     auto floor = [&](int64_t seconds) {
                         int64_t value = seconds / unit;
                         return seconds < 0 && seconds % unit ? value - 1 : value;
