@@ -4,6 +4,7 @@
 #include <array>
 #include <concepts>
 #include <map>
+#include "column_index.hpp"
 namespace pgaccel {
 namespace {
 struct NumericState {
@@ -77,15 +78,45 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
         aggregate.expression->kind != Expression::CONSTANT)
       bounded = false;
   const uint64_t capacity = q.limit ? *q.limit + q.offset : 0;
+  const GlobalDictionary *singletons = nullptr;
+  bool safeSingletons = !bounded;
+  for (const auto &expression : q.groupExpressions)
+    safeSingletons &= expression->kind == Expression::COLUMN;
+  for (const auto &a : q.aggregateClauses)
+    if (a.type != AggregateClause::AGGREGATE_PROJECT && a.type != AggregateClause::AGGREGATE_COUNT)
+      safeSingletons &= a.expression && a.expression->kind == Expression::COLUMN;
+  if (safeSingletons)
+    for (const auto &expression : q.groupExpressions)
+      if (auto index = q.tables[0]->Dictionary(expression->column->columnIdx);
+          index && index->HasSparsePostings()) {
+        singletons = index;
+        break;
+      }
+  auto singletonCell = [&](const RowGroup &rg, int row, size_t output) {
+    const auto &a = q.aggregateClauses[output];
+    if (a.type == AggregateClause::AGGREGATE_COUNT || a.type == AggregateClause::AGGREGATE_COUNT_DISTINCT)
+      return FinalCell{Cell{1}};
+    FinalCell cell{Evaluate(*a.expression, rg, row), a.expression->type.get()};
+    if (a.type == AggregateClause::AGGREGATE_AVG) {
+      cell.average = true;
+      cell.mean = (long double)cell.value.number / (long double)Power(Scale(cell.type));
+    }
+    return cell;
+  };
   auto &table = *q.tables[0];
   int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
   auto filter = q.filterClauses.empty()
                     ? FilterNodeP{}
                     : CreateFilterNode(q.filterClauses, avx);
   using Partitions = std::vector<Map>;
+  struct Partial { Partitions maps; std::vector<FinalRow> singletons; };
   auto scan = [&](int worker) {
     ScopedValueResource valuesMemory(budget);
     Partitions maps;
+    QueryDesc singletonQuery = q;
+    singletonQuery.offset = 0;
+    if (q.limit) singletonQuery.limit = *q.limit + q.offset;
+    QueryResults singletonResults(singletonQuery, budget);
     for (int i = 0; i < workers; ++i)
       maps.push_back(map());
     auto less = [&](const GroupKey &a, const GroupKey &b) { return keys.less(a, b); };
@@ -115,7 +146,18 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
       }
       Scratch cacheMemory(budget, dictionary ? uint64_t(dictionary->dictSize()) * sizeof(uint64_t) : 0);
       std::vector<uint64_t> cache(dictionary ? dictionary->dictSize() : 0, UINT64_MAX);
+      auto repeated = singletons ? singletons->RepeatedRows() : std::span<const uint32_t>{};
+      uint64_t rowBase = singletons ? singletons->RowOffset(g) : 0;
+      auto exceptional = std::lower_bound(repeated.begin(), repeated.end(), rowBase);
+      auto exceptionalEnd = std::lower_bound(exceptional, repeated.end(), rowBase + rg.size);
       Selected(rg, count == rg.size ? nullptr : bitmap, [&](int row) {
+        if (singletons) {
+          while (exceptional != exceptionalEnd && *exceptional < rowBase + row) ++exceptional;
+          if (exceptional == exceptionalEnd || *exceptional != rowBase + row) {
+            singletonResults.addLazy([&](size_t output) { return singletonCell(rg, row, output); });
+            return;
+          }
+        }
         if (bounded) {
           GroupKey key{0, uint32_t(g), uint32_t(row)};
           if (firstKeys.size() == capacity && keys.less(firstKeys.rbegin()->first, key))
@@ -146,7 +188,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
       auto key = keys.make(representative.group, representative.row);
       maps[(GroupHash{&keys}(key) >> 32) % workers].get(key, [&] { return std::move(values); });
     }
-    return maps;
+    return Partial{std::move(maps), singletonResults.takeCandidates()};
   };
   auto partials=RunTasks(workers,scan);
   auto finalize = [&](Map &groups) {
@@ -212,7 +254,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
     ScopedValueResource valuesMemory(budget);
     auto groups = map();
     for (auto &worker : partials) {
-      auto &source = worker[owner];
+      auto &source = worker.maps[owner];
       source.forEach([&](const GroupKey &key, Values &from) {
         auto [index, added] = groups.get(key, [&] { return std::move(from); });
         if (!added) {
@@ -236,6 +278,8 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   };
   auto merges=RunTasks(workers,merge);
   QueryResults results(q, budget);
+  for (auto &worker : partials)
+    for (auto &row : worker.singletons) results.add(std::move(row));
   for (auto &merge : merges) {
     for (auto &row : merge)
       results.add(std::move(row));
