@@ -25,6 +25,16 @@ struct RowGroup {
     int selectedSize = 0;
 };
 
+class GlobalDictionary;
+struct DictionaryColumnStats {
+    int column;
+    uint64_t values, bytes, peakBytes;
+    double buildMs;
+};
+struct DictionaryBuildStats {
+    uint64_t bytes = 0, peakBytes = 0;
+    std::vector<DictionaryColumnStats> columns;
+};
 class ColumnarTable;
 typedef std::unique_ptr<ColumnarTable> ColumnarTableP;
 
@@ -54,6 +64,12 @@ public:
         return schema_.size();
     }
 
+    const GlobalDictionary *Dictionary(int column) const {
+        return dictionaries_.empty() ? nullptr : dictionaries_[column].get();
+    }
+    // Explicit construction before concurrent readers; no SQL is consulted.
+    Result<DictionaryBuildStats> BuildDictionaries(uint64_t memoryLimit);
+
     Result<bool> Save(const std::string &path);
     Result<bool> Save(std::ostream& metadataStream,
                       std::ostream& dataStream) const;
@@ -82,6 +98,7 @@ private:
     std::vector<ColumnDesc> schema_;
     std::vector<RowGroup> row_groups_;
     std::string name_;
+    std::vector<std::shared_ptr<const GlobalDictionary>> dictionaries_;
 };
 
 };
