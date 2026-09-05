@@ -32,7 +32,6 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   };
   auto &table = *q.tables[0];
   int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
-  auto launch = workers == 1 ? std::launch::deferred : std::launch::async;
   auto filter = q.filterClauses.empty()
                     ? FilterNodeP{}
                     : CreateFilterNode(q.filterClauses, avx);
@@ -72,12 +71,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
     }
     return maps;
   };
-  std::vector<std::future<Partitions>> scans;
-  for (int i = 0; i < workers; ++i)
-    scans.push_back(std::async(launch, scan, i));
-  std::vector<Partitions> partials;
-  for (auto &scan : scans)
-    partials.push_back(scan.get());
+  auto partials=RunTasks(workers,scan);
   auto finalize = [&](Map &groups) {
     QueryDesc local = q;
     local.offset = 0;
@@ -160,12 +154,10 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
     }
     return finalize(groups);
   };
-  std::vector<std::future<std::vector<FinalRow>>> merges;
-  for (int i = 0; i < workers; ++i)
-    merges.push_back(std::async(launch, merge, i));
+  auto merges=RunTasks(workers,merge);
   QueryResults results(q, budget);
   for (auto &merge : merges) {
-    for (auto &row : merge.get())
+    for (auto &row : merge)
       results.add(std::move(row));
   }
   return results.finish();

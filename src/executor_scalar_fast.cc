@@ -119,12 +119,9 @@ std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &q, bool av
         stats = task(0);
     else
     {
-        std::vector<std::future<std::vector<Stats>>> futures;
-        for (int t = 0; t < threads; ++t)
-            futures.push_back(std::async(std::launch::async, task, t));
-        for (auto &f : futures)
+        auto partials=RunTasks(threads,task);
+        for(auto &local:partials)
         {
-            auto local = f.get();
             for (size_t i = 0; i < stats.size(); ++i)
             {
                 auto &a = stats[i], &b = local[i];

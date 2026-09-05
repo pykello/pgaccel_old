@@ -55,12 +55,7 @@ std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &q, bool 
         }
         return maps;
     };
-    std::vector<std::future<Partitions>> scans;
-    for (int w = 0; w < workers; ++w)
-        scans.push_back(std::async(std::launch::async, scan, w));
-    std::vector<Partitions> partials;
-    for (auto &scan : scans)
-        partials.push_back(scan.get());
+    auto partials=RunTasks(workers,scan);
     auto finalize = [&](Counts &counts)
     {
         QueryDesc local=q; local.offset=0;
@@ -102,13 +97,11 @@ std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &q, bool 
         }
         return finalize(result);
     };
-    std::vector<std::future<std::vector<FinalRow>>> merges;
-    for (int owner = 0; owner < workers; ++owner)
-        merges.push_back(std::async(std::launch::async, merge, owner));
+    auto merges=RunTasks(workers,merge);
     QueryResults result(q, budget);
     for (auto &merge : merges)
     {
-        for(auto &row:merge.get()) result.add(std::move(row));
+        for(auto &row:merge) result.add(std::move(row));
     }
     return Result<QueryOutput>(result.finish());
 }

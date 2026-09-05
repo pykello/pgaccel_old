@@ -4,6 +4,7 @@
 #include "types.hpp"
 #include "result_type.hpp"
 #include "parser.h"
+#include "executor_tasks.hpp"
 #include <vector>
 #include <string>
 #include <future>
@@ -97,33 +98,16 @@ ExecuteAgg(const std::function<PartialResult(const RowGroup&, uint8_t *)> &Proce
 {
     if (useParallelism)
     {
-        int numThreads = 8;
-        int rowGroupCnt = table.RowGroupCount();
-
-        std::vector<std::future<PartialResult>> futureResults;
-        for (int i = 0; i < numThreads; i++)
-        {
-            futureResults.push_back(
-                std::async([&](int m) {
-                    PartialResult localResult {};
-                    uint8_t bitmap[1 << 13];
-                    for (int j = 0; j < rowGroupCnt; j++)
-                    {
-                        if (j % numThreads == m)
-                        {
-                            const RowGroup &rowGroup = table.GetRowGroup(j);
-                            CombineF(localResult, ProcessRowgroupF(rowGroup, bitmap));
-                        }
-                    }
-                    return localResult;
-                }, i));
-        }
-
-        PartialResult globalResult {};
-        for (auto &f: futureResults)
-            CombineF(globalResult, std::move(f.get()));
-
-        return FinalizeF(globalResult);
+        int workers=std::min(8,std::max(1,table.RowGroupCount()));
+        auto partials=RunTasks(workers,[&](int worker) {
+            PartialResult local{};uint8_t bitmap[RowGroupSize/8];
+            for(int group=worker;group<table.RowGroupCount();group+=workers)
+                CombineF(local,ProcessRowgroupF(table.GetRowGroup(group),bitmap));
+            return local;
+        });
+        PartialResult global{};
+        for(auto &partial:partials)CombineF(global,std::move(partial));
+        return FinalizeF(global);
     }
     else
     {

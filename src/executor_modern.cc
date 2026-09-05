@@ -173,13 +173,7 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 }
                 return partitions;
             };
-            auto launch = threads == 1 ? std::launch::deferred : std::launch::async;
-            std::vector<std::future<Partitions>> scans;
-            for (int t = 0; t < threads; ++t)
-                scans.push_back(std::async(launch, task, t));
-            std::vector<Partitions> partials;
-            for (auto &scan : scans)
-                partials.push_back(scan.get());
+            auto partials=RunTasks(threads,task);
             auto finalize = [&](Groups &groups)
             {
                 QueryDesc local=q; local.offset=0;
@@ -254,11 +248,9 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                 }
                 return finalize(groups);
             };
-            std::vector<std::future<std::vector<FinalRow>>> merged;
-            for (int owner = 0; owner < threads; ++owner)
-                merged.push_back(std::async(launch, combine, owner));
+            auto merged=RunTasks(threads,combine);
             for (auto &future : merged)
-                for(auto &row:future.get())results.add(std::move(row));
+                for(auto &row:future)results.add(std::move(row));
         }
         return results.finish();
     }

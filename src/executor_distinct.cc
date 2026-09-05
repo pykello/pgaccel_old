@@ -43,13 +43,7 @@ std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &q, bool avx,
         }
         return sets;
     };
-    auto launch = workers == 1 ? std::launch::deferred : std::launch::async;
-    std::vector<std::future<Partitions>> scans;
-    for (int w = 0; w < workers; ++w)
-        scans.push_back(std::async(launch, task, w));
-    std::vector<Partitions> partials;
-    for (auto &scan : scans)
-        partials.push_back(scan.get());
+    auto partials=RunTasks(workers,task);
     auto merge = [&](int owner)
     {
         Set result(&budget);
@@ -57,12 +51,10 @@ std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &q, bool avx,
             result.merge(worker[owner]);
         return uint64_t(result.size());
     };
-    std::vector<std::future<uint64_t>> merges;
-    for (int owner = 0; owner < workers; ++owner)
-        merges.push_back(std::async(launch, merge, owner));
+    auto merges=RunTasks(workers,merge);
     uint64_t total = 0;
     for (auto &merge : merges)
-        total += merge.get();
+        total += merge;
     QueryResults result(q, budget);
     result.add({{Cell{Wide(total)}}});
     return Result<QueryOutput>(result.finish());
