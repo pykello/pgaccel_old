@@ -1,5 +1,9 @@
 # Plan after reaching the ClickBench target
 
+Historical checkpoint 3 plan. The four query losses below have since been
+closed in [checkpoint 4](46-checkpoint4-all-queries.md). See the
+[current staged plan](47-follow-up-plan.md) for remaining product work.
+
 The [final checkpoint](36-checkpoint3-target.md) meets the requested target:
 39/43 warm query wins and a 0.368585 paired shifted geometric latency ratio.
 This plan describes unimplemented follow-up work. The next useful milestone
