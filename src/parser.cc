@@ -111,6 +111,13 @@ struct Parser
             e = expr();
             need(")");
         }
+        else if (eat("length"))
+        {
+            need("("); e->left=expr(); need(")");
+            if (e->left->type->type_num()!=STRING_TYPE)
+                throw std::invalid_argument("length requires a string");
+            e->kind=Expression::LENGTH; e->type=std::make_shared<Int64Type>();
+        }
         else if (eat("-"))
         {
             e->kind = Expression::SUBTRACT;

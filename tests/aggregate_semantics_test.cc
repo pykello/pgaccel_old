@@ -94,3 +94,10 @@ TEST(Predicates, LikeAndMembership) {
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE v IN ()",t).ok());
     EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE v IN (1,NULL)",t).ok());
 }
+
+TEST(Expressions, ByteLength) {
+    auto t=test::Table({{test::Dict<StringType>({"", "¥", "abc"})}},{{"s",std::make_shared<StringType>()}});
+    Check(t,"SELECT length(s) AS n FROM t ORDER BY n",{{"0"},{"2"},{"3"}});
+    Check(t,"SELECT sum(length(s)),min(length(s)),max(length(s)) FROM t",{{"5","0","3"}});
+    EXPECT_FALSE(ParseSelect("SELECT length(1) FROM t",t).ok());
+}

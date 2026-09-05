@@ -1,0 +1,32 @@
+# SQL semantics for the ClickBench subset
+
+Input columns are non-nullable. Imports containing NULL values are rejected;
+NULL literals are not accepted as a substitute for three-valued SQL logic.
+An empty aggregate input yields zero for COUNT and COUNT DISTINCT and NULL
+for SUM, AVG, MIN, and MAX. No approximate distinct fallback is used.
+
+Integers and fixed-point expressions use checked 128-bit intermediate values.
+The wide AVG policy is intentional, including the documented Q4 difference
+from the unchanged ClickHouse query. Division by zero and arithmetic overflow
+return errors. Arithmetic requires numeric inputs; SUM/AVG reject strings,
+dates, and timestamps. Grouping keys compare ordered typed logical values,
+including across independent dictionary code spaces. Selected grouped
+expressions must appear in GROUP BY; functional dependency inference is not
+part of the binder.
+
+Strings use case-sensitive bytewise comparison without collation or Unicode
+normalization. `length` counts bytes. LIKE uses UTF-8 matching through RE2:
+percent matches any sequence and underscore one code point, including a
+multibyte character. Backslash escapes percent, underscore, or backslash;
+otherwise it remains literal. Invalid UTF-8 is outside this matching contract.
+LIKE syntax follows [ClickHouse's documented matching rules](https://github.com/ClickHouse/ClickHouse/blob/master/src/Functions/like.cpp).
+The SQL lexer uses doubled single quotes inside string literals and preserves
+backslashes, so write a pattern such as `'a\_b'` for a literal underscore.
+There is no custom ESCAPE clause. IN/NOT IN use exact, same-type non-NULL
+literal lists; an empty list is rejected.
+
+LIMIT and OFFSET are nonnegative unsigned integers; their sum must not
+overflow. Grouped and ordered results use deterministic selected-value tie
+breakers. SQL does not otherwise promise which tied rows cross a LIMIT/OFFSET
+boundary. The audit preserves raw discrepancies and independently checks
+order refinements before accepting equivalent tied results.

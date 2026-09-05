@@ -107,6 +107,8 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
             return {0, e.literal, true};
         return {ParseDecimal(Scale(e.type.get()), e.literal)};
     }
+    if (e.kind==Expression::LENGTH)
+        return {Wide(Evaluate(*e.left,rg,row).text.size())};
     auto l = Evaluate(*e.left, rg, row).number, r = Evaluate(*e.right, rg, row).number;
     int ls = Scale(e.left->type.get()), rs = Scale(e.right->type.get()), s = Scale(e.type.get());
     if (e.kind == Expression::MULTIPLY)
