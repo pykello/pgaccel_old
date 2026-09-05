@@ -61,6 +61,27 @@ std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &q, bool 
     std::vector<Partitions> partials;
     for (auto &scan : scans)
         partials.push_back(scan.get());
+    auto finalize = [&](Counts &counts)
+    {
+        QueryDesc local=q; local.offset=0;
+        if(q.limit)local.limit=*q.limit+q.offset;
+        QueryResults result(local,budget);
+        for (const auto &[key, count] : counts)
+        {
+            FinalRow row;
+            row.reserve(q.aggregateClauses.size());
+            for (const auto &a : q.aggregateClauses)
+            {
+                if (a.type == AggregateClause::AGGREGATE_COUNT)
+                    row.push_back({Cell{Wide(count)}});
+                else
+                    row.push_back({a.columnRef ? key : Evaluate(*a.expression, RowGroup{}, 0),
+                                   a.expression->type.get()});
+            }
+            result.add(std::move(row));
+        }
+        return result.takeCandidates();
+    };
     auto merge = [&](int owner)
     {
         Counts result(&budget);
@@ -79,29 +100,15 @@ std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &q, bool 
                 }
             }
         }
-        return result;
+        return finalize(result);
     };
-    std::vector<std::future<Counts>> merges;
+    std::vector<std::future<std::vector<FinalRow>>> merges;
     for (int owner = 0; owner < workers; ++owner)
         merges.push_back(std::async(std::launch::async, merge, owner));
     QueryResults result(q, budget);
     for (auto &merge : merges)
     {
-        auto counts = merge.get();
-        for (const auto &[key, count] : counts)
-        {
-            FinalRow row;
-            row.reserve(q.aggregateClauses.size());
-            for (const auto &a : q.aggregateClauses)
-            {
-                if (a.type == AggregateClause::AGGREGATE_COUNT)
-                    row.push_back({Cell{Wide(count)}});
-                else
-                    row.push_back({a.columnRef ? key : Evaluate(*a.expression, RowGroup{}, 0),
-                                   a.expression->type.get()});
-            }
-            result.add(std::move(row));
-        }
+        for(auto &row:merge.get()) result.add(std::move(row));
     }
     return Result<QueryOutput>(result.finish());
 }
