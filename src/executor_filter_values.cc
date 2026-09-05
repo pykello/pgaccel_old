@@ -33,10 +33,35 @@ class ValuePredicate : public FilterNodeImpl {
       std::array<uint32_t, RowGroupSize / 32> labels{};
       auto signatures = substring && needle.size() >= 3
           ? data->localStringSignatures : std::span<const StringSignature>{};
-      for (int i = 0; i < dict->dictSize(); ++i) {
-        bool yes = !signatures.empty() && !signatures[i].mayContain(required)
-            ? negate : matches(Label(dict, i, f.columnRef.Type()->type_num()));
-        if (yes) labels[i / 32] |= uint32_t(1) << (i % 32);
+      if (avx && !signatures.empty()) {
+        // Compare four adjacent 128-bit signatures at once. Both 64-bit
+        // lanes must contain every required bit before checking exact bytes.
+        if (negate) labels.fill(UINT32_MAX);
+        auto wanted = _mm512_set_epi64(required.words[1], required.words[0],
+            required.words[1], required.words[0], required.words[1], required.words[0],
+            required.words[1], required.words[0]);
+        auto exact = [&](int i) {
+          uint32_t bit = uint32_t(1) << (i % 32);
+          if (matches(Label(dict, i, f.columnRef.Type()->type_num()))) labels[i / 32] |= bit;
+          else labels[i / 32] &= ~bit;
+        };
+        int size = dict->dictSize(), i = 0;
+        for (; i + 4 <= size; i += 4) {
+          auto stored = _mm512_loadu_si512(signatures.data() + i);
+          unsigned equal = _mm512_cmpeq_epi64_mask(_mm512_and_si512(stored, wanted), wanted);
+          unsigned candidates = equal & (equal >> 1) & 0x55u;
+          while (candidates) {
+            exact(i + __builtin_ctz(candidates) / 2);
+            candidates &= candidates - 1;
+          }
+        }
+        for (; i < size; ++i) if (signatures[i].mayContain(required)) exact(i);
+      } else {
+        for (int i = 0; i < dict->dictSize(); ++i) {
+          bool yes = !signatures.empty() && !signatures[i].mayContain(required)
+              ? negate : matches(Label(dict, i, f.columnRef.Type()->type_num()));
+          if (yes) labels[i / 32] |= uint32_t(1) << (i % 32);
+        }
       }
       auto apply = [&]<class CodeType>() {
         auto codes = reinterpret_cast<const CodeType *>(dict->values);
