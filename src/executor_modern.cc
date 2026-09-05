@@ -180,32 +180,11 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
             std::vector<Partitions> partials;
             for (auto &scan : scans)
                 partials.push_back(scan.get());
-            auto combine = [&](int owner)
+            auto finalize = [&](Groups &groups)
             {
-                Groups groups(&budget);
-                for (auto &worker : partials)
-                {
-                    auto &source = worker[owner];
-                    for (auto it = source.begin(); it != source.end();)
-                    {
-                        auto found = groups.find(it->first);
-                        if (found == groups.end())
-                            groups.insert(source.extract(it++));
-                        else
-                        {
-                            Merge(found->second, it->second, aggregates, budget);
-                            it = source.erase(it);
-                        }
-                    }
-                }
-                return groups;
-            };
-            std::vector<std::future<Groups>> merged;
-            for (int owner = 0; owner < threads; ++owner)
-                merged.push_back(std::async(launch, combine, owner));
-            for (auto &future : merged)
-            {
-                auto groups = future.get();
+                QueryDesc local=q; local.offset=0;
+                if(q.limit)local.limit=*q.limit+q.offset;
+                QueryResults results(local,budget);
                 for (auto &entry : groups)
                 {
                     FinalRow row;
@@ -252,7 +231,34 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &q, bool avx, bool parallel)
                     }
                     results.add(std::move(row));
                 }
-            }
+                return results.takeCandidates();
+            };
+            auto combine = [&](int owner)
+            {
+                ScopedValueResource valuesMemory(budget);
+                Groups groups(&budget);
+                for (auto &worker : partials)
+                {
+                    auto &source = worker[owner];
+                    for (auto it = source.begin(); it != source.end();)
+                    {
+                        auto found = groups.find(it->first);
+                        if (found == groups.end())
+                            groups.insert(source.extract(it++));
+                        else
+                        {
+                            Merge(found->second, it->second, aggregates, budget);
+                            it = source.erase(it);
+                        }
+                    }
+                }
+                return finalize(groups);
+            };
+            std::vector<std::future<std::vector<FinalRow>>> merged;
+            for (int owner = 0; owner < threads; ++owner)
+                merged.push_back(std::async(launch, combine, owner));
+            for (auto &future : merged)
+                for(auto &row:future.get())results.add(std::move(row));
         }
         return results.finish();
     }

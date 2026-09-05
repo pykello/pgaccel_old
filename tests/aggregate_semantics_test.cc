@@ -175,4 +175,12 @@ TEST(Aggregation, PartitionCandidatesPreserveGlobalOffset) {
     std::sort(ordered.begin(),ordered.end());Rows expected;
     for(int i=11;i<18;++i) {auto [negative,v,w]=ordered[i];expected.push_back({std::to_string(v),std::to_string(w),std::to_string(-negative)});}
     Check(t,"SELECT v,w,count(*) AS n FROM t GROUP BY v,w HAVING count(*) > 20 ORDER BY n DESC,v,w LIMIT 7 OFFSET 11",expected);
+    std::map<int,std::pair<int,int>> byV;
+    for(const auto &[key,count]:counts) {byV[key.first].first+=count;byV[key.first].second+=key.second*count;}
+    ordered.clear();expected.clear();Rows sums;
+    for(const auto &[v,state]:byV)if(state.first>60)ordered.push_back({-state.first,v,state.second});
+    std::sort(ordered.begin(),ordered.end());
+    for(int i=4;i<11;++i) {auto [negative,v,sum]=ordered[i];expected.push_back({std::to_string(v),std::to_string(-negative)});sums.push_back({std::to_string(v),std::to_string(sum),std::to_string(-negative)});}
+    Check(t,"SELECT v,count(*) AS n FROM t GROUP BY v HAVING count(*) > 60 ORDER BY n DESC,v LIMIT 7 OFFSET 4",expected);
+    Check(t,"SELECT v,sum(w),count(*) AS n FROM t GROUP BY v HAVING count(*) > 60 ORDER BY n DESC,v LIMIT 7 OFFSET 4",sums);
 }
