@@ -8,10 +8,10 @@ relative tolerance; integer and string columns compare exactly.
 import argparse,json,math,os,pathlib,selectors,subprocess,time
 P=argparse.ArgumentParser();P.add_argument('--runner',required=True);P.add_argument('--native',required=True);P.add_argument('--queries',required=True);P.add_argument('--oracle',required=True);P.add_argument('--output',required=True);P.add_argument('--threads',type=int,choices=[1,8],default=8);P.add_argument('--avx',type=int,choices=[0,1],default=1);P.add_argument('--timeout',type=float,default=300);P.add_argument('--memory-gib',type=int,default=32);a=P.parse_args()
 oracles={r['id']:r for r in map(json.loads,pathlib.Path(a.oracle).read_text().splitlines())}
-def matches(actual,expected,meta):
+def matches(actual,expected,meta,ordered=False):
  if len(actual)!=len(expected):return False
  def canon(row):return tuple(str(x) for x in row)
- actual=sorted(actual,key=canon);expected=sorted(expected,key=canon)
+ if not ordered:actual=sorted(actual,key=canon);expected=sorted(expected,key=canon)
  for left,right in zip(actual,expected):
   if len(left)!=len(right):return False
   for x,y,t in zip(left,right,meta):
@@ -46,7 +46,7 @@ try:
     if record['status']=='success':
      oracle=oracles.get(qid)
      if not oracle or oracle['status']!='success':record['status']='unverified'
-     elif not matches(record['rows'],oracle['rows'],oracle['meta']):record['status']='answer_mismatch'
+     elif not matches(record['rows'],oracle['rows'],oracle['meta'],'order by' in sql.lower()):record['status']='answer_mismatch'
    except TimeoutError:
     record['status']='timeout';runner.close();runner=None
    except (RuntimeError,BrokenPipeError) as e:
