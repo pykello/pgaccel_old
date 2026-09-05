@@ -53,6 +53,13 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             RowId id = bound[column.tableIdx];
             return Read(q.tables[column.tableIdx]->GetRowGroup(id >> 32), column, uint32_t(id));
         };
+        std::vector<const QueryDesc::ExistenceJoin *> existence(tables, nullptr);
+        for (const auto &join : q.existenceJoins) existence[join.table] = &join;
+        std::vector<std::shared_ptr<Expression>> edges = q.predicates;
+        for (const auto &join : q.existenceJoins)
+            for (const auto &e : join.predicates)
+                if (e->kind == Expression::EQ && e->left->column && e->right->column &&
+                    (e->left->column->tableIdx == join.table || e->right->column->tableIdx == join.table)) edges.push_back(e);
         std::vector<std::pmr::vector<RowId>> rows;
         std::vector<uint64_t> masks;
         for (const auto &predicate : q.predicates) masks.push_back(References(*predicate));
@@ -64,6 +71,9 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             std::vector<std::shared_ptr<Expression>> local;
             for (const auto &predicate : q.predicates)
                 if (auto projected = LocalPredicate(predicate, uint64_t(1) << table)) local.push_back(projected);
+            if (existence[table])
+                for (const auto &predicate : existence[table]->predicates)
+                    if (auto projected = LocalPredicate(predicate, uint64_t(1) << table)) local.push_back(projected);
             auto filter = clauses.empty() ? FilterNodeP{} : CreateFilterNode(clauses, avx);
             for (int g = 0; g < q.tables[table]->RowGroupCount(); ++g) {
                 const auto &rg = q.tables[table]->GetRowGroup(g);
@@ -79,7 +89,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         }
         size_t probe = 0;
         for (size_t t = 1; t < tables; ++t)
-            if (rows[t].size() > rows[probe].size()) probe = t;
+            if (!existence[t] && (existence[probe] || rows[t].size() > rows[probe].size())) probe = t;
         struct Join {
             size_t table;
             ColumnRef build, probe;
@@ -112,12 +122,16 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         uint64_t joined = uint64_t(1) << probe;
         while (joins.size() + 1 < tables) {
             std::optional<std::pair<ColumnRef, ColumnRef>> edge;
-            for (const auto &predicate : q.predicates) {
+            bool ordinaryRemaining = false;
+            for (size_t t = 0; t < tables; ++t)
+                ordinaryRemaining |= !existence[t] && !(joined & (uint64_t(1) << t));
+            for (const auto &predicate : edges) {
                 if (predicate->kind != Expression::EQ || !predicate->left->column || !predicate->right->column)
                     continue;
                 auto a = *predicate->left->column, b = *predicate->right->column;
                 if (Scale(a.Type().get()) != Scale(b.Type().get())) continue;
                 if (joined & (uint64_t(1) << a.tableIdx)) std::swap(a, b);
+                if (ordinaryRemaining && existence[a.tableIdx]) continue;
                 if (!(joined & (uint64_t(1) << a.tableIdx)) && (joined & (uint64_t(1) << b.tableIdx)) &&
                     (!edge || cost(a) < cost(edge->first) ||
                      (cost(a) == cost(edge->first) && rows[a.tableIdx].size() < rows[edge->first.tableIdx].size())))
@@ -174,6 +188,16 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             auto &join = joins[stage];
             auto range = join.index.equal_range(read(join.probe));
             uint64_t next = active | (uint64_t(1) << join.table);
+            if (const auto *exists = existence[join.table]) {
+                bool matched = false;
+                for (auto it = range.first; it != range.second && !matched; ++it) {
+                    bound[join.table] = it->second; matched = true;
+                    for (const auto &predicate : exists->predicates)
+                        if (!EvaluateWith(*predicate, read).number) { matched = false; break; }
+                }
+                if (matched != exists->anti) visit(stage + 1, next);
+                return;
+            }
             for (auto it = range.first; it != range.second; ++it) {
                 bound[join.table] = it->second;
                 bool keep = true;

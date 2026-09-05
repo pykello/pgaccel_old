@@ -84,6 +84,9 @@ struct Parser
     std::map<std::string, int> sources;
     std::vector<std::pair<std::string, std::shared_ptr<Expression>>> derivedColumns;
     std::string derivedAlias;
+    Parser *parent = nullptr;
+    int tableOffset = 0;
+    size_t sourceCount = 0;
     std::shared_ptr<Expression> binding(const std::string &text) {
         std::string name = ToLower(text);
         if (auto dot = name.find('.'); dot != std::string::npos) {
@@ -126,14 +129,15 @@ struct Parser
             qualifier = name.substr(0, dot); name.erase(0, dot + 1);
         }
         std::optional<ColumnRef> found;
-        for (size_t table = 0; table < q.tables.size(); ++table) {
+        for (size_t table = 0; table < (sourceCount ? sourceCount : q.tables.size()); ++table) {
             if (!qualifier.empty() && (!sources.contains(qualifier) || sources.at(qualifier) != int(table)))
                 continue;
             auto index = q.tables[table]->ColumnIndex(name);
             if (!index) continue;
             if (found) throw std::invalid_argument("Ambiguous column: " + s);
-            found = ColumnRef{q.tables[table]->Schema()[*index], int(table), *index};
+            found = ColumnRef{q.tables[table]->Schema()[*index], int(table) + tableOffset, *index};
         }
+        if (!found && parent && (qualifier.empty() || !sources.contains(qualifier))) return parent->resolve(s);
         if (!found) throw std::invalid_argument("Unknown column: " + s);
         return *found;
     }
@@ -153,7 +157,8 @@ struct Parser
     std::shared_ptr<Expression> expr(int precedence = 0)
     {
         auto e = std::make_shared<Expression>();
-        if (eat("not")) {
+        if (eat("exists")) e = existence();
+        else if (eat("not")) {
             e = predicate(Expression::NOT, expr(2));
             if (e->left->type->type_num() != INT64_TYPE)
                 throw std::invalid_argument("NOT requires a predicate");
@@ -389,6 +394,36 @@ struct Parser
             s += (tokens[i].quoted ? "'" + tokens[i].text + "'" : ToLower(tokens[i].text)) + " ";
         return s;
     }
+    bool containsExists(const std::shared_ptr<Expression> &e) {
+        return e && (e->kind == Expression::EXISTS || containsExists(e->left) ||
+                     containsExists(e->right) || containsExists(e->condition));
+    }
+    std::shared_ptr<Expression> existence() {
+        if (parent) throw std::invalid_argument("Nested existence subqueries are not yet supported");
+        need("("); size_t start = at; int nesting = 1;
+        while (at < tokens.size() && nesting) {
+            if (!tokens[at].quoted) {
+                if (tokens[at].text == "(") ++nesting;
+                if (tokens[at].text == ")") --nesting;
+            }
+            if (nesting) ++at;
+        }
+        if (nesting) throw std::invalid_argument("Unclosed existence subquery");
+        std::vector<Token> subTokens(tokens.begin() + start, tokens.begin() + at); ++at;
+        Parser sub{std::move(subTokens), 0, {}, registry};
+        sub.parent = this; sub.tableOffset = q.tables.size();
+        auto inner = sub.parse();
+        if (inner.tables.size() != 1 || !sub.derivedColumns.empty() || inner.grouped || inner.limit || inner.offset ||
+            !inner.orderBy.empty() || !inner.having.empty() ||
+            std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
+                return a.type != AggregateClause::AGGREGATE_PROJECT;
+            })) throw std::invalid_argument("EXISTS currently requires one ungrouped base table");
+        auto e = std::make_shared<Expression>(); e->kind = Expression::EXISTS;
+        e->subqueryIndex = q.existenceJoins.size(); e->type = std::make_shared<Int64Type>();
+        q.existenceJoins.push_back({int(q.tables.size()), false, std::move(inner.predicates)});
+        q.tables.push_back(inner.tables[0]);
+        return e;
+    }
     bool containsAggregate(const std::shared_ptr<Expression> &e) {
         return e && (e->kind == Expression::AGGREGATE || containsAggregate(e->left) ||
                      containsAggregate(e->right) || containsAggregate(e->condition));
@@ -404,6 +439,7 @@ struct Parser
     AggregateClause aggregate(int precedence = 0) {
         size_t start = at;
         auto e = expr(precedence);
+        if (containsExists(e)) throw std::invalid_argument("EXISTS is supported only as a WHERE conjunct");
         AggregateClause a;
         if (e->kind == Expression::AGGREGATE) {
             a.type = AggregateClause::Type(e->aggregateKind); a.expression = e->left;
@@ -630,6 +666,12 @@ struct Parser
         return left;
     }
     void addPredicates(const std::shared_ptr<Expression> &e) {
+        if (e->kind == Expression::EXISTS) return;
+        if (e->kind == Expression::NOT && e->left->kind == Expression::EXISTS) {
+            q.existenceJoins[e->left->subqueryIndex].anti = true; return;
+        }
+        if (e->kind != Expression::AND && containsExists(e))
+            throw std::invalid_argument("EXISTS is supported only as a WHERE conjunct");
         if (containsAggregate(e)) throw std::invalid_argument("WHERE cannot contain aggregates");
         if (e->kind == Expression::AND) { addPredicates(e->left); addPredicates(e->right); return; }
         if (e->kind == Expression::OR)
@@ -668,7 +710,7 @@ struct Parser
             std::vector<Token> innerTokens(tokens.begin() + start, tokens.begin() + at);
             ++at; eat("as"); derivedAlias = ToLower(take().text);
             auto inner = Parser{std::move(innerTokens), 0, {}, registry}.parse();
-            if (inner.grouped || inner.limit || inner.offset || !inner.having.empty() || !inner.orderBy.empty() ||
+            if (!inner.existenceJoins.empty() || inner.grouped || inner.limit || inner.offset || !inner.having.empty() || !inner.orderBy.empty() ||
                 std::any_of(inner.aggregateClauses.begin(), inner.aggregateClauses.end(), [](const auto &a) {
                     return a.type != AggregateClause::AGGREGATE_PROJECT;
                 })) throw std::invalid_argument("Derived tables currently require an unordered projection without LIMIT");
@@ -701,6 +743,7 @@ struct Parser
         } while (eat(","));
         }
         size_t afterSources = at;
+        sourceCount = q.tables.size();
         at = 0;
         need("select");
         do
@@ -737,6 +780,7 @@ struct Parser
         if (eat("where")) {
             size_t start = at, filters = q.filterClauses.size(), predicates = q.predicates.size();
             try {
+                if (parent) throw std::invalid_argument("Subquery predicates require scoped expressions");
                 parseFilters();
                 if (at < tokens.size()) {
                     auto next = ToLower(tokens[at].text);
@@ -766,7 +810,7 @@ struct Parser
                             e=a.expression; ++at; break;
                         }
                 if (!e) e=expr();
-                if (containsAggregate(e)) throw std::invalid_argument("GROUP BY cannot contain aggregates");
+                if (containsAggregate(e) || containsExists(e)) throw std::invalid_argument("GROUP BY cannot contain aggregates or subqueries");
                 if (e->kind!=Expression::CONSTANT)
                 {
                     q.groupExpressions.push_back(e);

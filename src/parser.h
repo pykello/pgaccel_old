@@ -71,9 +71,10 @@ struct FilterClause {
 
 class DelimitedCapture;
 struct Expression {
-    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND, OR, NOT, LIKE, AGGREGATE } kind = CONSTANT;
+    enum Kind { COLUMN, CONSTANT, ADD, SUBTRACT, MULTIPLY, DIVIDE, LENGTH, EXTRACT, DATE_TRUNC, REGEXP_REPLACE, CASE, EQ, NE, LT, LTE, GT, GTE, AND, OR, NOT, LIKE, AGGREGATE, EXISTS } kind = CONSTANT;
     std::optional<ColumnRef> column;
     int aggregateKind = -1;
+    int subqueryIndex = -1;
     std::string literal = "0";
     std::string replacement;
     std::shared_ptr<const re2::RE2> regexp;
@@ -108,6 +109,12 @@ struct QueryDesc {
     std::vector<FilterClause> filterClauses;
     // Bound column comparisons, evaluated by the relational executor.
     std::vector<std::shared_ptr<Expression>> predicates;
+    struct ExistenceJoin {
+        int table;
+        bool anti = false;
+        std::vector<std::shared_ptr<Expression>> predicates;
+    };
+    std::vector<ExistenceJoin> existenceJoins;
     std::vector<ColumnRef> groupBy;
     std::vector<std::shared_ptr<Expression>> groupExpressions;
     std::vector<AggregateClause> aggregateClauses;

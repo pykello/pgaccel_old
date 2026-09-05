@@ -55,3 +55,17 @@ TEST(InnerJoin, OnlyEqualitiesSharedByEveryAlternativeDriveHashJoins) {
     ASSERT_TRUE(q.ok());
     EXPECT_FALSE(ExecuteQuery(*q, false, false).ok());
 }
+TEST(InnerJoin, ExistencePreservesOuterCardinalityAndAntiScope) {
+    auto registry = JoinTables();
+    for (const auto &[predicate, count] : std::vector<std::pair<std::string, std::string>>{
+        {"EXISTS (SELECT * FROM u WHERE u.id=t.id)", "3"},
+        {"NOT EXISTS (SELECT * FROM u WHERE u.id=t.id)", "1"},
+        {"NOT EXISTS (SELECT * FROM u WHERE u.id=t.id AND t.label='a')", "3"},
+        {"EXISTS (SELECT * FROM u WHERE u.id=t.id) AND NOT EXISTS (SELECT * FROM u WHERE u.id=t.id AND u.value>20)", "2"},
+        {"EXISTS (SELECT * FROM t b WHERE b.id=t.id AND b.label<>t.label)", "2"}})
+        EXPECT_EQ(RunJoin("SELECT count(*) FROM t WHERE " + predicate, registry), (Rows{{count}})) << predicate;
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE EXISTS (SELECT * FROM u WHERE u.id=t.id) OR t.id=1", registry).ok());
+    EXPECT_FALSE(ParseSelect("SELECT EXISTS (SELECT * FROM u WHERE u.id=t.id) FROM t", registry).ok());
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE EXISTS (SELECT count(*) FROM u WHERE u.id=t.id)", registry).ok());
+    EXPECT_FALSE(ParseSelect("SELECT count(*) FROM t WHERE EXISTS (SELECT * FROM u b WHERE b.id=t.id) GROUP BY b.id", registry).ok());
+}
