@@ -54,7 +54,7 @@ FilterNodeImpl::CreateAndNode(std::vector<FilterNodeP>&& children)
     return std::make_unique<AndFilterNode>(std::move(children));
 }
 
-FilterNodeP CreateValuePredicate(const FilterClause &);
+FilterNodeP CreateValuePredicate(const FilterClause &, bool);
 
 FilterNodeP
 CreateFilterNode(const std::vector<FilterClause> &filterClauses_, bool useAvx)
@@ -78,7 +78,7 @@ CreateFilterNode(const std::vector<FilterClause> &filterClauses_, bool useAvx)
     {
         if (filterClauses[i].op>=FilterClause::FILTER_LIKE && filterClauses[i].op<=FilterClause::FILTER_NOT_IN)
         {
-            filterNodes.push_back(CreateValuePredicate(filterClauses[i]));
+            filterNodes.push_back(CreateValuePredicate(filterClauses[i], useAvx));
         }
         else if (i + 1 < filterClauses.size() &&
             filterClauses[i + 1].columnRef == filterClauses[i].columnRef &&

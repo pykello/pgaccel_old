@@ -1,12 +1,14 @@
 #include "executor_value.hpp"
 #include <re2/re2.h>
+#include <array>
+#include <immintrin.h>
 namespace pgaccel {
 namespace {
 class ValuePredicate : public FilterNodeImpl {
   FilterClause f;
   std::unique_ptr<RE2> pattern;
   std::string needle;
-  bool substring = false, negate = false;
+  bool substring = false, negate = false, avx;
   std::unordered_set<Cell, Hash> members;
   bool matches(Cell value) const {
     bool yes =
@@ -24,19 +26,64 @@ class ValuePredicate : public FilterNodeImpl {
         data->type == ColumnDataBase::DICT_COLUMN_DATA
             ? static_cast<const DictColumnDataBase *>(data)
             : nullptr;
-    std::vector<uint8_t> labels;
     if (dict) {
-      labels.resize(dict->dictSize());
+      // At most 65,536 local labels: the complete membership map fits in 8 KiB.
+      std::array<uint32_t, RowGroupSize / 32> labels{};
       for (int i = 0; i < dict->dictSize(); ++i)
-        labels[i] = matches(Label(dict, i, f.columnRef.Type()->type_num()));
+        if (matches(Label(dict, i, f.columnRef.Type()->type_num())))
+          labels[i / 32] |= uint32_t(1) << (i % 32);
+      auto apply = [&]<class CodeType>() {
+        auto codes = reinterpret_cast<const CodeType *>(dict->values);
+        int count = 0, base = 0;
+        if (avx) {
+          for (; base + 16 <= rg.size; base += 16) {
+            uint16_t previous = UINT16_MAX;
+            if (intersect) {
+              memcpy(&previous, bitmap + base / 8, sizeof(previous));
+              if (!previous) continue;
+            }
+            __m512i ids;
+            if constexpr (sizeof(CodeType) == 1)
+              ids = _mm512_cvtepu8_epi32(_mm_loadu_si128(reinterpret_cast<const __m128i *>(codes + base)));
+            else
+              ids = _mm512_cvtepu16_epi32(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(codes + base)));
+            auto words = _mm512_i32gather_epi32(_mm512_srli_epi32(ids, 5), labels.data(), 4);
+            auto shifts = _mm512_and_si512(ids, _mm512_set1_epi32(31));
+            uint16_t selected = _mm512_test_epi32_mask(_mm512_srlv_epi32(words, shifts), _mm512_set1_epi32(1));
+            selected &= previous;
+            memcpy(bitmap + base / 8, &selected, sizeof(selected));
+            count += __builtin_popcount(selected);
+          }
+        }
+        for (; base < rg.size; base += 64) {
+          int n = std::min(64, rg.size - base);
+          uint64_t selected = n == 64 ? UINT64_MAX : (uint64_t(1) << n) - 1;
+          if (intersect) {
+            uint64_t previous = 0;
+            memcpy(&previous, bitmap + base / 8, (n + 7) / 8);
+            selected &= previous;
+          }
+          uint64_t result = 0;
+          while (selected) {
+            int bit = __builtin_ctzll(selected);
+            uint32_t code = codes[base + bit];
+            result |= uint64_t((labels[code / 32] >> (code % 32)) & 1) << bit;
+            selected &= selected - 1;
+          }
+          memcpy(bitmap + base / 8, &result, (n + 7) / 8);
+          count += __builtin_popcountll(result);
+        }
+        return count;
+      };
+      return dict->bytesPerValue() == 1 ? apply.template operator()<uint8_t>()
+                                       : apply.template operator()<uint16_t>();
     }
     if (!intersect)
       memset(bitmap, 0, (rg.size + 7) / 8);
     int count = 0;
     for (int row = 0; row < rg.size; ++row) {
       bool selected = !intersect || (bitmap[row / 8] & (1u << (row % 8)));
-      bool yes = selected && (dict ? labels[Code(dict, row)]
-                                   : matches(Read(rg, f.columnRef, row)));
+      bool yes = selected && matches(Read(rg, f.columnRef, row));
       if (yes) {
         bitmap[row / 8] |= 1u << (row % 8);
         ++count;
@@ -47,7 +94,7 @@ class ValuePredicate : public FilterNodeImpl {
   }
 
 public:
-  explicit ValuePredicate(const FilterClause &clause) : f(clause) {
+  explicit ValuePredicate(const FilterClause &clause, bool useAvx) : f(clause), avx(useAvx) {
     negate = f.op == FilterClause::FILTER_NOT_LIKE ||
              f.op == FilterClause::FILTER_NOT_IN;
     if (f.op == FilterClause::FILTER_LIKE ||
@@ -106,7 +153,7 @@ public:
   }
 };
 } // namespace
-FilterNodeP CreateValuePredicate(const FilterClause &f) {
-  return std::make_unique<ValuePredicate>(f);
+FilterNodeP CreateValuePredicate(const FilterClause &f, bool avx) {
+  return std::make_unique<ValuePredicate>(f, avx);
 }
 } // namespace pgaccel
