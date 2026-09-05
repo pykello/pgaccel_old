@@ -236,7 +236,7 @@ CountAgg::LocalAggregate(const RowGroup& rowGroup,
                          uint8_t *bitmap) const
 {
 
-    std::vector<int> countsPerGroup(groups.groupCount, 0);
+    std::vector<int64_t> countsPerGroup(groups.groupCount, 0);
 
     if (bitmap) {
         for (int i = 0; i < rowGroup.size; i++)

@@ -33,9 +33,9 @@ public:
 typedef std::unique_ptr<Aggregator> AggregatorP;
 
 struct CountAggState: public AggState {
-    CountAggState(int32_t value = 0): value(value) { }
+    CountAggState(int64_t value = 0): value(value) { }
 
-    int32_t value;
+    int64_t value;
 };
 
 class CountAgg: public Aggregator {
