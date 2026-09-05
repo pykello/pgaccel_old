@@ -17,47 +17,20 @@ static Rows ExecuteGroupBy(const AggregateNode &aggNode,
                            bool useParallelism);
 static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
+Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
-    if (query.groupBy.size() == 0)
-    {
-        int filterCount = query.filterClauses.size();
-        if (filterCount == 0)
-        {
-            return ExecuteAggNoGroupByNoFilter(query, useAvx, useParallelism);
+    try {
+        // Preserve the vectorized/metadata COUNT fast path; other shapes use typed execution.
+        if (!query.grouped && query.groupBy.empty() && query.aggregateClauses.size() == 1 &&
+            query.aggregateClauses[0].type == AggregateClause::AGGREGATE_COUNT &&
+            !query.aggregateClauses[0].expression && !query.limit) {
+            if (query.filterClauses.empty()) return ExecuteAggNoGroupByNoFilter(query,useAvx,useParallelism);
+            return ExecuteAggNoGroupByWithFilter(query,useAvx,useParallelism);
         }
-        else
-        {
-            return ExecuteAggNoGroupByWithFilter(query, useAvx, useParallelism);
-        }
-    }
-    else
-    {
-        ExecutionParams params { useAvx };
-        PartitionedNodeP partitionedNode =
-            std::make_unique<ScanNode>(
-                query.tables[0],
-                FieldNames(query.tables[0]->Schema()));
-        if (query.filterClauses.size())
-        {
-            partitionedNode =
-                std::make_unique<FilterNode>(
-                    std::move(partitionedNode),
-                    query.filterClauses,
-                    params
-                );
-        }
-        auto aggNode = std::make_unique<AggregateNode>(
-            std::move(partitionedNode),
-            query.aggregateClauses,
-            query.groupBy, params);
-
-        QueryOutput result;
-        result.fieldNames = FieldNames(aggNode->Schema());
-        result.values = ExecuteGroupBy(*aggNode, useParallelism);
-        return result;
-    }
+        return ExecuteModern(query,useAvx,useParallelism);
+    } catch (const std::exception &e) { return Status::Invalid(e.what()); }
 }
 
 static Result<QueryOutput>
@@ -74,12 +47,12 @@ ExecuteAggNoGroupByNoFilter(const QueryDesc &query,
             auto columnarTable = query.tables[0];
             QueryOutput output;
             output.fieldNames.push_back("count");
-            output.values = ExecuteAgg<int32_t>(
+            output.values = ExecuteAgg<int64_t>(
                 [](const RowGroup& r, uint8_t *bitmap) {
                     return r.columns[0]->size;
                 },
-                [](int32_t &a, int32_t b) { a += b; },
-                [](int32_t a) {
+                [](int64_t &a, int64_t b) { a += b; },
+                [](int64_t a) {
                     return Rows({{ std::to_string(a) }});
                 },
                 *columnarTable,
@@ -156,12 +129,12 @@ SingleFilterCount(const QueryDesc &query,
                   bool useParallelism)
 {
     return
-    ExecuteAgg<int32_t>(
+    ExecuteAgg<int64_t>(
         [&](const RowGroup& r, uint8_t *bitmap) {
                 return filterNode->ExecuteCount(r);
             },
-            [](int32_t& a, int32_t b) { a += b; },
-            [](int32_t a) {
+            [](int64_t& a, int64_t b) { a += b; },
+            [](int64_t a) {
                 return Rows({{ std::to_string(a) }});
             },
             *query.tables[0],
