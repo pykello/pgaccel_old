@@ -24,6 +24,14 @@ def rss(pid):
         return {}
 
 
+def process_io(pid):
+    try:
+        return {key: int(value) for key, value in
+                (line.split(':', 1) for line in Path(f'/proc/{pid}/io').read_text().splitlines())}
+    except (FileNotFoundError, PermissionError, ProcessLookupError):
+        return {}
+
+
 def strings(rows):
     return [[str(v) if v is not None else 'NULL' for v in row] for row in rows]
 
@@ -142,6 +150,7 @@ def main():
                     try:
                         if args.engine == 'pgaccel' and proc.poll() is not None:
                             record.setdefault('reloads', []).append(pg_start())
+                        io_before = process_io(engine_pid)
                         start = time.perf_counter()
                         if args.engine == 'pgaccel':
                             proc.stdin.write(' '.join(sql.splitlines())+'\n'); proc.stdin.flush()
@@ -167,6 +176,10 @@ def main():
                             diagnostics = {'server_ms': float(value['statistics']['elapsed'])*1000,
                                            'statistics': value['statistics']}
                         elapsed = (time.perf_counter()-start)*1000
+                        io_after = process_io(engine_pid)
+                        diagnostics['process_io_delta'] = {key: io_after[key]-value for key, value in io_before.items() if key in io_after}
+                        if args.engine == 'duckdb' and args.temp_directory:
+                            diagnostics['temp_file_bytes_after'] = sum(path.stat().st_size for path in args.temp_directory.rglob('*') if path.is_file())
                         if expected_rows is None:
                             expected_rows = rows
                         record['trials'].append(dict(diagnostics, client_ms=elapsed, rows=rows,
