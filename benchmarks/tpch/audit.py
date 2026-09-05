@@ -4,6 +4,7 @@ import argparse
 import decimal
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import select
@@ -45,8 +46,12 @@ def main():
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--repeats', type=int, default=1)
     p.add_argument('--timeout', type=float, default=300)
+    p.add_argument('--query-memory-gib', type=int, default=8)
+    p.add_argument('--spill-gib', type=int, default=64)
     p.add_argument('--only', type=int, nargs='*')
     args = p.parse_args()
+    if args.query_memory_gib < 1 or args.spill_gib < 0:
+        p.error('query memory must be positive and spill budget nonnegative')
     if args.repeats < 1:
         p.error('--repeats must be positive')
     import duckdb
@@ -56,9 +61,11 @@ def main():
         con.read_parquet(str(path)).create_view(path.stem)
     queries = [(i, (args.queries/f'q{i:02}.sql').read_text())
                for i in (args.only or range(1, 23))]
+    environment = dict(os.environ, PGACCEL_QUERY_MEMORY_BYTES=str(args.query_memory_gib << 30),
+                       PGACCEL_SPILL_BYTES=str(args.spill_gib << 30))
     proc = subprocess.Popen([str(args.runner.resolve()), 'native-dir', str(args.native),
                              'lineitem', '-', '1', '1', '1'],
-                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, env=environment)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     try:
         with args.output.open('w') as out:
@@ -69,6 +76,9 @@ def main():
             loaded['duckdb_version'] = duckdb.__version__
             loaded['native_path'] = str(args.native.resolve()); loaded['parquet_path'] = str(args.parquet.resolve())
             loaded['repeats'] = args.repeats
+            loaded['query_memory_bytes'] = args.query_memory_gib << 30
+            loaded['spill_budget_bytes'] = args.spill_gib << 30
+            loaded['parallel'] = True; loaded['avx'] = True
             loaded['validation'] = 'Exact integers and decimals; float tolerance max(1e-6, 1e-12 relative); every trial'
             out.write(json.dumps(loaded)+'\n'); out.flush()
             for i, sql in queries:
