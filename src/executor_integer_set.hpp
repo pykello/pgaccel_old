@@ -1,5 +1,8 @@
 #pragma once
-#include "executor_state.hpp"
+#include <cstdint>
+#include <memory_resource>
+#include <stdexcept>
+#include <vector>
 #include <cassert>
 #include <utility>
 

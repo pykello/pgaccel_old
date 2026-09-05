@@ -1,5 +1,6 @@
 #include "test_table.hpp"
 #include "executor_integer_set.hpp"
+#include "executor_state.hpp"
 #include <gtest/gtest.h>
 #include <set>
 
