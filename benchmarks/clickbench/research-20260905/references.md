@@ -57,3 +57,14 @@ will not be incorporated into these experiments.
 
 The completed experiments retain no new library dependency. See dependencies.md
 for the removed Abseil trial and the retained public-domain hash primitive.
+
+## Continued work toward all 43 query wins
+
+Gubner, Leis and Boncz, [Efficient Query Processing with Optimistically
+Compressed Hash Tables & Strings in the USSR](https://ir.cwi.nl/pub/30644/30644.pdf),
+discuss compact hash records, domain-derived encoding, and dictionary-based
+string processing. This provides useful context for the memory-locality
+experiments and motivates examining representation before adding more compute.
+The continued weighted dictionary and local-signature experiments are original
+implementations; no Vectorwise code or other implementation from the paper
+was imported. The paper is background, not evidence of PGAccel's measured gains.
