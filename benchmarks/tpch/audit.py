@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import select
 import time
 
 
@@ -36,6 +37,7 @@ def main():
     p.add_argument('--queries', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--repeats', type=int, default=1)
+    p.add_argument('--timeout', type=float, default=300)
     p.add_argument('--only', type=int, nargs='*')
     args = p.parse_args()
     import duckdb
@@ -52,12 +54,20 @@ def main():
     with args.output.open('w') as out:
         loaded = json.loads(proc.stdout.readline())
         loaded['source_revision'] = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+        loaded['source_dirty'] = bool(subprocess.check_output(['git', 'status', '--porcelain'], text=True))
         loaded['runner_sha256'] = hashlib.sha256(args.runner.read_bytes()).hexdigest()
         loaded['duckdb_version'] = duckdb.__version__
         out.write(json.dumps(loaded)+'\n'); out.flush()
         for i, sql in queries:
             proc.stdin.write(' '.join(sql.splitlines())+'\n'); proc.stdin.flush()
-            record = json.loads(proc.stdout.readline()); record['id'] = i
+            if not select.select([proc.stdout], [], [], args.timeout)[0]:
+                proc.kill(); proc.wait()
+                out.write(json.dumps({'id': i, 'status': 'timeout', 'seconds': args.timeout})+'\n')
+                raise SystemExit(f'Q{i} timed out; remaining queries were not audited')
+            line = proc.stdout.readline()
+            if not line:
+                raise SystemExit(f'runner exited during Q{i}: {proc.wait()}')
+            record = json.loads(line); record['id'] = i
             record['sql_sha256'] = hashlib.sha256(sql.encode()).hexdigest()
             if record['status'] == 'success':
                 start = time.perf_counter()
