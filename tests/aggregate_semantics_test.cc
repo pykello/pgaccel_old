@@ -1,0 +1,40 @@
+#include "test_table.hpp"
+#include <numeric>
+#include <gtest/gtest.h>
+using namespace pgaccel;
+static void Check(const TableRegistry &t,const std::string &sql,const Rows &expected) {
+    auto q=ParseSelect(sql,t); ASSERT_TRUE(q.ok())<<q.status().Message();
+    for(bool avx:{false,true}) for(bool parallel:{false,true}) {
+        auto r=ExecuteQuery(*q,avx,parallel); ASSERT_TRUE(r.ok())<<r.status().Message(); EXPECT_EQ(r->values,expected)<<sql;
+    }
+}
+TEST(Aggregation, WideMixedProjectionAndOrdering) {
+    auto t=test::Table({{test::Raw({INT64_MAX,INT64_MAX,7}),test::Dict<StringType>({"b","b","a"})}},
+                       {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    Check(t,"SELECT sum(v), count(*), min(v), max(v) FROM t",{{"18446744073709551621","3","7","9223372036854775807"}});
+    Check(t,"SELECT v FROM t WHERE v = 9223372036854775807",{{"9223372036854775807"},{"9223372036854775807"}});
+    Check(t,"SELECT v FROM t WHERE v = 42",{});
+    Check(t,"SELECT 1,s,count(*) AS c FROM t GROUP BY 1,s ORDER BY c DESC LIMIT 1",{{"1","b","2"}});
+    Check(t,"SELECT s, sum(v),avg(v),min(v),max(v) FROM t WHERE v = 7 GROUP BY s",{{"a","7","7","7","7"}});
+    Check(t,"SELECT sum(v),avg(v),min(v),max(v),count(*) FROM t WHERE v = 42",{{"NULL","NULL","NULL","NULL","0"}});
+    Check(t,"SELECT sum(v+1),sum((v+2)*3),sum(v/2) FROM t WHERE v = 7",{{"8","27","3.500000"}});
+}
+TEST(Aggregation, DistinctUsesValuesAcrossDictionaries) {
+    auto t=test::Table({{test::Raw({1,1,2}),test::Dict<StringType>({"a","c","a"})},
+                        {test::Raw({2,3,3}),test::Dict<StringType>({"c","a","b"})}},
+                       {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    Check(t,"SELECT count(distinct v),count(distinct s) FROM t",{{"3","3"}});
+    Check(t,"SELECT s,count(distinct v) AS n,count(*) FROM t GROUP BY s ORDER BY n DESC,s",{{"a","3","3"},{"c","2","2"},{"b","1","1"}});
+    auto q=ParseSelect("SELECT count(distinct v) FROM t",t); ASSERT_TRUE(q.ok());
+    auto plan=std::move(q).ValueUnsafe(); plan.memoryBudgetBytes=1;
+    auto r=ExecuteQuery(plan,true,true); ASSERT_FALSE(r.ok()); EXPECT_NE(r.status().Message().find("budget"),std::string::npos);
+}
+TEST(Aggregation, MaximumDateDictionaryHasNoDiscardSentinel) {
+    std::vector<int32_t> dates(65536); std::iota(dates.begin(),dates.end(),0);
+    auto t=test::Table({{test::Dict<DateType>(dates)}},{{"d",std::make_shared<DateType>()}});
+    Check(t,"SELECT d,count(*) FROM t WHERE d < '1970-01-03' GROUP BY d",{{"1970-01-01","1"},{"1970-01-02","1"}});
+}
+TEST(Parser, UnsupportedAndMalformedQueriesFail) {
+    auto t=test::Table({{test::Raw({1}),test::Raw({2})}},{{"v",std::make_shared<Int64Type>()},{"w",std::make_shared<Int64Type>()}});
+    for(auto sql:{"SELECT count(*) FROM t WHERE v=1 AND", "SELECT count(*) FROM t WHERE", "SELECT sum(v) FROM t GROUP BY v,w", "SELECT v,count(*) FROM t", "SELECT count(*) FROM t WHERE v=1 garbage", "SELECT sum(v) FROM t LIMIT -1"}) EXPECT_FALSE(ParseSelect(sql,t).ok())<<sql;
+}
