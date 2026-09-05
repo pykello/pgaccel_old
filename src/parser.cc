@@ -125,7 +125,7 @@ struct Parser {
         if (table == registry.end()) throw std::invalid_argument("Unknown table");
         q.tables.push_back(table->second.get());
         need("select");
-        do { auto a = aggregate();  q.aggregateClauses.push_back(std::move(a)); } while (eat(","));
+        do { auto a = aggregate(); if (eat("as")) a.alias = take().text; q.aggregateClauses.push_back(std::move(a)); } while (eat(","));
         need("from"); take();
         if (eat("where")) do {
             FilterClause f; f.columnRef = resolve(take().text);
@@ -155,6 +155,26 @@ struct Parser {
                     else if (!(q.groupBy[0] == *e->column)) throw std::invalid_argument("Multiple nonconstant GROUP BY keys are not supported");
                 } else if (e->kind != Expression::CONSTANT) throw std::invalid_argument("GROUP BY requires a column or constant");
             } while (eat(","));
+        }
+        if (eat("order")) {
+            need("by");
+            do {
+                size_t index = q.aggregateClauses.size();
+                for (size_t i = 0; i < q.aggregateClauses.size(); ++i)
+                    if (!q.aggregateClauses[i].alias.empty() && at < tokens.size() && ToLower(tokens[at].text) == ToLower(q.aggregateClauses[i].alias)) { index = i; ++at; break; }
+                if (index == q.aggregateClauses.size()) {
+                    auto a = aggregate();
+                    for (size_t i = 0; i < q.aggregateClauses.size(); ++i) if (a.sql == q.aggregateClauses[i].sql) { index = i; break; }
+                }
+                if (index == q.aggregateClauses.size()) throw std::invalid_argument("ORDER BY must reference a selected expression or alias");
+                bool desc = eat("desc"); if (!desc) eat("asc");
+                q.orderBy.push_back({index,desc});
+            } while (eat(","));
+        }
+        if (eat("limit")) {
+            auto t = take().text; size_t n;
+            if (t.empty() || !std::isdigit((unsigned char)t[0])) throw std::invalid_argument("Invalid LIMIT");
+            auto value = std::stoull(t,&n); if (n != t.size()) throw std::invalid_argument("Invalid LIMIT"); q.limit = value;
         }
         eat(";"); if (at != tokens.size()) throw std::invalid_argument("Unsupported SQL near " + tokens[at].text);
         bool hasAgg = false;
