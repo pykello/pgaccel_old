@@ -3,6 +3,7 @@
 #include "executor_flat_map.hpp"
 #include <array>
 #include <concepts>
+#include <map>
 namespace pgaccel {
 namespace {
 struct NumericState {
@@ -40,28 +41,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
     else
       return {};
   };
-  auto &table = *q.tables[0];
-  int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
-  auto filter = q.filterClauses.empty()
-                    ? FilterNodeP{}
-                    : CreateFilterNode(q.filterClauses, avx);
-  using Partitions = std::vector<Map>;
-  auto scan = [&](int worker) {
-    ScopedValueResource valuesMemory(budget);
-    Partitions maps;
-    for (int i = 0; i < workers; ++i)
-      maps.push_back(map());
-    for (int g = worker; g < table.RowGroupCount(); g += workers) {
-      const auto &rg = table.GetRowGroup(g);
-      uint8_t bitmap[RowGroupSize / 8];
-      int count = filter ? filter->ExecuteSet(rg, bitmap) : rg.size;
-      if (!count)
-        continue;
-      Selected(rg, count == rg.size ? nullptr : bitmap, [&](int row) {
-        auto key = keys.make(g, row);
-        auto &groups = maps[(key.hash >> 32) % workers];
-        auto [index, added] = groups.get(key, initial);
-        auto &values = groups.at(index).second;
+  auto update = [&](Values &values, const RowGroup &rg, int row) {
         if constexpr (std::is_same_v<Values, uint64_t>)
           ++values;
         else
@@ -75,7 +55,77 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
             } else
               Update(values[i], a, rg, row, budget);
           }
+  };
+  // With no aggregate ordering or HAVING, the first K keys are sufficient.
+  // Require the visible key prefix to use the same ordering as the group key,
+  // so owner and final candidate selection never choose a partially kept key.
+  bool bounded = q.limit && *q.limit && q.orderBy.empty() && q.having.empty() &&
+                 q.aggregateClauses.size() >= q.groupExpressions.size();
+  for (size_t i = 0; i < q.groupExpressions.size() && bounded; ++i) {
+    const auto &key = q.groupExpressions[i];
+    const auto &output = q.aggregateClauses[i];
+    bounded = key->kind == Expression::COLUMN &&
+              output.type == AggregateClause::AGGREGATE_PROJECT && output.columnRef &&
+              *output.columnRef == *key->column;
+  }
+  for (const auto &aggregate : q.aggregateClauses)
+    if (aggregate.expression && aggregate.expression->kind != Expression::COLUMN &&
+        aggregate.expression->kind != Expression::CONSTANT)
+      bounded = false;
+  const uint64_t capacity = q.limit ? *q.limit + q.offset : 0;
+  auto &table = *q.tables[0];
+  int workers = parallel ? std::min(8, std::max(1, table.RowGroupCount())) : 1;
+  auto filter = q.filterClauses.empty()
+                    ? FilterNodeP{}
+                    : CreateFilterNode(q.filterClauses, avx);
+  using Partitions = std::vector<Map>;
+  auto scan = [&](int worker) {
+    ScopedValueResource valuesMemory(budget);
+    Partitions maps;
+    for (int i = 0; i < workers; ++i)
+      maps.push_back(map());
+    auto less = [&](const GroupKey &a, const GroupKey &b) { return keys.less(a, b); };
+    std::pmr::map<GroupKey, Values, decltype(less)> firstKeys(less, &budget);
+    for (int g = worker; g < table.RowGroupCount(); g += workers) {
+      const auto &rg = table.GetRowGroup(g);
+      uint8_t bitmap[RowGroupSize / 8];
+      int count = filter ? filter->ExecuteSet(rg, bitmap) : rg.size;
+      if (!count)
+        continue;
+      if (bounded && firstKeys.size() == capacity) {
+        const auto &expression = q.groupExpressions[0];
+        const auto &last = firstKeys.rbegin()->first;
+        auto bound = Format(FinalCell{keys.value(last, expression), expression->type.get()});
+        auto upper = FilterNodeImpl::CreateSimpleCompare(*expression->column, bound,
+                         FilterClause::FILTER_LTE, "", FilterClause::INVALID, avx);
+        count = count == rg.size ? upper->ExecuteSet(rg, bitmap) : upper->ExecuteAnd(rg, bitmap);
+        if (!count)
+          continue;
+      }
+      Selected(rg, count == rg.size ? nullptr : bitmap, [&](int row) {
+        if (bounded) {
+          GroupKey key{0, uint32_t(g), uint32_t(row)};
+          if (firstKeys.size() == capacity && keys.less(firstKeys.rbegin()->first, key))
+            return;
+          auto found = firstKeys.find(key);
+          if (found == firstKeys.end()) {
+            if (firstKeys.size() == capacity)
+              firstKeys.erase(std::prev(firstKeys.end()));
+            found = firstKeys.emplace(key, initial()).first;
+          }
+          update(found->second, rg, row);
+          return;
+        }
+        auto key = keys.make(g, row);
+        auto &groups = maps[(key.hash >> 32) % workers];
+        auto [index, added] = groups.get(key, initial);
+        auto &values = groups.at(index).second;
+        update(values, rg, row);
       });
+    }
+    for (auto &[representative, values] : firstKeys) {
+      auto key = keys.make(representative.group, representative.row);
+      maps[(key.hash >> 32) % workers].get(key, [&] { return std::move(values); });
     }
     return maps;
   };

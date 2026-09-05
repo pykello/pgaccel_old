@@ -58,3 +58,27 @@ TEST(CompositeNumeric, DependentAffineKeysKeepWideResultsAndUnsafeErrors)
     ASSERT_FALSE(result.ok());
     EXPECT_NE(result.status().Message().find("overflow"), std::string::npos);
 }
+
+TEST(CompositeNumeric, UnorderedLimitKeepsCompleteSmallestKeysAcrossWorkers)
+{
+    std::vector<std::vector<ColumnDataP>> groups;
+    for (int group = 0; group < 8; ++group)
+        groups.push_back({test::Raw({100 - group, 90 - group, 2, 1, 100 - group, 1}),
+                          test::Dict<StringType>({"z", "z", "b", "a", "z", "a"})});
+    auto registry = test::Table(std::move(groups),
+        {{"v", std::make_shared<Int64Type>()}, {"s", std::make_shared<StringType>()}});
+    for (const auto &[suffix, expected] : std::vector<std::pair<std::string, Rows>>{
+             {" LIMIT 2", {{"1", "a", "16"}, {"2", "b", "8"}}},
+             {" LIMIT 2 OFFSET 1", {{"2", "b", "8"}, {"83", "z", "1"}}},
+             {" HAVING count(*) > 10 LIMIT 1", {{"1", "a", "16"}}}})
+    {
+        auto query = ParseSelect("SELECT v,s,count(*) FROM t GROUP BY v,s" + suffix, registry);
+        ASSERT_TRUE(query.ok());
+        for (bool parallel : {false, true})
+        {
+            auto result = ExecuteQuery(*query, true, parallel);
+            ASSERT_TRUE(result.ok());
+            EXPECT_EQ(result->values, expected);
+        }
+    }
+}
