@@ -158,3 +158,21 @@ TEST(Expressions, TimestampTruncationOverflowIsExplicit) {
     auto result=ExecuteQuery(*q,true,true);ASSERT_FALSE(result.ok());
     EXPECT_NE(result.status().Message().find("Truncated timestamp"),std::string::npos);
 }
+
+TEST(Aggregation, PartitionCandidatesPreserveGlobalOffset) {
+    std::vector<std::vector<ColumnDataP>> groups;
+    std::map<std::pair<int,int>,int> counts;
+    for(int g=0;g<8;++g) {
+        std::vector<int64_t> v,w;
+        for(int k=0;k<100;++k) for(int r=0;r<(k+g)%5+1;++r) {
+            v.push_back(k/3);w.push_back(k%3);++counts[{k/3,k%3}];
+        }
+        groups.push_back({test::Raw(v),test::Raw(w)});
+    }
+    auto t=test::Table(groups,{{"v",std::make_shared<Int64Type>()},{"w",std::make_shared<Int64Type>()}});
+    std::vector<std::tuple<int,int,int>> ordered;
+    for(const auto &[key,count]:counts)if(count>20)ordered.push_back({-count,key.first,key.second});
+    std::sort(ordered.begin(),ordered.end());Rows expected;
+    for(int i=11;i<18;++i) {auto [negative,v,w]=ordered[i];expected.push_back({std::to_string(v),std::to_string(w),std::to_string(-negative)});}
+    Check(t,"SELECT v,w,count(*) AS n FROM t GROUP BY v,w HAVING count(*) > 20 ORDER BY n DESC,v,w LIMIT 7 OFFSET 11",expected);
+}

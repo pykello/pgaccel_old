@@ -44,6 +44,7 @@ class QueryResults
             output.fieldNames.push_back(q.aggregateClauses[i].ToString());
     }
     size_t size() const { return rows.size(); }
+    std::vector<FinalRow> takeCandidates() { return std::move(rows); }
     void add(FinalRow row)
     {
         for (const auto &h:q.having)

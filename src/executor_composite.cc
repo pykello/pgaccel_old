@@ -10,7 +10,7 @@ using NumericStates = std::pmr::vector<NumericState>;
 template <class Values>
 Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   Budget budget(q.memoryBudgetBytes);
-    ScopedValueResource valuesMemory(budget);
+  ScopedValueResource valuesMemory(budget);
   GroupKeys keys{q};
   using Map = std::pmr::unordered_map<GroupKey, Values, GroupHash, GroupEqual>;
   auto map = [&] { return Map(0, GroupHash{}, GroupEqual{&keys}, &budget); };
@@ -78,38 +78,12 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   std::vector<Partitions> partials;
   for (auto &scan : scans)
     partials.push_back(scan.get());
-  auto merge = [&](int owner) {
-    ScopedValueResource valuesMemory(budget);
-    auto groups = map();
-    for (auto &worker : partials) {
-      auto &source = worker[owner];
-      for (auto it = source.begin(); it != source.end();) {
-        auto found = groups.find(it->first);
-        if (found == groups.end())
-          groups.insert(source.extract(it++));
-        else {
-          auto &to = found->second, &from = it->second;
-          if constexpr (std::is_same_v<Values, uint64_t>)
-            to += from;
-          else if constexpr (std::is_same_v<Values, NumericStates>) {
-            for (size_t i = 0; i < to.size(); ++i) {
-              to[i].count += from[i].count;
-              to[i].sum = Add(to[i].sum, from[i].sum);
-            }
-          } else
-            Merge(to, from, aggregates, budget);
-          it = source.erase(it);
-        }
-      }
-    }
-    return groups;
-  };
-  std::vector<std::future<Map>> merges;
-  for (int i = 0; i < workers; ++i)
-    merges.push_back(std::async(launch, merge, i));
-  QueryResults results(q, budget);
-  for (auto &merge : merges) {
-    auto groups = merge.get();
+  auto finalize = [&](Map &groups) {
+    QueryDesc local = q;
+    local.offset = 0;
+    if (q.limit)
+      local.limit = *q.limit + q.offset;
+    QueryResults results(local, budget);
     for (const auto &[key, values] : groups) {
       FinalRow row;
       for (size_t i = 0; i < q.aggregateClauses.size(); ++i) {
@@ -158,6 +132,41 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
       }
       results.add(std::move(row));
     }
+    return results.takeCandidates();
+  };
+  auto merge = [&](int owner) {
+    ScopedValueResource valuesMemory(budget);
+    auto groups = map();
+    for (auto &worker : partials) {
+      auto &source = worker[owner];
+      for (auto it = source.begin(); it != source.end();) {
+        auto found = groups.find(it->first);
+        if (found == groups.end())
+          groups.insert(source.extract(it++));
+        else {
+          auto &to = found->second, &from = it->second;
+          if constexpr (std::is_same_v<Values, uint64_t>)
+            to += from;
+          else if constexpr (std::is_same_v<Values, NumericStates>) {
+            for (size_t i = 0; i < to.size(); ++i) {
+              to[i].count += from[i].count;
+              to[i].sum = Add(to[i].sum, from[i].sum);
+            }
+          } else
+            Merge(to, from, aggregates, budget);
+          it = source.erase(it);
+        }
+      }
+    }
+    return finalize(groups);
+  };
+  std::vector<std::future<std::vector<FinalRow>>> merges;
+  for (int i = 0; i < workers; ++i)
+    merges.push_back(std::async(launch, merge, i));
+  QueryResults results(q, budget);
+  for (auto &merge : merges) {
+    for (auto &row : merge.get())
+      results.add(std::move(row));
   }
   return results.finish();
 }
