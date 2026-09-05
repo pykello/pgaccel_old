@@ -70,6 +70,7 @@ ColumnarTable::Save(std::ostream& metadataStream,
         metadataStream << std::endl;
     }
 
+    if (!metadataStream || !dataStream) return Status::Invalid("Native save failed");
     return true;
 }
 
@@ -108,8 +109,9 @@ ColumnarTable::Load(const std::string &tableName,
     std::vector<int> column_groups;
     std::vector<ColumnDesc> column_descs;
 
-    int numCols;
+    int numCols = 0;
     metadataStream >> numCols;
+    if (!metadataStream || numCols <= 0 || numCols > 16384) return Status::Invalid("Invalid native schema");
     for (int colIdx = 0; colIdx < numCols; colIdx++)
     {
         uint64_t position;
@@ -118,6 +120,9 @@ ColumnarTable::Load(const std::string &tableName,
         int typeNum;
 
         metadataStream >> position >> groupCount >> columnName >> typeNum;
+        if (!metadataStream || groupCount < 0 || groupCount > 1000000 ||
+            (!column_groups.empty() && groupCount != column_groups[0]))
+            return Status::Invalid("Invalid native group count");
 
         ColumnDesc columnDesc;
         columnDesc.name = ToLower(columnName);
@@ -144,6 +149,7 @@ ColumnarTable::Load(const std::string &tableName,
                 auto decimalType = std::make_shared<DecimalType>();
                 int scale;
                 metadataStream >> scale;
+                if (!metadataStream || scale < 0 || scale > 18) return Status::Invalid("Invalid decimal scale");
                 decimalType->scale = scale;
                 columnDesc.type = decimalType;
                 break;
@@ -176,17 +182,24 @@ ColumnarTable::Load(const std::string &tableName,
         for (int group = 0; group < groupCount; group++)
         {
             auto &rowGroup = result->row_groups_[group];
-            auto columnData = ColumnDataBase::Load(dataStream, columnDesc.type.get());
+            Result<ColumnDataP> columnData(Status::Invalid("Invalid native column"));
+            try { columnData = ColumnDataBase::Load(dataStream,columnDesc.type.get()); }
+            catch (const std::exception &e) { return Status::Invalid(e.what()); }
             RAISE_IF_FAILS(columnData);
+            if (!rowGroup.columns.empty() && rowGroup.size != (*columnData)->size)
+                return Status::Invalid("Inconsistent native column lengths");
             rowGroup.columns.push_back(std::move(columnData).ValueUnsafe());
             rowGroup.size = rowGroup.columns.back()->size;
         }
 
-        columnDesc.layout = result->row_groups_[0].columns.back()->type;
+        columnDesc.layout = groupCount ? result->row_groups_[0].columns.back()->type :
+            (columnDesc.type->type_num() == STRING_TYPE || columnDesc.type->type_num() == DATE_TYPE ?
+             ColumnDataBase::DICT_COLUMN_DATA : ColumnDataBase::RAW_COLUMN_DATA);
 
         result->schema_.push_back(std::move(column_descs[colIdx]));
     }
 
+    if (result->schema_.empty()) return Status::Invalid("No matching native columns");
     return result;
 }
 

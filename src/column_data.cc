@@ -27,14 +27,12 @@ ReadValues<StringType>(std::istream &in, int count, std::string *out)
 {
     for (int i = 0; i < count; i++)
     {
-        int size;
+        int size = 0;
         in.read((char *) &size, sizeof(size));
-        for (int j = 0; j < size; j++)
-        {
-            char c;
-            in.read((char *) &c, sizeof(c));
-            out[i].push_back(c);
-        }
+        if (!in || size < 0 || size > (64 << 20)) throw std::invalid_argument("Invalid native string length");
+        out[i].resize(size);
+        in.read(out[i].data(),size);
+        if (!in) throw std::invalid_argument("Truncated native string");
     }
 }
 
@@ -42,11 +40,12 @@ template<class AccelTy>
 static Result<ColumnDataP>
 LoadDictColumnData(std::istream &in)
 {
-    int dictSize;
+    int dictSize = 0;
     auto result = std::make_shared<DictColumnData<AccelTy>>();
     result->type = ColumnDataBase::DICT_COLUMN_DATA;
     result->valueType = std::make_unique<AccelTy>();
     in.read((char *) &dictSize, sizeof(dictSize));
+    if (!in || dictSize < 0 || dictSize > RowGroupSize) return Status::Invalid("Invalid dictionary size");
     for (int i = 0; i < dictSize; i++)
     {
         typename AccelTy::c_type value;
@@ -55,10 +54,20 @@ LoadDictColumnData(std::istream &in)
     }
 
     in.read((char *) &result->size, sizeof(result->size));
+    if (!in || result->size < 0 || result->size > RowGroupSize || (result->size && !dictSize))
+        return Status::Invalid("Invalid dictionary row count");
+    if (!std::is_sorted(result->dict.begin(),result->dict.end()) ||
+        std::adjacent_find(result->dict.begin(),result->dict.end()) != result->dict.end())
+        return Status::Invalid("Dictionary must be sorted and unique");
     int bytesPerValue = (dictSize < 256) ? 1 : 2;
     result->values = (uint8_t *) AllocateAligned(512, bytesPerValue * result->size);
     in.read((char *) result->values, bytesPerValue * result->size);
 
+    if (!in) return Status::Invalid("Truncated column data");
+    for (int i = 0; i < result->size; ++i) {
+        int code = bytesPerValue == 1 ? result->values[i] : ((uint16_t*)result->values)[i];
+        if (code >= dictSize) return Status::Invalid("Dictionary code out of bounds");
+    }
     ColumnDataP resultCasted = std::move(result);
     return resultCasted;
 }
@@ -95,9 +104,14 @@ LoadRawColumnData(std::istream &in)
     in.read((char *) &result->minValue, sizeof (result->minValue));
     in.read((char *) &result->maxValue, sizeof (result->maxValue));
 
+    if (!in || result->size < 0 || result->size > RowGroupSize ||
+        (result->bytesPerValue != 1 && result->bytesPerValue != 2 && result->bytesPerValue != 4 && result->bytesPerValue != 8) ||
+        result->minValue > result->maxValue)
+        return Status::Invalid("Invalid raw column header");
     result->values =
         (uint8_t *) AllocateAligned(512, result->bytesPerValue * result->size);
     in.read((char *) result->values, result->bytesPerValue * result->size);
+    if (!in) return Status::Invalid("Truncated raw column");
 
     ColumnDataP resultCasted = std::move(result);
     return resultCasted;
@@ -124,9 +138,10 @@ LoadRawColumnData(std::istream &in, AccelType *dataType)
 
 Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
 {
-    ColumnDataBase::Type type;
+    ColumnDataBase::Type type = ColumnDataBase::Type(-1);
     in.read((char *) &type, sizeof(type));
 
+    if (!in) return Status::Invalid("Truncated column header");
     switch (type)
     {
         case ColumnDataBase::DICT_COLUMN_DATA:
