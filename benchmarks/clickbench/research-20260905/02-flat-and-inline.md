@@ -22,10 +22,10 @@ All 35 native tests pass, including failure safety and all inline arities.
 | Query | Previous warm ms | Experiment warm ms | Speedup | Decision |
 | --- | ---: | ---: | ---: | --- |
 | Q5 | 9029.440 | 2463.171 | 3.67× | Keep original flat integer set |
-| Q6 | 3103.988 | 3154.953 | 0.98× | Unchanged string path; control |
+| Q6 | 3103.989 | 3154.953 | 0.98× | Unchanged string path; control |
 | Q31 | 5458.593 | 4064.579 | 1.34× | Keep inline numeric state |
-| Q32 | 10255.317 | 7461.196 | 1.37× | Keep inline numeric state |
-| Q33 | 122262.240 | 61299.354 | 1.99× | Keep inline numeric state |
+| Q32 | 10255.323 | 7461.196 | 1.37× | Keep inline numeric state |
+| Q33 | 122262.240 | 61299.439 | 1.99× | Keep inline numeric state |
 
 The previous baseline is the preserved pre-research three-trial run. It is not
 an interleaved A/B measurement; later acceptance will rerun both full engines.
@@ -33,8 +33,8 @@ These queries still lose to ClickHouse. The changes reduce the gap, not satisfy
 the final stopping target.
 
 Raw records and every trial's validation:
-`../docs/clickbench/research-20260905/flat-and-inline{,-gate}.jsonl` (the gate
-actually has suffix `.json`). The binary and metadata record source/hash identity.
+`../docs/clickbench/research-20260905/flat-and-inline.jsonl` and
+`../docs/clickbench/research-20260905/flat-and-inline-gate.json`. The binary and metadata record source/hash identity.
 
 ## Profiling context
 
