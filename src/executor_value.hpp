@@ -106,10 +106,11 @@ Cell Read(const RowGroup &rg, const ColumnRef &c, int row)
         throw std::runtime_error("Invalid storage width");
     }
 }
-Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
+template<class Reader>
+Cell EvaluateWith(const Expression &e, const Reader &read)
 {
     if (e.kind == Expression::COLUMN)
-        return Read(rg, *e.column, row);
+        return read(*e.column);
     if (e.kind == Expression::CONSTANT)
     {
         if (e.type->type_num() == STRING_TYPE)
@@ -118,16 +119,16 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
     }
     if (e.kind==Expression::CASE)
     {
-        auto branch=Evaluate(*e.condition,rg,row).number?e.left:e.right;
-        Cell value=Evaluate(*branch,rg,row);
+        auto branch=EvaluateWith(*e.condition, read).number?e.left:e.right;
+        Cell value=EvaluateWith(*branch, read);
         if (!value.string) value.number=Multiply(value.number,Power(Scale(e.type.get())-Scale(branch->type.get())));
         return value;
     }
     if (e.kind==Expression::AND)
-        return {Wide(Evaluate(*e.left,rg,row).number && Evaluate(*e.right,rg,row).number)};
+        return {Wide(EvaluateWith(*e.left, read).number && EvaluateWith(*e.right, read).number)};
     if (e.kind>=Expression::EQ && e.kind<=Expression::GTE)
     {
-        Cell l=Evaluate(*e.left,rg,row),r=Evaluate(*e.right,rg,row);
+        Cell l=EvaluateWith(*e.left, read),r=EvaluateWith(*e.right, read);
         if (!l.string)
         {
             int ls=Scale(e.left->type.get()),rs=Scale(e.right->type.get());
@@ -141,7 +142,7 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
     }
     if (e.kind==Expression::REGEXP_REPLACE)
     {
-        Cell input=Evaluate(*e.left,rg,row);
+        Cell input=EvaluateWith(*e.left, read);
         re2::StringPiece pieces[10];
         if (!e.regexp->Match(re2::StringPiece(input.text.data(),input.text.size()),0,input.text.size(),
                              re2::RE2::UNANCHORED,pieces,10)) return input;
@@ -168,7 +169,7 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
     }
     if (e.kind==Expression::EXTRACT || e.kind==Expression::DATE_TRUNC)
     {
-        Wide seconds=Evaluate(*e.left,rg,row).number;
+        Wide seconds=EvaluateWith(*e.left, read).number;
         Wide unit=e.literal=="day"?86400:e.literal=="hour"?3600:e.literal=="minute"?60:1;
         Wide remainder=seconds%unit;
         if (remainder<0) remainder+=unit;
@@ -183,8 +184,8 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
         return {value};
     }
     if (e.kind==Expression::LENGTH)
-        return {Wide(Evaluate(*e.left,rg,row).text.size())};
-    auto l = Evaluate(*e.left, rg, row).number, r = Evaluate(*e.right, rg, row).number;
+        return {Wide(EvaluateWith(*e.left, read).text.size())};
+    auto l = EvaluateWith(*e.left, read).number, r = EvaluateWith(*e.right, read).number;
     int ls = Scale(e.left->type.get()), rs = Scale(e.right->type.get()), s = Scale(e.type.get());
     if (e.kind == Expression::MULTIPLY)
         return {Multiply(l, r)};
@@ -208,6 +209,11 @@ Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
     }
     return {Add(l, r)};
 }
+Cell Evaluate(const Expression &e, const RowGroup &rg, int row)
+{
+    return EvaluateWith(e, [&](const ColumnRef &column) { return Read(rg, column, row); });
+}
+
 std::string Number(Wide n, int scale)
 {
     bool negative = n < 0;
