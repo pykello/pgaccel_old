@@ -73,3 +73,11 @@ TEST(Aggregation, DerivedKeysAndAliases) {
     EXPECT_FALSE(ParseSelect("SELECT v,count(*) FROM t GROUP BY v-1",t).ok());
     EXPECT_FALSE(ParseSelect("SELECT sum(v) AS s FROM t GROUP BY s",t).ok());
 }
+TEST(Aggregation, CompositeMergesAcrossDictionaryCodeSpaces) {
+    auto t=test::Table({{test::Raw({1,1,2}),test::Dict<StringType>({"a","c","a"}),test::Raw({1,2,3})},
+                        {test::Raw({1,3,1}),test::Dict<StringType>({"c","b","c"}),test::Raw({4,5,2})}},
+                       {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()},{"w",std::make_shared<Int64Type>()}});
+    Check(t,"SELECT v,s,count(*) AS n FROM t GROUP BY v,s ORDER BY n DESC LIMIT 1",{{"1","c","3"}});
+    Check(t,"SELECT v,s,sum(w),count(*) AS n FROM t GROUP BY v,s ORDER BY n DESC LIMIT 1",{{"1","c","8","3"}});
+    Check(t,"SELECT v,s,count(distinct w),min(w),max(w),count(*) AS n FROM t GROUP BY v,s ORDER BY n DESC LIMIT 1",{{"1","c","2","2","4","3"}});
+}
