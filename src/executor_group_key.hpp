@@ -8,12 +8,10 @@ struct GroupKey {
   uint64_t hash;
   uint32_t group, row;
 };
-struct GroupHash {
-  size_t operator()(const GroupKey &key) const { return key.hash; }
-};
 struct GroupKeys {
   const QueryDesc &q;
   std::vector<std::shared_ptr<Expression>> identity;
+  bool scalar = false;
   explicit GroupKeys(const QueryDesc &query) : q(query) {
     for (const auto &expression : q.groupExpressions) {
       bool redundant = false;
@@ -32,6 +30,8 @@ struct GroupKeys {
       if (!redundant)
         identity.push_back(expression);
     }
+    scalar = identity.size() == 1 && identity[0]->kind == Expression::COLUMN &&
+             identity[0]->type->type_num() != STRING_TYPE;
   }
   Cell value(const GroupKey &key,
              const std::shared_ptr<Expression> &expression) const {
@@ -39,6 +39,12 @@ struct GroupKeys {
   }
   GroupKey make(int group, int row) const {
     GroupKey key{0, uint32_t(group), uint32_t(row)};
+    if (scalar) {
+      // A stored numeric column fits 64 bits. Retain its exact identity in the
+      // existing key word so collision checks do not reread resident rows.
+      key.hash = uint64_t(value(key, identity[0]).number);
+      return key;
+    }
     for (const auto &column : identity)
       key.hash ^= Hash{}(value(key, column)) + 0x9e3779b97f4a7c15ULL +
                   (key.hash << 6) + (key.hash >> 2);
@@ -59,10 +65,16 @@ struct GroupKeys {
     return false;
   }
 };
+struct GroupHash {
+  const GroupKeys *keys;
+  size_t operator()(const GroupKey &key) const {
+    return keys->scalar ? IntegerHash{}(key.hash) : key.hash;
+  }
+};
 struct GroupEqual {
   const GroupKeys *keys;
   bool operator()(const GroupKey &a, const GroupKey &b) const {
-    return a.hash == b.hash && keys->equal(a, b);
+    return a.hash == b.hash && (keys->scalar || keys->equal(a, b));
   }
 };
 } // namespace

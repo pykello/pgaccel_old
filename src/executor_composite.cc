@@ -21,7 +21,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
   ScopedValueResource valuesMemory(budget);
   GroupKeys keys{q};
   using Map = FlatMap<GroupKey, Values, GroupHash, GroupEqual>;
-  auto map = [&] { return Map(budget, GroupHash{}, GroupEqual{&keys}); };
+  auto map = [&] { return Map(budget, GroupHash{&keys}, GroupEqual{&keys}); };
   QueryDesc aggregates = q;
   aggregates.aggregateClauses.clear();
   std::vector<int> indexes;
@@ -117,7 +117,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
           return;
         }
         auto key = keys.make(g, row);
-        auto &groups = maps[(key.hash >> 32) % workers];
+        auto &groups = maps[(GroupHash{&keys}(key) >> 32) % workers];
         auto [index, added] = groups.get(key, initial);
         auto &values = groups.at(index).second;
         update(values, rg, row);
@@ -125,7 +125,7 @@ Result<QueryOutput> Composite(const QueryDesc &q, bool avx, bool parallel) {
     }
     for (auto &[representative, values] : firstKeys) {
       auto key = keys.make(representative.group, representative.row);
-      maps[(key.hash >> 32) % workers].get(key, [&] { return std::move(values); });
+      maps[(GroupHash{&keys}(key) >> 32) % workers].get(key, [&] { return std::move(values); });
     }
     return maps;
   };
