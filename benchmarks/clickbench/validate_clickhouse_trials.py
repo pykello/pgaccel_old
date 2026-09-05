@@ -33,8 +33,10 @@ connection.execute("CREATE VIEW hits AS SELECT * REPLACE "
     "(DATE '1970-01-01' + CAST(EventDate AS INTEGER) AS EventDate, "
     "TIMESTAMP '1970-01-01' + EventTime * INTERVAL '1 second' AS EventTime) "
     "FROM source_hits")
-# Only these unchanged queries have non-unique COUNT ordering in this checkpoint.
+# These unchanged queries have non-unique COUNT ordering; other differences
+# remain failures requiring investigation.
 specs = {
+    22: (['SearchPhrase'], 2),
     31: (['SearchEngineID', 'ClientIP'], 2),
     32: (['WatchID', 'ClientIP'], 2),
     33: (['WatchID', 'ClientIP'], 2),
