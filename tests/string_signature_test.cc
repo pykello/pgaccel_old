@@ -66,3 +66,27 @@ TEST(StringSignature, LocalLayoutsFollowIndependentStripeLabelOrders)
         ASSERT_TRUE(result.ok()); EXPECT_EQ(result->values, Rows({{"3"}}));
     }
 }
+
+TEST(StringSignature, SparseIntersectionsOnlyAdmitSelectedRowsAndExactLabels)
+{
+    std::vector<std::string> strings;
+    std::vector<int64_t> keep;
+    for (int i = 0; i < 1031; ++i) {
+        strings.push_back(std::to_string(i) + (i % 3 ? "google" : "ordinary"));
+        keep.push_back(i % 47 == 0);
+    }
+    auto registry = test::Table({{test::Dict<StringType>(strings), test::Raw(keep, 1)}},
+        {{"s", std::make_shared<StringType>()}, {"keep", std::make_shared<Int64Type>()}});
+    ASSERT_TRUE(registry.at("t")->BuildDictionaries(1 << 22).ok());
+    for (bool negate : {false, true}) {
+        uint64_t count = 0;
+        for (size_t i = 0; i < strings.size(); ++i)
+            count += keep[i] && ((strings[i].find("google") != std::string::npos) != negate);
+        for (bool avx : {false, true}) {
+            auto q = ParseSelect("SELECT count(*) FROM t WHERE s " + std::string(negate ? "NOT LIKE" : "LIKE") +
+                " '%google%' AND keep=1", registry);
+            ASSERT_TRUE(q.ok()); auto result = ExecuteQuery(*q, avx, true);
+            ASSERT_TRUE(result.ok()); EXPECT_EQ(result->values, Rows({{std::to_string(count)}}));
+        }
+    }
+}

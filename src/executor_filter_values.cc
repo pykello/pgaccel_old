@@ -1,4 +1,4 @@
-#include "executor_value.hpp"
+#include "executor_state.hpp"
 #include <re2/re2.h>
 #include <array>
 #include <immintrin.h>
@@ -33,7 +33,36 @@ class ValuePredicate : public FilterNodeImpl {
       std::array<uint32_t, RowGroupSize / 32> labels{};
       auto signatures = substring && needle.size() >= 3
           ? data->localStringSignatures : std::span<const StringSignature>{};
-      if (avx && !signatures.empty()) {
+      int selectedRows = rg.size;
+      if (intersect) {
+        selectedRows = 0;
+        for (int base = 0; base < rg.size; base += 64) {
+          uint64_t word = 0;
+          int n = std::min(64, rg.size - base);
+          memcpy(&word, bitmap + base / 8, (n + 7) / 8);
+          if (n < 64) word &= (uint64_t(1) << n) - 1;
+          selectedRows += __builtin_popcountll(word);
+        }
+      }
+      bool sparse = intersect && selectedRows <= rg.size / 4 && selectedRows < dict->dictSize() / 2;
+      if (sparse) {
+        std::array<uint64_t, RowGroupSize / 64> needed{};
+        Selected(rg, bitmap, [&](int row) {
+          int code = Code(dict, row);
+          needed[code / 64] |= uint64_t(1) << (code % 64);
+        });
+        int size = dict->dictSize();
+        for (int base = 0; base < size; base += 64) {
+          uint64_t word = needed[base / 64];
+          while (word) {
+            int i = base + __builtin_ctzll(word);
+            bool yes = !signatures.empty() && !signatures[i].mayContain(required)
+                ? negate : matches(Label(dict, i, f.columnRef.Type()->type_num()));
+            if (yes) labels[i / 32] |= uint32_t(1) << (i % 32);
+            word &= word - 1;
+          }
+        }
+      } else if (avx && !signatures.empty()) {
         // Compare four adjacent 128-bit signatures at once. Both 64-bit
         // lanes must contain every required bit before checking exact bytes.
         if (negate) labels.fill(UINT32_MAX);
@@ -66,7 +95,7 @@ class ValuePredicate : public FilterNodeImpl {
       auto apply = [&]<class CodeType>() {
         auto codes = reinterpret_cast<const CodeType *>(dict->values);
         int count = 0, base = 0;
-        if (avx) {
+        if (avx && !sparse) {
           for (; base + 16 <= rg.size; base += 16) {
             uint16_t previous = UINT16_MAX;
             if (intersect) {

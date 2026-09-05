@@ -69,6 +69,12 @@ CreateFilterNode(const std::vector<FilterClause> &filterClauses_, bool useAvx)
     sort(filterClauses.begin(), filterClauses.end(),
          [](const FilterClause &a, const FilterClause &b) -> bool
          {
+            // Apply cheap encoded comparisons before dictionary value work.
+            // Keep comparisons on each column adjacent for range fusion.
+            auto expensive = [](const FilterClause &f) {
+                return f.op >= FilterClause::FILTER_LIKE && f.op <= FilterClause::FILTER_NOT_IN;
+            };
+            if (expensive(a) != expensive(b)) return !expensive(a);
             if (a.columnRef != b.columnRef)
                 return a.columnRef < b.columnRef;
             return a.op < b.op;
