@@ -8,17 +8,7 @@ relative tolerance; integer and string columns compare exactly.
 import argparse,json,math,os,pathlib,selectors,subprocess,time
 P=argparse.ArgumentParser();P.add_argument('--runner',required=True);P.add_argument('--native',required=True);P.add_argument('--queries',required=True);P.add_argument('--oracle',required=True);P.add_argument('--output',required=True);P.add_argument('--threads',type=int,choices=[1,8],default=8);P.add_argument('--avx',type=int,choices=[0,1],default=1);P.add_argument('--timeout',type=float,default=300);P.add_argument('--memory-gib',type=int,default=32);a=P.parse_args()
 oracles={r['id']:r for r in map(json.loads,pathlib.Path(a.oracle).read_text().splitlines())}
-def matches(actual,expected,meta,ordered=False):
- if len(actual)!=len(expected):return False
- def canon(row):return tuple(str(x) for x in row)
- if not ordered:actual=sorted(actual,key=canon);expected=sorted(expected,key=canon)
- for left,right in zip(actual,expected):
-  if len(left)!=len(right):return False
-  for x,y,t in zip(left,right,meta):
-   if 'Float' in t['type']:
-    if not math.isclose(float(x),float(y),rel_tol=1e-12,abs_tol=1e-12):return False
-   elif str(x)!=str(y):return False
- return True
+from answer_validation import matches
 class Runner:
  def __init__(self):
   env=dict(os.environ,PGACCEL_QUERY_MEMORY_BYTES=str(a.memory_gib<<30))

@@ -1,6 +1,8 @@
 import importlib.util
 import pathlib
 import unittest
+import sys
+sys.path.insert(0,str(pathlib.Path(__file__).parents[1] / "benchmarks/clickbench"))
 spec = importlib.util.spec_from_file_location('gate', pathlib.Path(__file__).parents[1] / 'benchmarks/clickbench/gate.py')
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
@@ -27,6 +29,21 @@ class GateTests(unittest.TestCase):
         self.assertEqual([], gate.validate(rows, gate.STAGE3, oracle))
         rows[3].update(status='answer_mismatch', rows=[['-1']])
         self.assertTrue(gate.validate(rows, gate.STAGE3, oracle))
+
+    def test_order_refinement_requires_matching_evidence(self):
+        rows = self.records()
+        sql = 'SELECT k,count(*) AS c FROM hits GROUP BY k ORDER BY c DESC LIMIT 1;'
+        rows[7].update(status='answer_mismatch', sql=sql, rows=[['a','2']])
+        evidence = {8: {'original_sql': sql, 'sql': gate.refine_limit(sql,2),
+                        'status': 'success', 'rows': [['a',2]],
+                        'meta': [{'type':'String'},{'type':'UInt64'}]}}
+        self.assertEqual([],gate.validate(rows,gate.STAGE3,None,evidence))
+        rows[7]['status']='answer_mismatch'
+        evidence[8]['rows']=[['b',2]]
+        self.assertTrue(gate.validate(rows,gate.STAGE3,None,evidence))
+        evidence[8]['rows']=[['a',2]]
+        evidence[8]['sql']=sql
+        self.assertTrue(gate.validate(rows,gate.STAGE3,None,evidence))
 
 if __name__ == '__main__':
     unittest.main()
