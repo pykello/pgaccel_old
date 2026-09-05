@@ -1,540 +1,161 @@
 #include "parser.h"
 #include "util.h"
+#include <cctype>
+#include <stdexcept>
 
-#include <vector>
-#include <cstdlib>
-
-namespace pgaccel
-{
-
-#define ENSURE_TOKEN(type) \
-    do { \
-        if (currentIdx == tokens.size()) \
-            return Status::Invalid("Unexpected end of query while expecting a ", type); \
-    } while(0);
-
-struct UnresolvedAggregate
-{
-    AggregateClause::Type type;
-    std::optional<std::string> col;
-};
-
-typedef std::vector<UnresolvedAggregate> UnresolvedAggV;
-
-static std::vector<std::string> TokenizeQuery(const std::string &query);
-static Result<bool> ParseToken(const std::string &kw,
-                                 const std::vector<std::string> &tokens,
-                                 int &currentIdx);
-static Result<UnresolvedAggV> ParseAggregates(
-    QueryDesc &queryDesc,
-    const std::vector<std::string> &tokens,
-    int &currentIdx);
-static Result<bool> ParseTableRef(QueryDesc &queryDesc,
-                                  const TableRegistry &registry,
-                                  const std::vector<std::string> &tokens,
-                                  int &currentIdx);
-static Result<bool> ParseFilters(QueryDesc &queryDesc,
-                                 const std::vector<std::string> &tokens,
-                                 int &currentIdx);
-static Result<bool> ParseFiltersDisj(QueryDesc &queryDesc,
-                                    const std::vector<std::string> &tokens,
-                                    int &currentIdx);
-static Result<bool> ParseFiltersConj(QueryDesc &queryDesc,
-                                     const std::vector<std::string> &tokens,
-                                     int &currentIdx);
-static Result<FilterClause> ParseFilterAtom(QueryDesc &queryDesc,
-                                            const std::vector<std::string> &tokens,
-                                            int &currentIdx);
-static Result<bool> ParseGroupBy(QueryDesc &queryDesc,
-                                 const std::vector<std::string> &tokens,
-                                 int &currentIdx);
-static Result<ColumnRef> ParseColumnRef(QueryDesc &queryDesc,
-                                        const std::vector<std::string> &tokens,
-                                        int &currentIdx);
-static Result<ColumnRef> ResolveColumn(QueryDesc &queryDesc,
-                                       const std::string &columnName);
-static Result<std::string> ParseValue(const AccelType &type,
-                                      const std::vector<std::string> &tokens,
-                                      int &currentIdx);
-static Result<bool> ResolveAggregates(QueryDesc &queryDesc,
-                                      const UnresolvedAggV &unresolvedAggs);
-
-Result<QueryDesc>
-ParseSelect(const std::string &query, const TableRegistry &registry)
-{
-    QueryDesc queryDesc;
-    auto tokens = TokenizeQuery(query);
-    int idx = 0;
-    RAISE_IF_FAILS(ParseToken("SELECT", tokens, idx));
-    UnresolvedAggV unresolvedAggs;
-    ASSIGN_OR_RAISE(unresolvedAggs, ParseAggregates(queryDesc, tokens, idx));
-    RAISE_IF_FAILS(ParseToken("FROM", tokens, idx));
-    RAISE_IF_FAILS(ParseTableRef(queryDesc, registry, tokens, idx));
-
-    if (ParseToken("WHERE", tokens, idx).ok())
-    {
-        RAISE_IF_FAILS(ParseFilters(queryDesc, tokens, idx));
-    }
-
-    if (ParseToken("GROUP", tokens, idx).ok())
-    {
-        RAISE_IF_FAILS(ParseToken("BY", tokens, idx));
-        RAISE_IF_FAILS(ParseGroupBy(queryDesc, tokens, idx));
-    }
-
-    if (idx != tokens.size())
-    {
-        return Status::Invalid("Unexpected token:", tokens[idx], ".");
-    }
-
-    RAISE_IF_FAILS(ResolveAggregates(queryDesc, unresolvedAggs));
-
-    return queryDesc;
-}
-
-std::string ColumnRef::ToString() const
-{
-    std::ostringstream sout;
-    sout << "(table=" << tableIdx << ",col=" << columnIdx << ",type=" << Type()->ToString() << ")";
-    return sout.str();
-}
-
-std::string FilterClause::ToString() const
-{
-    std::ostringstream sout;
-    sout << "(op='";
-    switch (op)
-    {
-        case FilterClause::FILTER_EQ:
-            sout << "=";
-            break;
-        case FilterClause::FILTER_NE:
-            sout << "!=";
-            break;
-        case FilterClause::FILTER_LT:
-            sout << "<";
-            break;
-        case FilterClause::FILTER_LTE:
-            sout << "<=";
-            break;
-        case FilterClause::FILTER_GT:
-            sout << ">";
-            break;
-        case FilterClause::FILTER_GTE:
-            sout << ">=";
-            break;
-    }
-    sout << "',columnRef=" << columnRef.ToString();
-    sout << ",value='" << value << "'";
-    sout << ")";
-    return sout.str();
-}
-
-std::string AggregateClause::ToString() const
-{
-    std::ostringstream sout;
-    switch(type)
-    {
-        case AggregateClause::AGGREGATE_COUNT:
-            sout << "count";
-            break;
-        case AggregateClause::AGGREGATE_COUNT_DISTINCT:
-            sout << "count-distinct";
-            break;
-        case AggregateClause::AGGREGATE_MAX:
-            sout << "max";
-            break;
-        case AggregateClause::AGGREGATE_MIN:
-            sout << "min";
-            break;
-        case AggregateClause::AGGREGATE_SUM:
-            sout << "sum";
-            break;
-        case AggregateClause::AGGREGATE_AVG:
-            sout << "avg";
-            break;
-        case AggregateClause::AGGREGATE_PROJECT:
-            sout << "project";
-            break;
-    }
-    if (columnRef.has_value())
-    {
-        sout << " " << columnRef->Name();
-    }
-    return sout.str();
-}
-
-std::string QueryDesc::ToString() const
-{
-    std::ostringstream sout;
-    sout << "Tables: " << std::endl;
-    for(auto table: tables) {
-        sout << "  - " << table->Name() << std::endl;
-    }
-
-    sout << "Filter Clauses:" << std::endl;
-    for(auto filterClause: filterClauses)
-    {
-        sout << "  - " << filterClause.ToString() << std::endl;
-    }
-
-    sout << "Group By:" << std::endl;
-    for(auto col: groupBy)
-    {
-        sout << "  - " << col.ToString() << std::endl;
-    }
-
-    sout << "Aggregate Clauses:" << std::endl;
-    for (auto agg: aggregateClauses)
-    {
-        sout << "  - " << agg.ToString() << std::endl;
-    }
-
-    return sout.str();
-}
-
-static bool
-OperatorChar(char ch)
-{
-    return ch == '*' || ch == '/' || ch == '-' || ch == '+' || ch == '|' ||
-           ch == '>' || ch == '<' || ch == '=' || ch == '!';
-}
-
-static std::vector<std::string>
-TokenizeQuery(const std::string &query)
-{
-    std::vector<std::string> tokens;
-    std::string current;
-
-    bool inString = false;
-
-    for (auto c: query) {
-        if (inString) {
-            if (c == '\'') {
-                tokens.push_back(current);
-                tokens.push_back("'");
-                current = "";
-                inString = false;
+namespace pgaccel {
+namespace {
+struct Token { std::string text; bool quoted = false; };
+std::vector<Token> Lex(const std::string &sql) {
+    std::vector<Token> out;
+    for (size_t i = 0; i < sql.size();) {
+        unsigned char c = sql[i];
+        if (std::isspace(c)) { ++i; continue; }
+        if (c == '\'') {
+            ++i; std::string s; bool closed = false;
+            while (i < sql.size()) {
+                if (sql[i] == '\'') {
+                    ++i;
+                    if (i < sql.size() && sql[i] == '\'') { s += '\''; ++i; }
+                    else { closed = true; break; }
+                } else s += sql[i++];
             }
-            else {
-                current += c;
-            }
+            if (!closed) throw std::invalid_argument("Unterminated string");
+            out.push_back({s,true});
+        } else if (std::isalnum(c) || c == '_' || c == '.') {
+            size_t start = i++;
+            while (i < sql.size() && (std::isalnum((unsigned char)sql[i]) || sql[i] == '_' || sql[i] == '.')) ++i;
+            out.push_back({sql.substr(start,i-start)});
+        } else {
+            std::string s(1,sql[i++]);
+            if (i < sql.size() && ((s == "<" && (sql[i] == '>' || sql[i] == '=')) ||
+                ((s == ">" || s == "!") && sql[i] == '='))) s += sql[i++];
+            out.push_back({s});
         }
-        else if (isspace(c) || c == ';') {
-            if (current.length())
-                tokens.push_back(current);
-            current = "";
-        }
-        else if (c == '(' || c == ')' || c == ',' || c == '\'') {
-            if (current.length())
-                tokens.push_back(current);
-            current = "";
-            std::string token;
-            token += c;
-            tokens.push_back(token);
-            inString = (c == '\'');
-        }
-        else if (OperatorChar(c))
-        {
-            if (current.length() && !OperatorChar(current.back()))
-            {
-                tokens.push_back(current);
-                current = "";
-            }
-
-            current += c;
-        }
+    }
+    return out;
+}
+struct Parser {
+    std::vector<Token> tokens; size_t at = 0; QueryDesc q;
+    const TableRegistry &registry;
+    bool eat(const std::string &s) {
+        if (at < tokens.size() && !tokens[at].quoted && ToLower(tokens[at].text) == ToLower(s)) { ++at; return true; }
+        return false;
+    }
+    void need(const std::string &s) { if (!eat(s)) throw std::invalid_argument("Expected " + s); }
+    Token take() { if (at == tokens.size()) throw std::invalid_argument("Unexpected end of SQL"); return tokens[at++]; }
+    ColumnRef resolve(const std::string &s) {
+        auto i = q.tables[0]->ColumnIndex(s);
+        if (!i) throw std::invalid_argument("Unknown column: " + s);
+        return {q.tables[0]->Schema()[*i],0,*i};
+    }
+    std::shared_ptr<Expression> expr(int precedence = 0) {
+        auto e = std::make_shared<Expression>();
+        if (eat("(")) { e = expr(); need(")"); }
+        else if (eat("-")) {
+            e->kind = Expression::SUBTRACT; e->left = std::make_shared<Expression>();
+            e->left->type = std::make_shared<Int64Type>(); e->right = expr(3); e->type = e->right->type;
+        } else if (eat("+")) e = expr(3);
         else {
-            if (current.length() && OperatorChar(current.back()))
-            {
-                tokens.push_back(current);
-                current = "";
-            }
-
-            current += c;
+            auto t = take();
+            if (t.quoted) { e->literal = t.text; e->type = std::make_shared<StringType>(); }
+            else if (!t.text.empty() && std::isdigit((unsigned char)t.text[0])) {
+                e->literal = t.text;
+                if (t.text.find('.') != std::string::npos) {
+                    auto ty = std::make_shared<DecimalType>(); ty->scale = t.text.size() - t.text.find('.') - 1;
+                    ParseDecimal(ty->scale,t.text); e->type = ty;
+                } else { size_t consumed; std::stoll(t.text,&consumed); if (consumed != t.text.size()) throw std::invalid_argument("Invalid integer"); e->type = std::make_shared<Int64Type>(); }
+            } else { e->kind = Expression::COLUMN; e->column = resolve(t.text); e->type = e->column->Type(); }
         }
+        return e;
     }
-
-    return tokens;
-}
-
-static Result<bool>
-ParseToken(const std::string &kw,
-           const std::vector<std::string> &tokens,
-           int &currentIdx)
-{
-    ENSURE_TOKEN(kw);
-
-    if (ToLower(tokens[currentIdx]) != ToLower(kw))
-        return Status::Invalid("Expected '", kw, "', but found: ", tokens[currentIdx]);
-    currentIdx++;
-
-    return true;
-}
-
-static Result<std::vector<UnresolvedAggregate>>
-ParseAggregates(QueryDesc &queryDesc,
-                const std::vector<std::string> &tokens,
-                int &currentIdx)
-{
-    std::vector<UnresolvedAggregate> result;
-
-    while (true)
-    {
-        if (ParseToken("count", tokens, currentIdx).ok())
-        {
-            RAISE_IF_FAILS(ParseToken("(", tokens, currentIdx));
-            if(ParseToken("*", tokens, currentIdx).ok())
-            {
-                UnresolvedAggregate agg;
-                agg.type = AggregateClause::AGGREGATE_COUNT;
-                result.push_back(agg);
-            }
-            else
-            {
-                // TODO: count(distinct col)
-            }
-            RAISE_IF_FAILS(ParseToken(")", tokens, currentIdx));
+    std::string signature(size_t start, size_t end) {
+        std::string s;
+        for (size_t i = start; i < end; ++i) s += (tokens[i].quoted ? "'" + tokens[i].text + "'" : ToLower(tokens[i].text)) + " ";
+        return s;
+    }
+    AggregateClause aggregate() {
+        AggregateClause a; a.type = AggregateClause::AGGREGATE_PROJECT; size_t start = at;
+        if (eat("count")) a.type = AggregateClause::AGGREGATE_COUNT;
+        else if (eat("sum")) a.type = AggregateClause::AGGREGATE_SUM;
+        else if (eat("avg")) a.type = AggregateClause::AGGREGATE_AVG;
+        else if (eat("min")) a.type = AggregateClause::AGGREGATE_MIN;
+        else if (eat("max")) a.type = AggregateClause::AGGREGATE_MAX;
+        if (a.type != AggregateClause::AGGREGATE_PROJECT) {
+            need("(");
+            
+            if (a.type == AggregateClause::AGGREGATE_COUNT && eat("*")) {}
+            else a.expression = expr();
+            need(")");
+        } else a.expression = expr();
+        if (a.expression && a.expression->kind == Expression::COLUMN) a.columnRef = a.expression->column;
+        if (a.expression && (a.type == AggregateClause::AGGREGATE_SUM || a.type == AggregateClause::AGGREGATE_AVG) &&
+            (a.expression->type->type_num() == STRING_TYPE || a.expression->type->type_num() == DATE_TYPE)) throw std::invalid_argument("SUM/AVG require numeric input");
+        a.sql = signature(start,at);
+        return a;
+    }
+    QueryDesc parse() {
+        // Resolve the one source table before parsing SELECT expressions.
+        size_t from = 0; int depth = 0;
+        for (; from < tokens.size(); ++from) {
+            if (tokens[from].quoted) continue;
+            if (tokens[from].text == "(") ++depth;
+            if (tokens[from].text == ")") --depth;
+            if (!depth && ToLower(tokens[from].text) == "from") break;
         }
-        else
-        {
-            std::vector<std::pair<std::string, AggregateClause::Type>> supportedAggs =
-                { 
-                    {"sum", AggregateClause::AGGREGATE_SUM}
-                };
-            bool parsed = false;
-
-            for (auto agg: supportedAggs)
-            {
-                auto aggName = agg.first;
-                auto aggType = agg.second;
-
-                if (ParseToken(aggName, tokens, currentIdx).ok())
-                {
-                    UnresolvedAggregate agg;
-                    agg.type = aggType;
-
-                    RAISE_IF_FAILS(ParseToken("(", tokens, currentIdx));
-                    ENSURE_TOKEN("col name");
-                    agg.col = tokens[currentIdx++];
-                    RAISE_IF_FAILS(ParseToken(")", tokens, currentIdx));
-
-                    result.push_back(agg);
-                    parsed = true;
-                    break;
-                }
-            }
-
-            if (!parsed)
-            {
-                ENSURE_TOKEN("column name");
-                UnresolvedAggregate agg;
-                agg.type = AggregateClause::AGGREGATE_PROJECT;
-                agg.col = tokens[currentIdx++];
-                result.push_back(agg);
-            }
+        if (from + 1 >= tokens.size()) throw std::invalid_argument("Expected FROM table");
+        auto table = registry.find(ToLower(tokens[from+1].text));
+        if (table == registry.end()) throw std::invalid_argument("Unknown table");
+        q.tables.push_back(table->second.get());
+        need("select");
+        do { auto a = aggregate();  q.aggregateClauses.push_back(std::move(a)); } while (eat(","));
+        need("from"); take();
+        if (eat("where")) do {
+            FilterClause f; f.columnRef = resolve(take().text);
+            auto op = take().text;
+            if (op == "=") f.op = FilterClause::FILTER_EQ;
+            else if (op == "!=" || op == "<>") f.op = FilterClause::FILTER_NE;
+            else if (op == "<") f.op = FilterClause::FILTER_LT;
+            else if (op == "<=") f.op = FilterClause::FILTER_LTE;
+            else if (op == ">") f.op = FilterClause::FILTER_GT;
+            else if (op == ">=") f.op = FilterClause::FILTER_GTE;
+            else throw std::invalid_argument("Unsupported filter operator " + op);
+            std::string sign; if (eat("-")) sign = "-"; else eat("+");
+            auto literal = take(); f.value = sign + literal.text;
+            auto type = f.columnRef.Type()->type_num();
+            if ((type == STRING_TYPE || type == DATE_TYPE) != literal.quoted) throw std::invalid_argument("Incorrect literal type");
+            if (type == DATE_TYPE) ParseDate(f.value);
+            if (type == DECIMAL_TYPE) ParseDecimal(static_cast<DecimalType*>(f.columnRef.Type().get())->scale,f.value);
+            if (type == INT32_TYPE || type == INT64_TYPE) { size_t n; std::stoll(f.value,&n); if (n != f.value.size()) throw std::invalid_argument("Invalid integer literal"); }
+            q.filterClauses.push_back(std::move(f));
+        } while (eat("and"));
+        if (eat("group")) {
+            need("by"); q.grouped = true;
+            do {
+                auto e = expr();
+                if (e->kind == Expression::COLUMN) {
+                    if (q.groupBy.empty()) q.groupBy.push_back(*e->column);
+                    else if (!(q.groupBy[0] == *e->column)) throw std::invalid_argument("Multiple nonconstant GROUP BY keys are not supported");
+                } else if (e->kind != Expression::CONSTANT) throw std::invalid_argument("GROUP BY requires a column or constant");
+            } while (eat(","));
         }
-        
-        if (!ParseToken(",", tokens, currentIdx).ok())
-        {
-            break;
+        eat(";"); if (at != tokens.size()) throw std::invalid_argument("Unsupported SQL near " + tokens[at].text);
+        bool hasAgg = false;
+        for (const auto &a : q.aggregateClauses) hasAgg |= a.type != AggregateClause::AGGREGATE_PROJECT;
+        for (const auto &a : q.aggregateClauses) if (a.type == AggregateClause::AGGREGATE_PROJECT && (hasAgg || q.grouped)) {
+            if (a.expression->kind != Expression::CONSTANT && !(a.columnRef && !q.groupBy.empty() && *a.columnRef == q.groupBy[0]))
+                throw std::invalid_argument("Selected expression must be grouped or aggregated");
         }
+        return std::move(q);
     }
-
-    return result;
-}
-
-static Result<bool>
-ParseTableRef(QueryDesc &queryDesc,
-              const TableRegistry &registry,
-              const std::vector<std::string> &tokens,
-              int &currentIdx)
-{
-    ENSURE_TOKEN("table name");
-
-    std::string tableName = ToLower(tokens[currentIdx]);
-    auto findResult = registry.find(tableName);
-    if (findResult == registry.end())
-        return Status::Invalid("Table not found: ", tableName);
-
-    currentIdx++;
-    queryDesc.tables.push_back(findResult->second.get());
-
-    return true;
-}
-
-static Result<bool>
-ParseFilters(QueryDesc &queryDesc,
-             const std::vector<std::string> &tokens,
-             int &currentIdx)
-{
-    RAISE_IF_FAILS(ParseFiltersDisj(queryDesc, tokens, currentIdx));
-    return true;
-}
-
-static Result<bool>
-ParseFiltersDisj(QueryDesc &queryDesc,
-                 const std::vector<std::string> &tokens,
-                 int &currentIdx)
-{
-    // we don't support OR yet, so just assume this is a conjunctive expr
-    RAISE_IF_FAILS(ParseFiltersConj(queryDesc, tokens, currentIdx));
-
-    if (ParseToken("or", tokens, currentIdx).ok())
-    {
-        // TODO: support OR
-        return Status::Invalid("OR filters are not supported yet.");
-    }
-
-    return true;
-}
-
-static Result<bool>
-ParseFiltersConj(QueryDesc &queryDesc,
-                 const std::vector<std::string> &tokens,
-                 int &currentIdx)
-{
-    FilterClause filterClause;
-    ASSIGN_OR_RAISE(filterClause, ParseFilterAtom(queryDesc, tokens, currentIdx));
-
-    queryDesc.filterClauses.push_back(filterClause);
-
-    if (ParseToken("and", tokens, currentIdx).ok())
-        ParseFiltersConj(queryDesc, tokens, currentIdx);
-
-    return true;
-}
-
-static Result<FilterClause>
-ParseFilterAtom(QueryDesc &queryDesc,
-                const std::vector<std::string> &tokens,
-                int &currentIdx)
-{
-    int opCount = 6;
-    struct {
-        std::string token;
-        FilterClause::Op op;
-    } ops[opCount] = {
-        { "=" , FilterClause::FILTER_EQ },
-        { "!=" , FilterClause::FILTER_NE },
-        { ">" , FilterClause::FILTER_GT },
-        { ">=" , FilterClause::FILTER_GTE },
-        { "<" , FilterClause::FILTER_LT },
-        { "<=" , FilterClause::FILTER_LTE },
-    };
-
-    FilterClause result;
-    ASSIGN_OR_RAISE(result.columnRef, ParseColumnRef(queryDesc, tokens, currentIdx));
-    const auto &columnType = *result.columnRef.Type();
-
-    for (int i = 0; i < opCount; i++)
-        if (ParseToken(ops[i].token, tokens, currentIdx).ok())
-        {
-            result.op = ops[i].op;
-            ASSIGN_OR_RAISE(result.value, ParseValue(columnType, tokens, currentIdx));
-            return result;
-        }
-
-    return Status::Invalid("Invalid operator: ", tokens[currentIdx]);
-}
-
-static Result<bool> ParseGroupBy(QueryDesc &queryDesc,
-                                 const std::vector<std::string> &tokens,
-                                 int &currentIdx)
-{
-    while (true)
-    {
-        ColumnRef columnRef;
-        ASSIGN_OR_RAISE(columnRef, ParseColumnRef(queryDesc, tokens, currentIdx));
-        queryDesc.groupBy.push_back(std::move(columnRef));
-
-        if (!ParseToken(",", tokens, currentIdx).ok())
-        {
-            break;
-        }
-    }
-
-    return true;
-}
-
-static Result<ColumnRef>
-ParseColumnRef(QueryDesc &queryDesc,
-               const std::vector<std::string> &tokens,
-               int &currentIdx)
-{
-    ENSURE_TOKEN("column reference");
-
-    std::string columnName = tokens[currentIdx++];
-    return ResolveColumn(queryDesc, columnName);
-}
-
-static Result<ColumnRef>
-ResolveColumn(QueryDesc &queryDesc,
-              const std::string &columnName)
-{
-    std::optional<ColumnRef> maybeRef;
-
-    for (int tableIdx = 0; tableIdx < queryDesc.tables.size(); tableIdx++)
-    {
-        auto table = queryDesc.tables[tableIdx];
-        auto maybeFieldIdx = table->ColumnIndex(columnName);
-        if (maybeFieldIdx.has_value())
-        {
-            int fieldIdx = *maybeFieldIdx;
-            auto desc = table->Schema()[fieldIdx];
-            auto type = desc.type;
-            maybeRef = ColumnRef { desc, tableIdx, fieldIdx };
-        }
-    }
-
-    if (!maybeRef.has_value())
-        return Status::Invalid("Column not found: ", columnName);
-
-    return std::move(*maybeRef);
-}
-
-
-
-static Result<std::string> 
-ParseValue(const AccelType &type,
-           const std::vector<std::string> &tokens,
-           int &currentIdx)
-{
-    std::string result;
-    bool strValue = (type.type_num() == STRING_TYPE ||
-                     type.type_num() == DATE_TYPE);
-    if (strValue)
-    {
-        RAISE_IF_FAILS(ParseToken("'", tokens, currentIdx));
-        ENSURE_TOKEN("filter value");
-        result = tokens[currentIdx++];
-        RAISE_IF_FAILS(ParseToken("'", tokens, currentIdx));
-    }
-    else
-    {
-        ENSURE_TOKEN("filter value");
-        result = tokens[currentIdx++];
-    }
-
-    return result;
-}
-
-static Result<bool>
-ResolveAggregates(QueryDesc &queryDesc,
-                  const UnresolvedAggV &unresolvedAggs)
-{
-    for(const auto &unresolvedAgg: unresolvedAggs)
-    {
-        AggregateClause agg;
-        agg.type = unresolvedAgg.type;
-
-        if (unresolvedAgg.col.has_value())
-            ASSIGN_OR_RAISE(agg.columnRef,
-                            ResolveColumn(queryDesc, *unresolvedAgg.col));
-
-        queryDesc.aggregateClauses.push_back(agg);
-    }
-    return true;
-}
-
 };
+}
+Result<QueryDesc> ParseSelect(const std::string &sql, const TableRegistry &registry) {
+    try { return Parser{Lex(sql),0,{},registry}.parse(); }
+    catch (const std::exception &e) { return Status::Invalid(e.what()); }
+}
+std::string ColumnRef::ToString() const { return Name(); }
+std::string FilterClause::ToString() const { return columnRef.Name() + " " + std::to_string(op) + " " + value; }
+std::string AggregateClause::ToString() const { return !alias.empty() ? alias : !sql.empty() ? sql : columnRef ? columnRef->Name() : "count"; }
+std::string QueryDesc::ToString() const { std::string s; for (auto &a : aggregateClauses) s += a.ToString() + "\n"; return s; }
+}
