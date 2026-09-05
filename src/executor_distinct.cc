@@ -25,6 +25,13 @@ Result<QueryOutput> RadixIntegerDistinct(const QueryDesc &q, bool avx, bool para
     auto scan = [&](int worker)
     {
         Input input(budget);
+        if (!filter)
+        {
+            size_t rows = 0;
+            for (int group = worker; group < table.RowGroupCount(); group += workers)
+                rows += table.GetRowGroup(group).size;
+            input.values.reserve(rows);
+        }
         for (int group = worker; group < table.RowGroupCount(); group += workers)
         {
             const auto &rg = table.GetRowGroup(group);
