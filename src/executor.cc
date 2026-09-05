@@ -19,6 +19,7 @@ static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
 std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
 Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
@@ -34,6 +35,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         }
         if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) return std::move(*fast);
         if (auto counts = ExecuteGroupedCount(query,useAvx,useParallelism)) return std::move(*counts);
+        if (auto distinct = ExecuteDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
         auto result = ExecuteModern(query,useAvx,useParallelism);
         if (!result.ok() && query.allowSpill && result.status().Message().find("Query memory budget exceeded") == 0)
             return ExecuteExternal(query,useAvx);
