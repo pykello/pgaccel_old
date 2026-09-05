@@ -44,6 +44,7 @@ std::optional<Result<QueryOutput>> ExecutePostingDistinct(const QueryDesc &q, bo
         explicit Input(Budget &memory) : candidates(&memory), counts(&memory), sums(&memory) {}
     };
     auto inputs = RunTasks(workers, [&](int worker) {
+        ScopedValueResource valuesMemory(budget);
         Input input(budget);
         if (filter) input.candidates.resize((index->size() + 63) / 64, 0);
         if (!numeric.empty()) {
@@ -112,6 +113,7 @@ std::optional<Result<QueryOutput>> ExecutePostingDistinct(const QueryDesc &q, bo
         return counts;
     });
     auto candidates = RunTasks(workers, [&](int worker) {
+        ScopedValueResource valuesMemory(budget);
         QueryDesc local = q; local.offset = 0;
         if (q.limit) local.limit = *q.limit + q.offset;
         QueryResults result(local, budget);

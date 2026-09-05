@@ -51,3 +51,16 @@ TEST(ConditionalGroupKey, EqualBranchesStillEvaluateAnUnsafeCondition)
     ASSERT_TRUE(q.ok());
     EXPECT_FALSE(ExecuteQuery(*q, true, true).ok());
 }
+TEST(ConditionalGroupKey, TemporaryConditionStringsUseTheQueryBudget)
+{
+    auto registry = test::Table({{test::Raw({1},1), test::Dict<StringType>({std::string(65536,'x')}),
+        test::Dict<StringType>({"a"})}}, {{"f", std::make_shared<Int64Type>()},
+        {"s", std::make_shared<StringType>()}, {"tgt", std::make_shared<StringType>()}});
+    ASSERT_TRUE(registry.at("t")->BuildDictionaries(1 << 20).ok());
+    auto q = ParseSelect("SELECT count(*) FROM t GROUP BY CASE WHEN (f=1 AND length(REGEXP_REPLACE(s,'x','xx'))>0) THEN tgt ELSE '' END", registry);
+    ASSERT_TRUE(q.ok());
+    QueryDesc bounded = *q; bounded.memoryBudgetBytes = 65536; bounded.allowSpill = false;
+    auto result = ExecuteQuery(bounded, true, true);
+    ASSERT_FALSE(result.ok());
+    EXPECT_NE(result.status().Message().find("Query memory budget exceeded"), std::string::npos);
+}

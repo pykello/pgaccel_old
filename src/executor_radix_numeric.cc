@@ -58,6 +58,7 @@ Result<QueryOutput> RadixNumeric(const QueryDesc &q, GroupKeys &keys, Budget &bu
     auto partition = [&](const GroupKey &key) { return GroupHash{&keys}(key) >> 54; };
     auto filter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
     auto inputs = RunTasks(workers, [&](int worker) {
+        ScopedValueResource valuesMemory(budget);
         Input input(budget);
         if (!filter) {
             size_t rows = 0;
@@ -97,6 +98,7 @@ Result<QueryOutput> RadixNumeric(const QueryDesc &q, GroupKeys &keys, Budget &bu
         return 0;
     });
     auto candidates = RunTasks(workers, [&](int worker) {
+        ScopedValueResource valuesMemory(budget);
         QueryDesc local = q; local.offset = 0;
         if (q.limit) local.limit = *q.limit + q.offset;
         QueryResults result(local, budget);
