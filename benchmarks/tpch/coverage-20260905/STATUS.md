@@ -7,8 +7,8 @@ Branch `feature/tpch-coverage-20260905` is based on ClickBench checkpoint
 `294c36b`. Every result in all three trials was checked against DuckDB
 1.4.3 over the matching Parquet data: exact integers and decimals, exact
 strings/dates, floating tolerance max(1e-6 absolute, 1e-12 relative).
-The latest native test suite passes **128/128**. Sanitizer validation is
-running. SF10 Q13 and Q15 pass all three trials; a full SF10 corpus run has
+The latest native test suite passes **128/128**. The ASan/UBSan suite also passes **128/128** after initializing a
+temporary native schema descriptor (`ffc3b3c`). SF10 Q13 and Q15 pass all three trials; a full SF10 corpus run has
 not yet been made. This is an engineering benchmark, not an audited TPC
 Benchmark Result.
 
@@ -78,7 +78,7 @@ Raw records are in `/home/hadi/projects/docs/tpch/results/`:
 is preserved at `/home/hadi/projects/tpch-work/checkpoints/`.
 `CHECKPOINT.json` records the raw-file hashes and compact per-query results.
 
-1. Finish the sanitizer gate.
+1. Sanitizer gate complete: 128/128 tests pass.
 2. Prepare SF100 from one generated dataset and compare DuckDB native
    tables, ClickHouse, and PGAccel sequentially under a 192 GiB process
    budget. Record three trials, correctness, load time, memory, and all
