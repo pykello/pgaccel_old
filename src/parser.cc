@@ -3,6 +3,8 @@
 #include "regex_delimited_capture.hpp"
 #include "util.h"
 #include <cctype>
+#include <chrono>
+#include <limits>
 #include <stdexcept>
 #include <re2/re2.h>
 
@@ -329,14 +331,52 @@ struct Parser
                     sign = "-";
                 else
                     eat("+");
-                auto literal = take();
-                std::string value = sign + literal.text;
                 auto type = column.Type()->type_num();
+                bool cast = eat("cast");
+                if (cast) need("(");
+                bool date = !cast && eat("date");
+                if ((cast || date) && (type != DATE_TYPE || !sign.empty()))
+                    throw std::invalid_argument("DATE literal requires a date column");
+                auto literal = take();
+                if (cast) { need("as"); need("date"); need(")"); }
+                std::string value = sign + literal.text;
                 if ((type == STRING_TYPE || type == DATE_TYPE || type == TIMESTAMP_TYPE) !=
                     literal.quoted)
                     throw std::invalid_argument("Incorrect literal type");
                 if (type == DATE_TYPE)
-                    ParseDate(value);
+                {
+                    int64_t days = ParseDate(value);
+                    while (at < tokens.size() &&
+                           (tokens[at].text == "+" || tokens[at].text == "-"))
+                    {
+                        bool subtract = eat("-");
+                        if (!subtract) need("+");
+                        need("interval");
+                        auto amount = take(); size_t used;
+                        int64_t count = std::stoll(amount.text, &used);
+                        if (used != amount.text.size() || count < 0 || count > 1000000)
+                            throw std::invalid_argument("Invalid date interval");
+                        if (subtract) count = -count;
+                        auto unit = ToLower(take().text);
+                        using namespace std::chrono;
+                        if (unit == "day" || unit == "days") days += count;
+                        else if (unit == "month" || unit == "months" || unit == "year" || unit == "years")
+                        {
+                            year_month_day old{sys_days{std::chrono::days{days}}};
+                            int64_t months = int(old.year()) * 12 + unsigned(old.month()) - 1;
+                            months += (unit == "year" || unit == "years") ? count * 12 : count;
+                            if (months < 12 || months >= 120000)
+                                throw std::invalid_argument("Date interval out of range");
+                            year_month target{year{int(months / 12)}, month{unsigned(months % 12 + 1)}};
+                            auto last = year_month_day{sys_days{target / std::chrono::last}}.day();
+                            days = sys_days{target / std::min(old.day(), last)}.time_since_epoch().count();
+                        }
+                        else throw std::invalid_argument("Unsupported date interval unit");
+                        DateType ty;
+                        value = ToString(&ty, days);
+                        ParseDate(value);
+                    }
+                }
                 if (type == TIMESTAMP_TYPE)
                     ParseTimestamp(value);
                 if (type == DECIMAL_TYPE)
@@ -410,6 +450,17 @@ struct Parser
                 f.columnRef = resolve(take().text);
                 auto op = ToLower(take().text);
                 if (op=="not") op += " " + ToLower(take().text);
+                if (op == "between")
+                {
+                    f.op = FilterClause::FILTER_GTE;
+                    f.value = filterValue(f.columnRef);
+                    q.filterClauses.push_back(f);
+                    need("and");
+                    f.op = FilterClause::FILTER_LTE;
+                    f.value = filterValue(f.columnRef);
+                    q.filterClauses.push_back(std::move(f));
+                    continue;
+                }
                 if (op == "=")
                     f.op = FilterClause::FILTER_EQ;
                 else if (op == "!=" || op == "<>")
