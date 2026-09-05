@@ -4,6 +4,7 @@
 #include "util.h"
 #include <chrono>
 #include <fstream>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <sys/resource.h>
@@ -18,14 +19,25 @@ static std::string Json(const std::string &s) {
     return out+'"';
 }
 int main(int argc,char **argv) {
-    if(argc<7) { std::cerr<<"query_runner parquet|native PATH TABLE SCHEMA|- PARALLEL AVX [REPEATS=1] [SAVE_PATH]\n";return 2; }
+    if(argc<7) { std::cerr<<"query_runner parquet|native|native-dir PATH TABLE SCHEMA|- PARALLEL AVX [REPEATS=1] [SAVE_PATH]\n";return 2; }
     using Clock=std::chrono::steady_clock;auto begin=Clock::now();
     std::map<std::string,std::string> schema;
     if(std::string(argv[4])!="-") { std::ifstream f(argv[4]);std::string n,t;while(f>>n>>t) schema[ToLower(n)]=t;if(schema.empty())return 2; }
     TableRegistry registry;ColumnarTableP table;
-    if(std::string(argv[1])=="native") { auto r=ColumnarTable::Load(argv[3],argv[2]);if(!r.ok()){std::cerr<<r.status().Message();return 2;}table=std::move(r).ValueUnsafe(); }
+    if(std::string(argv[1])=="native" || std::string(argv[1])=="native-dir") {
+        auto path=std::string(argv[1])=="native-dir" ? (std::filesystem::path(argv[2])/(std::string(argv[3])+".pgaccel")).string() : argv[2];
+        auto r=ColumnarTable::Load(argv[3],path);if(!r.ok()){std::cerr<<r.status().Message();return 2;}table=std::move(r).ValueUnsafe(); }
     else table=ColumnarTable::ImportParquet(argv[3],argv[2],{},schema);
     if(!table)return 2;
+    if(std::string(argv[1])=="native-dir") {
+        for(const auto &entry:std::filesystem::directory_iterator(argv[2])) {
+            if(entry.path().extension()!=".pgaccel" || entry.path().stem()==argv[3])continue;
+            auto name=ToLower(entry.path().stem().string());
+            auto loaded=ColumnarTable::Load(name,entry.path().string());
+            if(!loaded.ok()){std::cerr<<loaded.status().Message();return 2;}
+            if(!registry.emplace(name,std::move(loaded).ValueUnsafe()).second)return 2;
+        }
+    }
     double baseLoadMs=std::chrono::duration<double,std::milli>(Clock::now()-begin).count();
     DictionaryBuildStats indexes;
     double indexBuildMs=0;
@@ -41,7 +53,7 @@ int main(int argc,char **argv) {
     uint64_t count=0;for(int g=0;g<table->RowGroupCount();++g)count+=table->GetRowGroup(g).size;
     struct rusage loadedUsage{};getrusage(RUSAGE_SELF,&loadedUsage);
     std::cout<<std::setprecision(12)<<"{\"status\":\"loaded\",\"rows\":"<<count<<",\"columns\":"<<table->ColumnCount()
-             <<",\"base_load_ms\":"<<baseLoadMs<<",\"index_build_ms\":"<<indexBuildMs
+             <<",\"table_count\":"<<registry.size()+1<<",\"base_load_ms\":"<<baseLoadMs<<",\"index_build_ms\":"<<indexBuildMs
              <<",\"index_bytes\":"<<indexes.bytes<<",\"index_peak_allocation_bytes\":"<<indexes.peakBytes
              <<",\"process_peak_rss_bytes\":"<<uint64_t(loadedUsage.ru_maxrss)*1024
              <<",\"load_ms\":"<<std::chrono::duration<double,std::milli>(Clock::now()-begin).count()
