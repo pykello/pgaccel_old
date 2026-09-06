@@ -10,6 +10,11 @@ This work has not passed the fourfold target against both engines.
 | sum-v1 | 106.690 | 102.113 | 112.584 | 45.53 |
 | sum-v2 | 96.128 | 90.398 | 103.390 | 45.53 |
 | sum-v3 | 69.331 | 64.989 | 80.216 | 30.73 |
+| sum-v4 | 65.962 | 60.470 | 72.885 | 30.73 |
+
+Sum-v4 (`1437c22`) merges independent slot ranges in parallel. Its
+nine-trial median is 65.962 ms, a modest improvement over sum-v3.
+All answers match; 166 native tests and focused sanitizer checks pass.
 
 Retain sum-v3 (`4e991dc`). Typed numeric membership output lowers the
 SF10 median to 69.331 ms from 96.128 ms in sum-v2 (`5f71146`).
