@@ -92,3 +92,32 @@ TEST(JoinDistinct, ParallelOutputWithHiddenOrderingAndLongLabels) {
         }
     }
 }
+TEST(JoinDistinct, ProvedRepeatedRunsPreserveDuplicateSuppliersAndFallback) {
+    for(bool corrupt:{false,true}) {
+        std::vector<int64_t> parts,groups,a,b,sa,sb;
+        for(int i=0;i<259;++i) {
+            parts.push_back(INT64_MIN+i);groups.push_back(i%17);
+            for(int copy=0;copy<4;++copy) {
+                (i<160?a:b).push_back(INT64_MIN+i);
+                (i<160?sa:sb).push_back((i+copy%3)%23);
+            }
+        }
+        if(corrupt)++a[17];
+        auto registry=test::Table({{test::Raw(parts),test::Raw(groups,1)}},
+            {{"k",std::make_shared<Int64Type>()},{"g",std::make_shared<Int64Type>()}});
+        auto facts=test::Table({{test::Raw(b),test::Raw(sb,1)},{test::Raw(a),test::Raw(sa,1)}},
+            {{"k",std::make_shared<Int64Type>()},{"s",std::make_shared<Int64Type>()}});
+        auto excluded=test::Table({{test::Raw({1,3,5,7,7,INT64_MAX})}},{{"s",std::make_shared<Int64Type>()}});
+        registry.emplace("f",std::move(facts.at("t")));registry.emplace("x",std::move(excluded.at("t")));
+        for(const std::string membership:{"", " AND f.s NOT IN (SELECT s FROM x)", " AND f.s IN (SELECT s FROM x)",
+            " AND f.s NOT IN (SELECT s FROM x WHERE s<100)", " AND f.s IN (SELECT s FROM x WHERE s<100)"}) {
+            auto q=ParseSelect("SELECT t.g,count(DISTINCT f.s) FROM t,f WHERE t.k=f.k AND (t.g=1 OR t.g=3 OR t.g=7)"+
+                membership+" GROUP BY t.g ORDER BY t.g",registry);ASSERT_TRUE(q.ok());
+            auto expected=ExecuteRelational(*q,false,false);ASSERT_TRUE(expected.ok());
+            for(bool avx:{false,true})for(bool parallel:{false,true}) {
+                auto actual=ExecuteJoinDistinct(*q,avx,parallel);ASSERT_TRUE(actual);ASSERT_TRUE(actual->ok())<<actual->status().Message();
+                EXPECT_EQ((**actual).values,expected->values);
+            }
+        }
+    }
+}

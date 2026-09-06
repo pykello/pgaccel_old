@@ -4,6 +4,7 @@
 #include "executor_boolean_bitmap.hpp"
 #include "executor_literal_filter.hpp"
 #include "executor_sequence_join.hpp"
+#include "executor_repeated_key.hpp"
 #include "executor_membership.hpp"
 #include "executor_result.hpp"
 #include <atomic>
@@ -97,12 +98,47 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
             } else {auto raw=static_cast<const RawColumnData<Int64Type> *>(data);low=std::min(low,raw->minValue);high=std::max(high,raw->maxValue);}
         }
         if(low<=high && Wide(high)-low>UINT32_MAX)throw NotDense{};
+        RepeatedKeyIndex repeated(budget);
+        bool runs=repeated.prepare(facts,foreign,sequence.minimum(),rows,avx,parallel);
         uint64_t selectedRows=0;for(auto n:selected)selectedRows+=n;
         auto inputs=RunTasks(workers,[&](int worker) {
             ScopedValueResource memory(budget);Scratch scratch(budget,2*Block*sizeof(int64_t)+4096);
             std::pmr::vector<uint64_t> pairs(&budget);
             pairs.reserve(std::min<uint64_t>(factRows,Wide(factRows)*selectedRows/rows)/workers);
             alignas(64)int64_t keys[Block],values[Block];
+            if(runs) {
+                alignas(64)uint64_t packed[Block];int accepted=0;
+                auto emit=[&](uint32_t group,int64_t value) {
+                    if(!q.membershipQueries.empty()) {
+                        bool found=false;
+                        if(!membership.bits.empty()) {
+                            uint64_t delta=uint64_t(value)-uint64_t(membership.first);
+                            found=delta<=uint64_t(membership.last)-uint64_t(membership.first) &&
+                                ((membership.bits[delta/64]>>(delta%64))&1);
+                        } else if(!membership.values.empty())found=membership.contains(Cell{Wide(value)});
+                        if(found==q.membershipQueries.front().anti)return;
+                    }
+                    packed[accepted++]=(uint64_t(group)<<32)|uint32_t(uint64_t(value)-uint64_t(low));
+                    if(accepted==Block){pairs.insert(pairs.end(),packed,packed+accepted);accepted=0;}
+                };
+                repeated.forEachStripe([&](uint32_t g,uint64_t firstSlot) {
+                    if(g%workers!=worker)return;const auto &rg=facts.GetRowGroup(g);
+                    auto raw=static_cast<const RawColumnDataBase *>(rg.columns[counted.columnIdx].get());
+                    auto scan=[&]<class T>() {
+                        auto values=reinterpret_cast<const T *>(raw->values);uint32_t fanout=repeated.fanout();
+                        for(uint32_t part=0;part<rg.size/fanout;++part) {
+                            auto group=groupIds[firstSlot+part];if(group==UINT32_MAX)continue;
+                            for(uint32_t row=part*fanout;row<(part+1)*fanout;++row)emit(group,int64_t(values[row]));
+                        }
+                    };
+                    switch(raw->bytesPerValue) {
+                    case 1:scan.template operator()<int8_t>();break;case 2:scan.template operator()<int16_t>();break;
+                    case 4:scan.template operator()<int32_t>();break;case 8:scan.template operator()<int64_t>();break;
+                    default:throw NotDense{};
+                    }
+                });
+                if(accepted)pairs.insert(pairs.end(),packed,packed+accepted);return pairs;
+            }
             auto decode=[&](const RowGroup &rg,const ColumnRef &column,int begin,int n,int64_t *out) {
                 auto raw=static_cast<const RawColumnDataBase *>(rg.columns[column.columnIdx].get());
                 switch(raw->bytesPerValue) {
