@@ -82,6 +82,10 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
     const auto &comparison = *q.predicates[0];
     if (comparison.kind < Expression::EQ || comparison.kind > Expression::GTE ||
         !comparison.left->column || !comparison.right->column) return {};
+    if (comparison.left->type->type_num() == STRING_TYPE || comparison.right->type->type_num() == STRING_TYPE) return {};
+    int leftScale = Scale(comparison.left->type.get()), rightScale = Scale(comparison.right->type.get());
+    Wide leftFactor = Power(std::max(leftScale, rightScale) - leftScale);
+    Wide rightFactor = Power(std::max(leftScale, rightScale) - rightScale);
     auto a = *comparison.left->column, b = *comparison.right->column;
     if (a.tableIdx == -2) std::swap(a, b);
     if (a.tableIdx != 0 || b.tableIdx != -2 || b.columnIdx != 0) return {};
@@ -249,9 +253,21 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             const auto &state = states[selected.slot];
             if (!state.count) return false;
             const auto &rg = q.tables[0]->GetRowGroup(selected.stripe);
-            return EvaluateWith(comparison, [&](const ColumnRef &column) {
-                return column.tableIdx == -2 ? Cell{state.sum} : Read(rg, column, selected.row);
-            }).number != 0;
+            auto value = [&](const ColumnRef &column) {
+                return column.tableIdx == -2 ? state.sum : Read(rg, column, selected.row).number;
+            };
+            Wide left = value(*comparison.left->column), right = value(*comparison.right->column);
+            if (leftFactor != 1) left = Multiply(left, leftFactor);
+            if (rightFactor != 1) right = Multiply(right, rightFactor);
+            switch (comparison.kind) {
+            case Expression::EQ: return left == right;
+            case Expression::NE: return left != right;
+            case Expression::LT: return left < right;
+            case Expression::LTE: return left <= right;
+            case Expression::GT: return left > right;
+            case Expression::GTE: return left >= right;
+            default: throw std::logic_error("Invalid correlated sum comparison");
+            }
         };
         if (numeric) {
             numericValues.resize(outerRows.size());

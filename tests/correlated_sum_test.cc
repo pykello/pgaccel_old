@@ -36,11 +36,13 @@ TEST(CorrelatedSum, CompositeKeysOuterDuplicatesDatesAndMissingGroups) {
             {test::Raw({base+1,base+1,base+2},width),test::Raw({99,1,3}),test::Raw({99900,200,0}),test::Dict<DateType>({ParseDate("1994-06-01"),ParseDate("1994-06-01"),ParseDate("1994-06-01")})}},
             {{"pk",std::make_shared<Int64Type>()},{"sk",std::make_shared<Int64Type>()},{"qty",decimal},{"day",date}});
         registry.emplace("f",std::move(facts.at("t")));
-        for (bool reverse : {false,true}) for (const std::string op : {">",">=","<","="}) {
+        for (bool reverse : {false,true}) for (const std::string op : {">",">=","<","<=","=","!="}) for (bool scalarLeft : {false,true}) {
             auto correlation=reverse?"a.sk=t.sk AND a.pk=t.pk":"a.pk=t.pk AND a.sk=t.sk";
-            auto sql="SELECT pk,sk,avail FROM t WHERE pk IN (SELECT k FROM p WHERE name LIKE 'forest%') AND avail "+op+
-                " (SELECT 0.5*sum(a.qty) FROM f a WHERE "+correlation+
-                " AND a.day>=DATE '1994-01-01' AND a.day<DATE '1995-01-01') ORDER BY pk,sk,avail";
+            auto scalarSql=std::string("(SELECT 0.5*sum(a.qty) FROM f a WHERE ")+correlation+
+                " AND a.day>=DATE '1994-01-01' AND a.day<DATE '1995-01-01')";
+            std::map<std::string,std::string> inverse{{">","<"},{">=","<="},{"<",">"},{"<=",">="},{"=","="},{"!=","!="}};
+            auto sql="SELECT pk,sk,avail FROM t WHERE pk IN (SELECT k FROM p WHERE name LIKE 'forest%') AND "+
+                (scalarLeft?scalarSql+" "+inverse.at(op)+" avail":"avail "+op+" "+scalarSql)+" ORDER BY pk,sk,avail";
             auto q=ParseSelect(sql,registry);ASSERT_TRUE(q.ok())<<q.status().Message();
             auto fast=ExecuteCorrelatedSum(*q,true,true);ASSERT_TRUE(fast);ASSERT_TRUE(fast->ok())<<fast->status().Message();
             auto expected=ExecuteQuery(GenericSum(*q),false,false);ASSERT_TRUE(expected.ok())<<expected.status().Message();
