@@ -125,7 +125,10 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
                     for(const auto &pair:parts[worker])payload->rank->setRow(pair.key,pair.value);
                     return true;
                 });
-            } else {
+            } else if(std::any_of(plan.outgoing[fact].begin(),plan.outgoing[fact].end(),
+                                 [&](const auto &edge){return edge.target==t;})) {
+                // Intermediate dimensions are looked up through their payload
+                // only. Membership bits are consumed by the fact's two arms.
                 payload->bits.resize((payload->dense.size()+63)/64,0);
                 for(size_t i=0;i<payload->dense.size();++i)if(payload->dense[i]) {
                     payload->bits[i/64]|=uint64_t(1)<<(i%64);++payload->selected;
