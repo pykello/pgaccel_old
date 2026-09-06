@@ -94,7 +94,21 @@ struct Program {
                 const auto l=buffers+p.left*Block, r=buffers+p.right*Block;
                 if(p.kind==Expression::MULTIPLY)
                     for(int j=0;j<n;++j) out[j]=l[j]*r[j];
-                else if(p.kind==Expression::ADD)
+                else if(ops[p.left].kind==Expression::CONSTANT && p.rm==1) {
+                    const int64_t value=ops[p.left].constant*p.lm;
+                    if(p.kind==Expression::ADD)
+                        for(int j=0;j<n;++j) out[j]=value+r[j];
+                    else for(int j=0;j<n;++j) out[j]=value-r[j];
+                } else if(ops[p.right].kind==Expression::CONSTANT && p.lm==1) {
+                    const int64_t value=ops[p.right].constant*p.rm;
+                    if(p.kind==Expression::ADD)
+                        for(int j=0;j<n;++j) out[j]=l[j]+value;
+                    else for(int j=0;j<n;++j) out[j]=l[j]-value;
+                } else if(p.lm==1 && p.rm==1) {
+                    if(p.kind==Expression::ADD)
+                        for(int j=0;j<n;++j) out[j]=l[j]+r[j];
+                    else for(int j=0;j<n;++j) out[j]=l[j]-r[j];
+                } else if(p.kind==Expression::ADD)
                     for(int j=0;j<n;++j) out[j]=l[j]*p.lm+r[j]*p.rm;
                 else for(int j=0;j<n;++j) out[j]=l[j]*p.lm-r[j]*p.rm;
             }
