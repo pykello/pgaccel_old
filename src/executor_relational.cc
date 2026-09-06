@@ -1,5 +1,6 @@
 #include "executor_result.hpp"
 #include "executor_result_number.hpp"
+#include "executor_sequence_join.hpp"
 #include "nodes.h"
 #include <functional>
 #include <cmath>
@@ -44,9 +45,10 @@ struct JoinIndex {
         size_t operator()(int64_t value) const noexcept { return Hash{}(Cell{Wide(value)}); }
     };
     bool strings;
+    SequenceJoinIndex sequence;
     std::pmr::unordered_multimap<int64_t, RowId, IntegerHash> numbers;
     std::pmr::unordered_multimap<std::string_view, RowId> texts;
-    JoinIndex(bool text, Budget &budget) : strings(text), numbers(&budget), texts(&budget) {}
+    JoinIndex(bool text, Budget &budget) : strings(text), sequence(&budget), numbers(&budget), texts(&budget) {}
     static int64_t number(const Cell &key) {
         if (key.string || key.number < INT64_MIN || key.number > INT64_MAX)
             throw std::invalid_argument("Invalid physical numeric join key");
@@ -65,6 +67,10 @@ struct JoinIndex {
             auto range = texts.equal_range(key.text);
             for (auto it = range.first; it != range.second; ++it) if (!visit(it->second)) break;
         } else {
+            if(sequence.active()) {
+                if(auto row=sequence.lookup(number(key))) visit(*row);
+                return;
+            }
             auto range = numbers.equal_range(number(key));
             for (auto it = range.first; it != range.second; ++it) if (!visit(it->second)) break;
         }
@@ -244,6 +250,24 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         size_t probe = 0;
         for (size_t t = 1; t < tables; ++t)
             if (!existence[t] && !left[t] && (existence[probe] || left[probe] || rows[t].size() > rows[probe].size())) probe = t;
+        // A verified positional build has no hash-directory construction.
+        // For two ordinary inputs, probe the smaller filtered side when the
+        // larger side can supply this layout. Include the proof in query time.
+        std::optional<std::pair<ColumnRef,SequenceJoinIndex>> positional;
+        if(tables==2 && q.existenceJoins.empty() && q.leftJoins.empty()) {
+            for(const auto &predicate:edges) {
+                if(predicate->kind!=Expression::EQ || !predicate->left->column || !predicate->right->column) continue;
+                auto a=*predicate->left->column,b=*predicate->right->column;
+                if(a.tableIdx<0 || b.tableIdx<0 || a.tableIdx==b.tableIdx ||
+                    Scale(a.Type().get())!=Scale(b.Type().get())) continue;
+                if(size_t(a.tableIdx)!=probe) std::swap(a,b);
+                if(rows[b.tableIdx].size()>=rows[a.tableIdx].size()) continue;
+                SequenceJoinIndex candidate(&budget);
+                if(candidate.prepare(*q.tables[a.tableIdx],a,rows[a.tableIdx].size(),avx)) {
+                    positional.emplace(a,std::move(candidate)); probe=b.tableIdx; break;
+                }
+            }
+        }
         struct Join {
             size_t table;
             ColumnRef build, probe;
@@ -257,6 +281,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         // multiply rows before a selective primary-key edge becomes available.
         std::map<ColumnRef, double> fanout;
         auto cost = [&](const ColumnRef &column) {
+            if(positional && positional->first==column) return 0.0;
             if (auto it = fanout.find(column); it != fanout.end()) return it->second;
             const auto &input = rows[column.tableIdx];
             size_t samples = std::min<size_t>(4096, input.size());
@@ -296,10 +321,16 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
             auto [build, other] = *edge;
             joins.emplace_back(build.tableIdx, build, other, budget);
             auto &join = joins.back();
-            join.index.reserve(rows[join.table].size());
-            for (RowId id : rows[join.table]) {
-                bound[join.table] = id;
-                join.index.insert(read(build), id);
+            bool sequence=false;
+            if(positional && positional->first==build) {
+                join.index.sequence=positional->second; sequence=true;
+            } else sequence=join.index.sequence.prepare(*q.tables[join.table],build,rows[join.table].size(),avx);
+            if(!sequence) {
+                join.index.reserve(rows[join.table].size());
+                for (RowId id : rows[join.table]) {
+                    bound[join.table] = id;
+                    join.index.insert(read(build), id);
+                }
             }
             // The hash table owns row identities now; release selection storage.
             std::pmr::vector<RowId> empty(&budget); rows[join.table].swap(empty);
