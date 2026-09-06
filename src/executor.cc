@@ -33,6 +33,7 @@ std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &, bool, boo
 std::optional<Result<QueryOutput>> ExecuteJoinCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteExistsCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteDisjunctiveSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteJoinSum(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool);
 Result<QueryOutput> ExecuteMaterialized(const QueryDesc &, bool, bool);
@@ -49,6 +50,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if(auto counts=ExecuteJoinCount(query,useAvx,useParallelism)) return std::move(*counts);
         if(auto star=ExecuteStarSum(query,useAvx,useParallelism)) return std::move(*star);
         if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) return std::move(*joined);
+        if(auto disjunction=ExecuteDisjunctiveSum(query,useAvx,useParallelism)) return std::move(*disjunction);
         return ExecuteRelational(query, useAvx);
     }
     try {
