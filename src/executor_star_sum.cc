@@ -50,6 +50,34 @@ int StarSelect(const BitmapDomain &domain,const int64_t *keys,const uint32_t *in
     for(;row<n;++row)if(domain.contains(keys[row]))output[count++]=input[row];
     return count;
 }
+int StarSelectRows(const BitmapDomain &domain,const RowGroup &rg,const ColumnRef &column,
+                   const uint32_t *input,int n,uint32_t *output,int64_t *scratch,bool avx) {
+    auto data=rg.columns[column.columnIdx].get();
+    if(data->type!=ColumnDataBase::RAW_COLUMN_DATA)throw NotDense{};
+    auto raw=static_cast<const RawColumnDataBase *>(data);
+    if(avx && raw->bytesPerValue==4 && domain.first>=0 && domain.last<=INT32_MAX) {
+        auto first=_mm512_set1_epi32(domain.first),last=_mm512_set1_epi32(domain.last);
+        int row=0,count=0;
+        for(;row+16<=n;row+=16) {
+            auto selected=_mm512_loadu_si512(input+row);
+            auto key=_mm512_i32gather_epi32(selected,raw->values,4);
+            auto delta=_mm512_sub_epi32(key,first);
+            auto valid=_mm512_cmpge_epi32_mask(key,first) & _mm512_cmple_epi32_mask(key,last);
+            auto bits=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),valid,
+                _mm512_srli_epi32(delta,5),domain.bits,4);
+            auto mask=valid & _mm512_test_epi32_mask(_mm512_srlv_epi32(bits,
+                _mm512_and_si512(delta,_mm512_set1_epi32(31))),_mm512_set1_epi32(1));
+            _mm512_mask_compressstoreu_epi32(output+count,mask,selected);
+            count+=__builtin_popcount(mask);
+        }
+        const auto values=reinterpret_cast<const int32_t *>(raw->values);
+        for(;row<n;++row)if(domain.contains(values[input[row]]))output[count++]=input[row];
+        return count;
+    }
+    StarDecode(rg,column,n,scratch,input,avx);
+    return StarSelect(domain,scratch,input,n,output,avx);
+}
+
 }
 std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bool parallel) {
     if(q.tables.size()!=3 || q.predicates.size()!=2 || !q.grouped || q.groupExpressions.empty() ||
@@ -122,8 +150,7 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
                 int count=filters[bridge]?filters[bridge]->ExecuteSet(rg,bitmap):rg.size;
                 if(!count)continue;int n=0;
                 auto consume=[&] {
-                    StarDecode(rg,bridgeDimension,n,keys,selected,avx);
-                    int accepted=StarSelect(dimensionDomain,keys,selected,n,matched,avx);
+                    int accepted=StarSelectRows(dimensionDomain,rg,bridgeDimension,selected,n,matched,keys,avx);
                     StarDecode(rg,bridgeKey,accepted,keys,matched,avx);
                     for(int i=0;i<accepted;++i)pairs.push_back({keys[i],(uint64_t(g)<<32)|matched[i]});
                     n=0;
@@ -177,8 +204,7 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
                 }
                 int n=0;
                 auto consume=[&] {
-                    StarDecode(rg,factKey,n,keys,selected,avx);
-                    int accepted=StarSelect(domain,keys,selected,n,matched,avx);
+                    int accepted=StarSelectRows(domain,rg,factKey,selected,n,matched,keys,avx);
                     if(accepted) {
                         StarDecode(rg,factKey,accepted,keys,matched,avx);
                         program.evaluate<true>(0,accepted,buffers,avx,matched);
