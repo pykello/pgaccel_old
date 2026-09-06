@@ -30,6 +30,7 @@ or sharing is not assumed. All 155 native and sanitizer tests pass.
 | pgaccel-domain-v3-sf10 | Q17 | 195.697 | 193.578 | 201.508 | 3.20 |
 | pgaccel-domain-v3-sf10 | Q2 | 187.239 | 186.044 | 188.367 | 6.45 |
 | pgaccel-domain-v3-sf10 | Q20 | 895.040 | 888.271 | 923.528 | 94.72 |
+| pgaccel-domain-capacity-sf100 | Q20 | 10853.663 | 10799.385 | 10907.941 | 952.78 |
 
 Retain v1 for the measured capacity and latency improvement. It is still
 slower than both competitors at SF10. Retain v2 (`100285a`): nine correct
@@ -51,3 +52,13 @@ allocation cap. They do not establish a fourfold performance win.
 
 [Staged plan and research](CORRELATED-PLAN.md) ·
 [Six completed queries](SIX.md)
+
+## Q20 SF100 capacity result
+
+The frozen v3 binary (`2f9a808`) completes three exact-answer trials.
+Warm median is 10.854 seconds with 952.78 MiB peak query allocation.
+Service peak including loading/cache is 107.07 GiB, with
+0 swap bytes and 0 OOM events. The prior Q20 execution exceeded
+its 64 GiB query allocation limit; this capacity failure is resolved.
+Competitors were not rerun at SF100 in this capacity-only experiment.
+This is not a fresh full 22-query comparison or a latency-gate pass.

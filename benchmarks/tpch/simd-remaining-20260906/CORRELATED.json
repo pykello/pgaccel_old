@@ -1879,5 +1879,141 @@
         ]
       }
     ]
+  },
+  "pgaccel-domain-capacity-sf100": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:22:53.884458+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-domain-capacity-sf100.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/sf100-20260905/duckdb.jsonl",
+        "database": null,
+        "runner": "/home/hadi/projects/tpch-work/checkpoints/q20-domain-v3-query-runner",
+        "native": "/home/hadi/projects/tpch-work/sf100/native",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 3,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          20
+        ]
+      },
+      "source_revision": "2a2cb0d2384692dfdaafe549937891d74180522d",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 600037902,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 192687.75139,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 105039314944,
+        "load_ms": 192687.831756,
+        "indexed_columns": [],
+        "client_load_ms": 192704.2476170027
+      },
+      "runner_sha256": "c267231b953eb3e1a4f2386006f3e4a345222f14f764a7c1343f2b26e5989a92",
+      "open_ms": 192719.70747500018,
+      "loaded_rss": {
+        "VmRSS": 105039314944,
+        "VmHWM": 105039314944
+      }
+    },
+    "sha256": "974d18d0bdd4aae54d2a826ce0a369a40c895d79cef02d5bd4e7d3360791ae71",
+    "queries": [
+      {
+        "id": 20,
+        "sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "status": "success",
+        "executed_sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:26:39.693792+00:00",
+        "oracle_types": [
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "execution_ms": 11291.536643,
+            "query_peak_allocation_bytes": 999058552,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 918017,
+              "syscr": 1,
+              "syscw": 225,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 11308.18622399238,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105750818816,
+              "VmHWM": 105867247616
+            }
+          },
+          {
+            "execution_ms": 10772.182869,
+            "query_peak_allocation_bytes": 999058552,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 918017,
+              "syscr": 1,
+              "syscw": 225,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 10799.3845710007,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105765064704,
+              "VmHWM": 105867247616
+            }
+          },
+          {
+            "execution_ms": 10885.659438,
+            "query_peak_allocation_bytes": 999058552,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 918017,
+              "syscr": 1,
+              "syscw": 225,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 10907.940546996542,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105775992832,
+              "VmHWM": 105877884928
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "sf100_capacity_resources": {
+    "peak_bytes": 114965446656,
+    "swap_bytes": 0,
+    "oom_events": 0
   }
 }
