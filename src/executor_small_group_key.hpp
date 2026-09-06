@@ -83,7 +83,15 @@ public:
                     minimum=std::min(minimum,low);maximum=std::max(maximum,high);
                 }
             }
-            if(component.type==STRING_TYPE)component.bits=std::bit_width(strings.empty()?size_t(0):strings.size()-1);
+            if(component.type==STRING_TYPE) {
+                component.bits=std::bit_width(strings.empty()?size_t(0):strings.size()-1);
+                std::pmr::vector<std::pair<std::string_view,uint32_t>> labels(&budget);
+                labels.reserve(strings.size());for(const auto &entry:strings)labels.push_back(entry);
+                std::sort(labels.begin(),labels.end(),[](const auto &a,const auto &b){return a.first<b.first;});
+                std::pmr::vector<uint32_t> ranks(labels.size(),0,&budget);
+                for(size_t i=0;i<labels.size();++i)ranks[labels[i].second]=i;
+                for(auto &frame:component.frames)for(auto &label:frame.labels)label=ranks[label];
+            }
             else {
                 component.minimum=minimum;Wide difference=Wide(maximum)-minimum;
                 if(minimum>maximum)component.bits=0;
@@ -93,6 +101,10 @@ public:
         }
     }
     uint32_t slots() const {return uint32_t(1)<<width;}
+    uint32_t ordinal(uint32_t word,size_t column) const {
+        const auto &component=components[column];
+        return (word>>component.shift)&((uint32_t(1)<<component.bits)-1);
+    }
     uint32_t word(int group,int row) const {
         uint32_t result=0;
         for(const auto &component:components) {

@@ -15,6 +15,10 @@ TEST(SmallGroupKey, ExactCrossStripeDictionaryIdentityAndSignedNumbers) {
         {"c","y",1},{"b","x",-2},{"a","y",0},{"","x",1}};
     for(int a=0;a<8;++a)for(int b=0;b<8;++b)
         EXPECT_EQ(keys.word(a/4,a%4)==keys.word(b/4,b%4),expected[a]==expected[b]);
+    EXPECT_LT(keys.ordinal(keys.word(0,3),0),keys.ordinal(keys.word(0,1),0));
+    EXPECT_LT(keys.ordinal(keys.word(0,1),0),keys.ordinal(keys.word(0,0),0));
+    EXPECT_LT(keys.ordinal(keys.word(0,0),0),keys.ordinal(keys.word(1,0),0));
+    EXPECT_LT(keys.ordinal(keys.word(0,0),2),keys.ordinal(keys.word(1,0),2));
     EXPECT_LE(keys.slots(),64);
     Budget tiny(1);EXPECT_THROW(SmallGroupKey(*q->tables[0],columns,tiny),std::runtime_error);
 }
