@@ -48,11 +48,7 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
         std::vector<int> centerOf(tables,center);
         std::vector<const uint8_t *> accepted(tables,nullptr);
         auto payloads=BuildIdentityPayloads(q,plan,fact,plan.order,centerOf,accepted,filters,budget,avx,parallel);
-        auto arms=plan.outgoing[fact];
-        auto fraction=[&](const auto &edge) {
-            const auto &p=*payloads[edge.target];return double(p.selected)/double(Wide(p.last)-p.first+1);
-        };
-        if(fraction(arms[1])<fraction(arms[0]))std::swap(arms[0],arms[1]);
+        auto arms=OrderIdentityArms(plan.outgoing[fact],plan,payloads);
         const auto &first=*payloads[arms[0].target],&second=*payloads[arms[1].target];
         const auto domain=first.domain();const auto &table=*q.tables[fact];
         uint32_t centers=plan.keys[center]->sequence.size();

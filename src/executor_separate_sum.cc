@@ -120,9 +120,7 @@ std::optional<Result<QueryOutput>> ExecuteSeparateSum(const QueryDesc &q,bool av
         }
         std::vector<const uint8_t *> accepted(tables,nullptr);accepted[centers[0]]=live0.data();accepted[centers[1]]=live1.data();
         auto payloads=BuildIdentityPayloads(q,plan,fact,plan.order,plan.centerOf,accepted,filters,budget,avx,parallel);
-        auto arms=plan.outgoing[fact];
-        auto fraction=[&](const auto &edge) {const auto &p=*payloads[edge.target];return double(p.selected)/double(Wide(p.last)-p.first+1);};
-        if(fraction(arms[1])<fraction(arms[0]))std::swap(arms[0],arms[1]);
+        auto arms=OrderIdentityArms(plan.outgoing[fact],plan,payloads);
         bool reversed=plan.centerOf[arms[0].target]!=centers[0];
         const auto &first=*payloads[arms[0].target],&second=*payloads[arms[1].target];auto domain=first.domain();
         int workers=parallel?std::min(8,std::max(1,table.RowGroupCount())):1;
