@@ -3,6 +3,7 @@
 #include "executor_rank_join.hpp"
 #include "executor_bitmap_probe.hpp"
 #include "executor_compact_unsigned.hpp"
+#include "executor_year_codes.hpp"
 
 namespace pgaccel {
 namespace {
@@ -58,19 +59,29 @@ struct IdentityPayload {
     }
 }
 
+struct IdentityProjection {
+    enum Kind {INHERIT,ONE,YEAR} kind=INHERIT;
+    uint32_t maximum=1;
+    std::optional<ColumnRef> column;
+    const YearCodeDomain *years=nullptr;
+};
+
 std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
     const QueryDesc &q,const UniqueKeyJoinGraph &plan,int fact,const std::vector<int> &order,
     const std::vector<int> &centerOf,const std::vector<const uint8_t *> &accepted,
-    const std::vector<FilterNodeP> &filters,Budget &budget,bool avx,bool parallel) {
+    const std::vector<FilterNodeP> &filters,Budget &budget,bool avx,bool parallel,
+    const std::vector<IdentityProjection> *projections=nullptr) {
         std::vector<std::unique_ptr<IdentityPayload>> payloads(q.tables.size());
         for(int t:order) {
             int center=centerOf[t];
+            const auto *projection=projections?&(*projections)[t]:nullptr;
+            uint32_t maximum=projection?projection->maximum:plan.keys[center]->sequence.size();
             const auto &table=*q.tables[t];auto &key=*plan.keys[t];
             auto payload=std::make_unique<IdentityPayload>(budget);
             std::pmr::vector<uint64_t> offsets(table.RowGroupCount(),0,&budget);
             if(key.sequence.active()) {
                 payload->first=key.sequence.minimum();payload->last=key.sequence.maximum();
-                payload->dense.emplace(key.sequence.size(),plan.keys[center]->sequence.size(),budget);
+                payload->dense.emplace(key.sequence.size(),maximum,budget);
                 key.sequence.forEachStripe([&](uint32_t g,uint64_t offset){offsets[g]=offset;});
             } else {
                 payload->first=INT64_MAX;payload->last=INT64_MIN;uint64_t size=0;
@@ -96,9 +107,14 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
                     if(!count)continue;
                     const auto *foreign=edge?&IdentityRaw(rg,edge->source):nullptr;
                     const auto *primary=payload->rank?&IdentityRaw(rg,key.column):nullptr;
+                    std::optional<YearCodeStripe> years;
+                    if(projection && projection->kind==IdentityProjection::YEAR)
+                        years.emplace(*projection->years,rg,*projection->column,budget);
                     auto emit=[&](int row,uint32_t value) {
                         if(!value)return;
-                        if(t==center) {
+                        if(projection && projection->kind==IdentityProjection::ONE)value=1;
+                        else if(years)value=years->get(row);
+                        else if(t==center) {
                             uint64_t logical=offsets[g]+row;
                             if(accepted[t] && !accepted[t][logical])return;
                             value=uint32_t(logical+1);
@@ -140,7 +156,7 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
             });
             if(payload->rank) {
                 payload->rank->finalize(false);payload->selected=payload->rank->size();
-                payload->sparse.emplace(payload->selected,plan.keys[center]->sequence.size(),budget);
+                payload->sparse.emplace(payload->selected,maximum,budget);
                 RunTasks(workers,[&](int worker) {
                     for(const auto &pair:parts[worker]) {
                         auto index=payload->rank->rank(pair.key);
