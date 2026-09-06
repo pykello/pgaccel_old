@@ -1,6 +1,6 @@
 # Q22: prefix labels and a filtered anti-join bitmap
 
-The implementation is at `a7bccf3`; performance confirmation is pending. The acceptance
+The implementation is at `a7bccf3`; both benchmark gates pass; see [results](Q22.md). The acceptance
 criterion is a 2x warm-median speedup over both engines at both scales.
 
 The query selects customer phone prefixes, compares account balances with
@@ -43,3 +43,6 @@ ResultNumber conversion rather than an independently invented rule.
 
 The implementation uses existing project components and original code. No
 new dependency or externally licensed algorithm implementation is added.
+
+All 256 native tests, ten focused ASan/UBSan tests and Python API
+integration checks pass. All22 SF1 answers match on the frozen module.

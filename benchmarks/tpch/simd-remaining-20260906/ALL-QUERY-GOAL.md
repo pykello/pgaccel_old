@@ -6,13 +6,10 @@ SF100, measured by warm-median client execution. Preserve the fourfold
 target for the other 16 individually confirmed queries. Individual
 checkpoints do not replace the final full-workload comparison.
 
-Q7 already meets the revised twofold target at both scales at `7b452eb`:
-4.10x/13.58x against DuckDB/ClickHouse at SF10 and 3.57x/8.24x at SF100.
-Q8 also meets the twofold target at `0de993a`; Q9 passes at `c37ed93`.
-Q10 passes at `2e427ac`. Q21 passes at `9b3fd59`. Thus 21 queries meet their individual targets;
-Q22 remains. Q7's revised status uses its existing trials;
-Q8 and Q9 have fresh confirmations. Historical fourfold failures remain
-recorded.
+All 22 queries now meet their assigned targets in individual checkpoints.
+Q22 passes at `a7bccf3`; the final all-query comparison on one frozen native
+module and one interface remains required. Historical individual results
+and fourfold failures are preserved. No full-workload win is claimed yet.
 
 Run engines sequentially with eight workers and preserve all trial times.
 Exclude only trial 1 from warm medians. Use fresh multi-trial comparisons
@@ -53,9 +50,9 @@ for new arithmetic and threshold logic.
 | Q19 | Both scales pass at checkpoint `7c92573` |
 | Q20 | Both scales pass at checkpoint `409c4ca`; [results](Q20.md) |
 | Q21 | Both scales meet 2x target at `9b3fd59`; [results](Q21.md) |
-| Q22 | Optimization pending; 2x target; recent SF10 answer check passes |
+| Q22 | Both scales meet 2x target at `a7bccf3`; [results](Q22.md) |
 
-Continue with Q22, then run the full-workload comparison. Recheck Q7 and the
+Run the final full-workload comparison on one frozen native module. Recheck Q7 and the
 16 fourfold confirmations in the final sweep on one frozen module. Retain original implementations or permissively
 licensed dependencies only. Each retained change gets a separate small
 commit with an explanatory body wrapped at 72 characters. Record rejected
