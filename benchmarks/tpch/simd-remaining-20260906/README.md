@@ -5,7 +5,9 @@ Q12, Q14, and Q19. All six pass the fourfold median target.
 
 Continue from the validated Q1, Q14, and Q3 checkpoint. Every new query
 uses SF10 iteration, exact answer validation, and a fresh SF100 comparison
-against DuckDB and ClickHouse. The target is fourfold warm-median speed.
+against DuckDB and ClickHouse. The revised target is twofold warm-median
+speed for Q7, Q8, Q9, Q10, Q21 and Q22; preserve the fourfold target for
+the other 16 queries. See the [active targets](ALL-QUERY-GOAL.md).
 
 | Query | Current status | Evidence |
 |---|---|---|
@@ -23,7 +25,8 @@ against DuckDB and ClickHouse. The target is fourfold warm-median speed.
 | Q2 | SF10 and SF100 gates pass | [Q2 results](Q2.md) |
 | Q20 | SF10 and SF100 gates pass | [Q20 results](Q20.md) |
 
-Q7 is active; Q8–Q10 and Q21–Q22 remain queued. Q5 passes both scales. Q16 passes through the native Python API; Q2 and Q6 pass both scales. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
+Q7 meets the revised twofold target at both scales in its recorded
+confirmations. Q8 is next; Q9–Q10 and Q21–Q22 remain queued. Q5 passes both scales. Q16 passes through the native Python API; Q2 and Q6 pass both scales. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
 remains historical evidence. Q20's allocation failure in that baseline is
 resolved by the new capacity check; no fresh full-workload win is claimed.
 
@@ -40,6 +43,6 @@ Later [Q17](Q17.md) and [Q20](Q20.md) confirmations pass both scales.
 
 [Phase measurements and next steps](PROFILE-NEXT.md).
 
-[Active fourfold goal for all 22 queries](ALL-QUERY-GOAL.md).
+[Active targets for all 22 queries](ALL-QUERY-GOAL.md).
 
 [Q20 typed-sum iterations](Q20-SUM.md) document the path to its passed gate.

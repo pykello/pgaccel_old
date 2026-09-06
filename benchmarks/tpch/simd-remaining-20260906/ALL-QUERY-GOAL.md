@@ -1,9 +1,16 @@
-# Fourfold target for all 22 TPC-H queries
+# TPC-H targets: fourfold confirmed cohort, twofold remaining queries
 
-The active objective is at least fourfold faster warm-median client
-execution than both DuckDB and ClickHouse for every query, at SF10 and
-SF100. Work continues until every query meets the gate; partial cohorts
-are progress checkpoints, not completion of the objective.
+The user revised the target on 2026-09-06: Q7, Q8, Q9, Q10, Q21 and Q22
+must be at least twice as fast as both DuckDB and ClickHouse at SF10 and
+SF100, measured by warm-median client execution. Preserve the fourfold
+target for the other 16 individually confirmed queries. Individual
+checkpoints do not replace the final full-workload comparison.
+
+Q7 already meets the revised twofold target at both scales at `7b452eb`:
+4.10x/13.58x against DuckDB/ClickHouse at SF10 and 3.57x/8.24x at SF100.
+Thus 17 queries meet their individual targets in recorded checkpoints;
+Q8, Q9, Q10, Q21 and Q22 remain. No new measurement is implied by this
+change of target. Historical fourfold gate failures remain recorded.
 
 Run engines sequentially with eight workers and preserve all trial times.
 Exclude only trial 1 from warm medians. Use fresh multi-trial comparisons
@@ -29,10 +36,10 @@ for new arithmetic and threshold logic.
 | Q4 | Both scales pass at checkpoint `7c92573` |
 | Q5 | Native Python passes both scales at `f76d659`; [results](Q5.md) |
 | Q6 | Both scales pass at checkpoint `b12ce48`; [results](Q6.md) |
-| Q7 | SF10 passes, SF100 DuckDB gate fails; [confirmations](Q7-CONFIRMATIONS.md); probe ordering active |
-| Q8 | Optimization pending |
-| Q9 | Optimization pending |
-| Q10 | Optimization pending |
+| Q7 | Both scales meet revised 2x target at `7b452eb`; [confirmations](Q7-CONFIRMATIONS.md) |
+| Q8 | Optimization pending; 2x target at both scales |
+| Q9 | Optimization pending; 2x target at both scales |
+| Q10 | Optimization pending; 2x target at both scales |
 | Q11 | Both scales pass at checkpoint `8d118bc`; [results](Q11.md) |
 | Q12 | Both scales pass at checkpoint `7c92573` |
 | Q13 | Both scales pass at checkpoint `5190383`; [results](Q13.md) |
@@ -43,11 +50,11 @@ for new arithmetic and threshold logic.
 | Q18 | Both scales pass at checkpoint `537c8aa`; [results](Q18.md) |
 | Q19 | Both scales pass at checkpoint `7c92573` |
 | Q20 | Both scales pass at checkpoint `409c4ca`; [results](Q20.md) |
-| Q21 | Optimization pending |
-| Q22 | Optimization pending; recent SF10 answer check passes |
+| Q21 | Optimization pending; 2x target at both scales |
+| Q22 | Optimization pending; 2x target; recent SF10 answer check passes |
 
-Start with measured Q17/Q20/Q2 bottlenecks, then continue the remaining
-queries one by one. Retain original implementations or permissively
+Continue with Q8, Q9, Q10, Q21 and Q22 one by one. Recheck Q7 and the
+16 fourfold confirmations in the final sweep on one frozen module. Retain original implementations or permissively
 licensed dependencies only. Each retained change gets a separate small
 commit with an explanatory body wrapped at 72 characters. Record rejected
 experiments and preserve the general executor for unsupported shapes.
