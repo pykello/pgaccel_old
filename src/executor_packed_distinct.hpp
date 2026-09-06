@@ -38,14 +38,33 @@ std::pmr::vector<uint64_t> CountPackedDistinct(std::vector<std::pmr::vector<uint
         return true;
     });
     RunTasks(workers,[&](int worker) {
-        size_t maximum=0;
-        for(size_t p=worker;p<partitions;p+=workers)maximum=std::max(maximum,offsets[p+1]-offsets[p]);
+        size_t maximum=0,localSize=0;
+        for(size_t p=worker;p<partitions;p+=workers) {
+            size_t size=offsets[p+1]-offsets[p];maximum=std::max(maximum,size);
+            if(size>=128 && size<=4096)localSize=std::max(localSize,std::bit_ceil(size*2));
+        }
         OverwriteBuffer<uint64_t> temporary(maximum,budget);
         Scratch stack(budget,2048*sizeof(size_t));
         size_t histogram[2048];
+        OverwriteBuffer<uint64_t> local(localSize,budget);
         for(size_t p=worker;p<partitions;p+=workers) {
             auto begin=ordered.data()+offsets[p],end=ordered.data()+offsets[p+1];
             size_t size=end-begin;
+            if(size>=128 && size<=4096) {
+                size_t capacity=std::bit_ceil(size*2);unsigned shift=64-std::countr_zero(capacity);
+                std::fill(local.data(),local.data()+capacity,UINT64_MAX);bool completed=true;
+                for(auto value=begin;value!=end;++value) {
+                    size_t slot=(*value*0x9e3779b97f4a7c15ULL)>>shift;unsigned probes=0;
+                    while(local[slot]!=UINT64_MAX && local[slot]!=*value) {
+                        slot=(slot+1)&(capacity-1);if(++probes==32){completed=false;break;}
+                    }
+                    if(!completed)break;local[slot]=*value;
+                }
+                if(completed) {
+                    for(size_t slot=0;slot<capacity;++slot)if(local[slot]!=UINT64_MAX)++counts[local[slot]>>32];
+                    continue;
+                }
+            }
             if(size<128)std::sort(begin,end);
             else {
                 uint64_t differences=0;for(auto value=begin+1;value!=end;++value)differences|=*value^*begin;
