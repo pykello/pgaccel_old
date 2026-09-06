@@ -76,6 +76,12 @@ public:
         count=total;return true;
     }
     bool active() const {return count!=0;}
+    uint64_t size() const {return count;}
+    int64_t minimum() const {return first;}
+    int64_t maximum() const {return int64_t(Wide(first)+count-1);}
+    template<class F> void forEachStripe(F visit) const {
+        for(size_t i=0;i<directory.size();++i) visit(directory[i],uint64_t(i)*stride);
+    }
     std::optional<uint64_t> lookup(int64_t key) const {
         Wide offset=Wide(key)-first;
         if(offset<0 || offset>=count) return {};

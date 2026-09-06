@@ -30,6 +30,7 @@ std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
 std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteJoinSum(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool);
 Result<QueryOutput> ExecuteMaterialized(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
@@ -40,8 +41,10 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
     if (query.tables.size() > 1 || !query.predicates.empty() || !query.membershipQueries.empty() || !query.scalarQueries.empty() ||
         std::any_of(query.aggregateClauses.begin(), query.aggregateClauses.end(), [](const auto &a) {
             return a.type == AggregateClause::AGGREGATE_FORMULA;
-        }))
+        })) {
+        if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) return std::move(*joined);
         return ExecuteRelational(query, useAvx);
+    }
     try {
         // Preserve the vectorized/metadata COUNT fast path; other shapes use typed execution.
         if (query.having.empty() && !query.grouped && query.groupBy.empty() && query.aggregateClauses.size() == 1 &&
