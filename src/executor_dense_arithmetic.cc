@@ -15,6 +15,23 @@ struct Operation {
     const RawColumnDataBase *column = nullptr;
     Wide low = 0, high = 0;
 };
+template<class T>
+void DecodeNumbers(const RawColumnDataBase *column,int begin,int n,int64_t *out,bool avx) {
+    const auto source=reinterpret_cast<const T *>(column->values)+begin;
+    int j=0;
+    if(avx) for(;j+8<=n;j+=8) {
+        __m512i values;
+        if constexpr(sizeof(T)==1)
+            values=_mm512_cvtepi8_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i *>(source+j)));
+        else if constexpr(sizeof(T)==2)
+            values=_mm512_cvtepi16_epi64(_mm_loadu_si128(reinterpret_cast<const __m128i *>(source+j)));
+        else if constexpr(sizeof(T)==4)
+            values=_mm512_cvtepi32_epi64(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(source+j)));
+        else values=_mm512_loadu_si512(source+j);
+        _mm512_store_si512(out+j,values);
+    }
+    for(;j<n;++j) out[j]=source[j];
+}
 // A stripe-specific range proof keeps every arithmetic intermediate and every
 // stripe sum in int64. Other shapes retain checked 128-bit interpretation.
 struct Program {
@@ -75,11 +92,11 @@ struct Program {
         if (ops.size()==32) throw NotDense{};
         ops.push_back(op); return ops.size()-1;
     }
-    void evaluate(int begin, int n, int64_t *buffers) const {
+    void evaluate(int begin, int n, int64_t *buffers, bool avx) const {
         for (size_t i=0;i<ops.size();++i) {
             const auto &p=ops[i]; auto out=buffers+i*Block;
             if (p.column) {
-#define READ_WIDTH(T) for(int r=0;r<n;++r) out[r]=reinterpret_cast<const T *>(p.column->values)[begin+r]
+#define READ_WIDTH(T) DecodeNumbers<T>(p.column,begin,n,out,avx)
                 switch(p.column->bytesPerValue) {
                 case 1: READ_WIDTH(int8_t); break;
                 case 2: READ_WIDTH(int16_t); break;
@@ -205,7 +222,7 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                         if(dicts[1]) code=code*radix+codeAt(dicts[1],width1,row);
                         codes[r]=count==rg.size || IsBitSet(bitmap,row)?code:-1;
                     }
-                    program.evaluate(begin,n,buffers);
+                    program.evaluate(begin,n,buffers,avx);
                     for(int code=0;code<product;++code) {
                         __mmask8 masks[Block/8];
                         const int vectorEnd=avx?n/8*8:0;
