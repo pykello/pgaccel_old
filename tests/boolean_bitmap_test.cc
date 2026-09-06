@@ -34,3 +34,15 @@ TEST(BooleanBitmap, UnrepresentableIntegerBoundaryKeepsFallback) {
     Budget budget(1<<20);BooleanBitmapProgram program(budget,true);
     EXPECT_THROW(program.compile(*q->predicates.front(),0),NotDense);
 }
+
+TEST(BooleanBitmap, DeepConstantExpressionsKeepGeneralFallback) {
+    auto registry=test::Table({{test::Raw({0,1,2})}},{{"v",std::make_shared<Int64Type>()}});
+    auto q=ParseSelect("SELECT count(*) FROM t WHERE v<3 OR v>4",registry);ASSERT_TRUE(q.ok());
+    auto predicate=q->predicates.front()->left;
+    auto one=std::make_shared<Expression>();one->kind=Expression::CONSTANT;one->literal="1";one->type=std::make_shared<Int64Type>();
+    auto value=one;
+    for(int i=0;i<70;++i) {auto next=std::make_shared<Expression>();next->kind=Expression::ADD;next->left=value;next->right=one;next->type=one->type;value=next;}
+    predicate->right=value;
+    Budget budget(1<<20);BooleanBitmapProgram program(budget,true);
+    EXPECT_THROW(program.compile(*predicate,0),NotDense);
+}

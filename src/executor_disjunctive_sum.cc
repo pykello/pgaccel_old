@@ -7,10 +7,11 @@
 
 namespace pgaccel {
 namespace {
-uint64_t DisjunctReferences(const Expression &e) {
+uint64_t DisjunctReferences(const Expression &e,int depth=0) {
+    if(depth>64)throw NotDense{};
     uint64_t mask=0;
     if(e.column) {if(e.column->tableIdx<0 || e.column->tableIdx>1)throw NotDense{};mask|=uint64_t(1)<<e.column->tableIdx;}
-    for(const auto &p:{e.left,e.right,e.condition})if(p)mask|=DisjunctReferences(*p);
+    for(const auto &p:{e.left,e.right,e.condition})if(p)mask|=DisjunctReferences(*p,depth+1);
     return mask;
 }
 struct Disjunct {std::vector<std::shared_ptr<Expression>> local[2];};

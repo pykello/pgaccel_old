@@ -16,10 +16,11 @@ class BooleanBitmapProgram {
     };
     Budget &budget;bool avx;int attempts=0;
     std::pmr::vector<Op> ops;
-    static bool constant(const Expression &e) {
+    static bool constant(const Expression &e,int depth=0) {
+        if(depth>64)return false;
         if(e.kind==Expression::CONSTANT)return true;
         return (e.kind==Expression::ADD || e.kind==Expression::SUBTRACT || e.kind==Expression::MULTIPLY) &&
-            e.left && e.right && constant(*e.left) && constant(*e.right);
+            e.left && e.right && constant(*e.left,depth+1) && constant(*e.right,depth+1);
     }
     int append(Op op) {if(ops.size()==64)throw NotDense{};ops.push_back(std::move(op));return ops.size()-1;}
 public:
