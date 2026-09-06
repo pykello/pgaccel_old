@@ -64,3 +64,25 @@ TEST(MembershipBitmap, StringsWideNumbersAndDecimalNormalization) {
     MembershipSet empty(budget, 0); empty.compact(budget);
     EXPECT_FALSE(empty.contains(Cell{0}));
 }
+TEST(MembershipBitmap, ParallelBatchesPreserveRowsAndAntisAcrossStripeTails) {
+    std::vector<std::vector<ColumnDataP>> groups;
+    int expected = 0, antiExpected = 0;
+    for (int g = 0; g < 263; ++g) {
+        std::vector<int64_t> keys, flags;
+        for (int i = 0; i < 17; ++i) {
+            int k = (g * 17 + i) % 101; keys.push_back(k); flags.push_back(i % 3);
+            expected += i % 3 != 0 && k < 5;
+            antiExpected += i % 3 != 0 && k >= 5;
+        }
+        groups.push_back({test::Raw(keys, 4), test::Raw(flags, 4)});
+    }
+    auto registry = test::Table(std::move(groups),
+        {{"k", std::make_shared<Int64Type>()}, {"flag", std::make_shared<Int64Type>()}});
+    for (bool avx : {false, true}) for (bool parallel : {false, true}) for (bool anti : {false, true}) {
+        auto q = ParseSelect("SELECT count(*) FROM t WHERE flag>0 AND k " +
+            std::string(anti ? "NOT IN" : "IN") + " (SELECT k FROM t WHERE k<5)", registry);
+        ASSERT_TRUE(q.ok()); auto result = ExecuteQuery(*q, avx, parallel);
+        ASSERT_TRUE(result.ok()) << result.status().Message();
+        EXPECT_EQ(result->values, Rows({{std::to_string(anti ? antiExpected : expected)}}));
+    }
+}

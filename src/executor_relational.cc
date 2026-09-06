@@ -2,6 +2,7 @@
 #include "executor_result_number.hpp"
 #include "executor_sequence_join.hpp"
 #include "executor_membership.hpp"
+#include "executor_tasks.hpp"
 #include "executor_correlation_domain.hpp"
 #include "nodes.h"
 #include <functional>
@@ -104,7 +105,7 @@ std::shared_ptr<Expression> LocalPredicate(const std::shared_ptr<Expression> &e,
 // Hash inner joins stream row identities into typed aggregation. The largest
 // filtered relation is probed; other relations retain every duplicate key.
 // Strings remain borrowed from immutable source stripes throughout execution.
-Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx) {
+Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx, bool parallel) {
     try {
         auto restricted = CorrelationDomains(source, avx);
         const QueryDesc &q = restricted ? *restricted : source;
@@ -148,7 +149,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx) {
                     sub.membershipQueries.push_back(std::move(restricted));
                 }
             }
-            auto result = ExecuteQuery(sub, avx, false);
+            auto result = ExecuteQuery(sub, avx, parallel && !sub.membershipQueries.empty());
             if (!result.ok()) return Status::Invalid("Scalar subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
             Scratch childMemory(budget, childOutputBytes(*result));
@@ -172,7 +173,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx) {
             int scale = std::max(sourceScale, Scale(membership.column.Type().get()));
             memberships.emplace_back(budget, scale);
             auto sub = childPlan(*membership.query);
-            auto result = ExecuteQuery(sub, avx, false);
+            auto result = ExecuteQuery(sub, avx, parallel && !sub.membershipQueries.empty());
             if (!result.ok()) return Status::Invalid("Membership subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
             Scratch childMemory(budget, childOutputBytes(*result));
@@ -240,24 +241,52 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx) {
                 for (const auto &predicate : left[table]->predicates)
                     if (auto projected = LocalPredicate(predicate, uint64_t(1) << table)) local.push_back(projected);
             auto filter = clauses.empty() ? FilterNodeP{} : CreateFilterNode(clauses, avx);
-            for (int g = 0; g < q.tables[table]->RowGroupCount(); ++g) {
+            std::vector<size_t> memberIds;
+            for (size_t i = 0; i < q.membershipQueries.size(); ++i)
+                if (q.membershipQueries[i].column.tableIdx == int(table)) memberIds.push_back(i);
+            auto prepare = [&](int g, uint8_t *bitmap) {
                 const auto &rg = q.tables[table]->GetRowGroup(g);
-                uint8_t bitmap[BITMAP_SIZE];
-                if (filter && !filter->ExecuteSet(rg, bitmap)) continue;
-                bool selected = bool(filter);
-                for (size_t i = 0; i < q.membershipQueries.size(); ++i) {
+                if (filter) {
+                    if (!filter->ExecuteSet(rg, bitmap)) {
+                        memset(bitmap, 0, (rg.size + 7) / 8); return;
+                    }
+                } else if (!memberIds.empty()) memset(bitmap, 0xff, (rg.size + 7) / 8);
+                for (auto i : memberIds) {
                     const auto &query = q.membershipQueries[i];
-                    if (query.column.tableIdx != int(table)) continue;
-                    if (!selected) memset(bitmap, 0xff, (rg.size + 7) / 8);
                     memberships[i].intersect(rg, query.column, query.anti, avx, bitmap);
-                    selected = true;
                 }
-                Selected(rg, selected ? bitmap : nullptr, [&](int row) {
+            };
+            auto consume = [&](int g, const uint8_t *bitmap) {
+                const auto &rg = q.tables[table]->GetRowGroup(g);
+                Selected(rg, filter || !memberIds.empty() ? bitmap : nullptr, [&](int row) {
                     bound[table] = (uint64_t(g) << 32) | uint32_t(row);
                     for (const auto &predicate : local)
                         if (!keep(*predicate)) return;
                     rows.back().push_back(bound[table]);
                 });
+            };
+            int stripes = q.tables[table]->RowGroupCount();
+            int batch = std::min(256, stripes);
+            // Only immutable membership/native filtering runs concurrently.
+            // Correlation reads and final row retention keep their bindings on
+            // the caller. Bound scratch independently of total input size.
+            bool concurrent = parallel && !memberIds.empty() && batch >= 8 &&
+                uint64_t(batch) * BITMAP_SIZE <= (budget.limit - budget.used.load()) / 4;
+            if (concurrent) {
+                std::pmr::vector<uint8_t> bitmaps(size_t(batch) * BITMAP_SIZE, &budget);
+                for (int begin = 0; begin < stripes; begin += batch) {
+                    int count = std::min(batch, stripes - begin);
+                    RunTasks(std::min(8, count), [&](int worker) {
+                        ScopedValueResource memory(budget);
+                        for (int i = worker; i < count; i += 8)
+                            prepare(begin + i, bitmaps.data() + size_t(i) * BITMAP_SIZE);
+                        return true;
+                    });
+                    for (int i = 0; i < count; ++i)
+                        consume(begin + i, bitmaps.data() + size_t(i) * BITMAP_SIZE);
+                }
+            } else for (int g = 0; g < stripes; ++g) {
+                uint8_t bitmap[BITMAP_SIZE]; prepare(g, bitmap); consume(g, bitmap);
             }
         }
         size_t probe = 0;
