@@ -4,6 +4,10 @@ using namespace pgaccel;
 TEST(PrefixLike, SortedDictionaryRangesPreserveExactRegexSemantics) {
     std::vector<std::string> labels{"for", "forest", "forest green", "forestz",
         "forest\nx", std::string("forest\0x", 8), std::string("forest\xff", 7),
+        "forest😀", std::string("forest\xc0\xaf", 8), std::string("forest\x80", 7),
+        std::string("forest\xed\xa0\x80", 9), std::string("forest\xf4\x90\x80\x80", 10),
+        std::string("forest\xc2", 7), std::string("forest\xe0\x80\x80", 9),
+        std::string("forest\xf0\x90\x80\x80", 10),
         "foret", "alpha", "é", "éclair", "zebra"};
     std::vector<std::string> values;
     for (int i = 0; i < 513; ++i) values.push_back(labels[i % labels.size()]);

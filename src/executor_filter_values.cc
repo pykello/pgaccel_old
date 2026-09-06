@@ -13,7 +13,9 @@ class ValuePredicate : public FilterNodeImpl {
   StringSignature required;
   std::unordered_set<Cell, Hash> members;
   bool matches(Cell value) const {
-    bool yes =
+    // ASCII strings need only a byte-prefix check. Keep RE2 for all
+    // non-ASCII values, including its treatment of malformed encodings.
+    bool yes = prefix && IsAscii(value.text) ? value.text.starts_with(needle) :
         pattern
             ? (substring ? value.text.find(needle) != std::string_view::npos
                          : RE2::FullMatch(re2::StringPiece(value.text.data(),
@@ -47,7 +49,7 @@ class ValuePredicate : public FilterNodeImpl {
       bool sparse = intersect && selectedRows <= rg.size / 4 && selectedRows < dict->dictSize() / 2;
       if (prefix && !sparse) {
         // Sorted labels make a literal prefix one contiguous candidate range.
-        // Keep exact RE2 checks within it, including invalid UTF-8 handling.
+        // Keep exact checks within it; non-ASCII values retain RE2 behavior.
         const auto &dictionary = static_cast<const DictColumnData<StringType> *>(dict)->dict;
         auto begin = std::lower_bound(dictionary.begin(), dictionary.end(), needle);
         auto end = std::partition_point(begin, dictionary.end(), [&](const auto &label) {
