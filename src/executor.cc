@@ -17,6 +17,7 @@ static Rows ExecuteGroupBy(const AggregateNode &aggNode,
                            bool useParallelism);
 static Row FieldNames(const std::vector<ColumnDesc> &schema);
 
+std::optional<Result<QueryOutput>> ExecuteFilteredSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteScalarFast(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteProjection(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDictionaryWeighted(const QueryDesc &, bool, bool);
@@ -66,6 +67,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
             return ExecuteAggNoGroupByWithFilter(query,useAvx,useParallelism);
         }
         if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) return std::move(*fast);
+        if (auto filtered = ExecuteFilteredSum(query,useAvx,useParallelism)) return std::move(*filtered);
         if (auto projection = ExecuteProjection(query,useAvx,useParallelism)) return std::move(*projection);
         if (auto distinct = ExecutePostingDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
         if (auto counts = ExecutePostingGroupedCount(query,useParallelism)) return std::move(*counts);
