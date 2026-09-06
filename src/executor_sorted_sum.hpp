@@ -19,11 +19,27 @@ struct SortedSumScan {
     Wide sum=0;uint64_t count=0;
     explicit SortedSumScan(Budget &budget):frames(&budget),stripes(&budget) {}
 };
+using SortedSumBounds=std::pmr::vector<std::pair<size_t,ScaledBound>>;
+SortedSumBounds PrepareSortedSumBounds(const QueryDesc &q,size_t keyOutput,size_t sumOutput,Budget &budget) {
+    SortedSumBounds bounds(&budget);
+    for (const auto &h:q.having) {
+        if (h.bound || (h.output!=keyOutput && h.output!=sumOutput)) throw NotDense{};
+        int scale=Scale(q.aggregateClauses[h.output].expression->type.get());
+        bounds.emplace_back(h.output,ScaledBound(h.op,h.value,h.scale,scale,h.nullBound));
+    }
+    return bounds;
+}
+bool SortedSumMatches(const SortedSumBounds &bounds,size_t keyOutput,int64_t key,Wide sum) {
+    for (const auto &[output,bound]:bounds)
+        if (!bound.matches(output==keyOutput?Wide(key):sum)) return false;
+    return true;
+}
+struct KeepSortedSums { bool operator()(int64_t,int64_t) const {return true;} };
 // Ordered ranges may touch at a boundary. Only each stripe's first and last
 // selected group can then require a cross-stripe merge.
-template<class Filter>
+template<class Filter,class Keep=KeepSortedSums>
 SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,const Expression &value,
-    Filter filter,Budget &budget,bool avx,bool parallel) {
+    Filter filter,Budget &budget,bool avx,bool parallel,Keep keep={}) {
     SortedSumScan result(budget);
     auto type=key.Type()->type_num();if (type!=INT32_TYPE && type!=INT64_TYPE) throw NotDense{};
     for (int g=0;g<table.RowGroupCount();++g) {
@@ -69,6 +85,12 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
                 for (int i=0;i<n;++i) {
                     if (stripe.groups.empty() || stripe.groups.back().key!=keys[i]) {
                         if (!stripe.groups.empty() && stripe.groups.back().key>keys[i]) throw NotDense{};
+                        // A completed interior group cannot cross a stripe
+                        // boundary. Keep the first and current last group
+                        // until the wide boundary merge is complete.
+                        if constexpr (!std::is_same_v<Keep,KeepSortedSums>)
+                            if (stripe.groups.size()>1 && !keep(stripe.groups.back().key,stripe.groups.back().sum))
+                                stripe.groups.pop_back();
                         stripe.groups.push_back({keys[i],values[i]});
                     } else stripe.groups.back().sum+=values[i];
                     stripe.sum+=values[i];
@@ -85,15 +107,9 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
 QueryOutput FinishSortedSums(const QueryDesc &q,size_t keyOutput,size_t sumOutput,
     const SortedSumScan &scan,Budget &budget,bool parallel) {
     QueryResults result(q,budget);if (!scan.count) return result.finish();
-    std::pmr::vector<std::pair<size_t,ScaledBound>> bounds(&budget);
-    for (const auto &h:q.having) {
-        if (h.bound || (h.output!=keyOutput && h.output!=sumOutput)) throw NotDense{};
-        int scale=Scale(q.aggregateClauses[h.output].expression->type.get());
-        bounds.emplace_back(h.output,ScaledBound(h.op,h.value,h.scale,scale,h.nullBound));
-    }
+    auto bounds=PrepareSortedSumBounds(q,keyOutput,sumOutput,budget);
     auto emit=[&](QueryResults &target,int64_t key,Wide sum) {
-        for (const auto &[output,bound]:bounds)
-            if (!bound.matches(output==keyOutput?Wide(key):sum)) return;
+        if (!SortedSumMatches(bounds,keyOutput,key,sum)) return;
         target.addLazy([&](size_t output) {
             return FinalCell{Cell{output==keyOutput?Wide(key):sum},q.aggregateClauses[output].expression->type.get()};
         });

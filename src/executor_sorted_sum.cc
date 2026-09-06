@@ -17,12 +17,21 @@ std::optional<Result<QueryOutput>> ExecuteSortedSum(const QueryDesc &q,bool avx,
     for (const auto &h:q.having) if (h.bound) return {};
     try {
         Budget budget(q.memoryBudgetBytes);ScopedValueResource memory(budget);
+        SortedSumBounds bounds(&budget);
+        try { bounds=PrepareSortedSumBounds(q,key,sum,budget); }
+        catch (const std::overflow_error &) { throw NotDense{}; }
         auto filter=q.filterClauses.empty()?FilterNodeP{}:CreateFilterNode(q.filterClauses,avx);
-        auto scan=ScanSortedSums(*q.tables[0],*q.groupExpressions[0]->column,*q.aggregateClauses[sum].expression,
-            [&](const RowGroup &rg,uint8_t *bitmap) {
-                if (filter) return bool(filter->ExecuteSet(rg,bitmap));
-                memset(bitmap,0xff,(rg.size+7)/8);return true;
-            },budget,avx,parallel);
+        auto filterRows=[&](const RowGroup &rg,uint8_t *bitmap) {
+            if (filter) return bool(filter->ExecuteSet(rg,bitmap));
+            memset(bitmap,0xff,(rg.size+7)/8);return true;
+        };
+        auto scan=bounds.empty()
+            ? ScanSortedSums(*q.tables[0],*q.groupExpressions[0]->column,*q.aggregateClauses[sum].expression,
+                filterRows,budget,avx,parallel)
+            : ScanSortedSums(*q.tables[0],*q.groupExpressions[0]->column,*q.aggregateClauses[sum].expression,
+                filterRows,budget,avx,parallel,[&](int64_t value,int64_t total) {
+                    return SortedSumMatches(bounds,key,value,total);
+                });
         return FinishSortedSums(q,key,sum,scan,budget,parallel);
     } catch (const NotDense &) { return {}; }
     catch (const std::exception &e) { return Status::Invalid(e.what()); }

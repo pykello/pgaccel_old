@@ -65,3 +65,14 @@ TEST(SortedSum, BoundaryMergeUsesWideSumsAndHonorsBudget) {
     auto tiny=*q;tiny.memoryBudgetBytes=1;tiny.allowSpill=false;
     auto failed=ExecuteSortedSum(tiny,true,true);ASSERT_TRUE(failed);EXPECT_FALSE(failed->ok());
 }
+
+TEST(SortedSum, RejectsCompletedInteriorGroupsBeforeRetainingTheirState) {
+    std::vector<int64_t> keys,values;
+    for (int i=0;i<16000;++i) {keys.push_back(i);values.push_back(1);}
+    auto registry=test::Table({{test::Raw(keys,4),test::Raw(values,1)}},
+        {{"k",std::make_shared<Int64Type>()},{"v",std::make_shared<Int64Type>()}});
+    auto q=ParseSelect("SELECT k,sum(v) FROM t GROUP BY k HAVING sum(v)>2 ORDER BY k",registry);ASSERT_TRUE(q.ok());
+    auto bounded=*q;bounded.memoryBudgetBytes=128*1024;bounded.allowSpill=false;
+    auto result=ExecuteSortedSum(bounded,true,false);ASSERT_TRUE(result);ASSERT_TRUE(result->ok())<<result->status().Message();
+    EXPECT_TRUE((*result)->values.empty());EXPECT_LT((*result)->peakMemoryBytes,128*1024);
+}
