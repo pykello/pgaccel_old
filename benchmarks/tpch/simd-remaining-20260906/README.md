@@ -31,3 +31,5 @@ Next: [Q20/Q17/Q2 correlated-query plan](CORRELATED-PLAN.md).
 in execution time and temporary memory; these three still miss the
 fourfold target. Q20 now completes SF100 correctly with 953 MiB peak query allocation;
 its latency target remains unmet.
+
+[Phase measurements and next steps](PROFILE-NEXT.md).
