@@ -49,18 +49,18 @@ TEST(JoinDistinct, SignedEndpointsAndUnsupportedDomains) {
     }
 }
 TEST(JoinDistinct, MaskedGatherBoundsTailsAndMembershipRepresentations) {
-    for(int64_t first:{INT64_MIN,INT64_MAX-8}) {
+    for(int64_t first:{INT64_MIN,INT64_MAX-8,int64_t(INT32_MIN),int64_t(INT32_MAX)-8}) {
         std::vector<int64_t> keys,groups,foreign,suppliers;
         for(int i=0;i<9;++i){keys.push_back(first+i);groups.push_back(i%3);}
         for(int i=0;i<259;++i) {
-            foreign.push_back(i%13<9?first+i%13:(first==INT64_MIN?INT64_MAX:INT64_MIN));
+            foreign.push_back(i%13<9?first+i%13:(first==INT64_MIN?INT64_MAX:first==INT64_MAX-8?INT64_MIN:first==INT32_MIN?int64_t(INT32_MAX):int64_t(INT32_MIN)));
             suppliers.push_back(first+i%7);
         }
         auto registry=test::Table({{test::Raw(keys),test::Raw(groups)}},
             {{"k",std::make_shared<Int64Type>()},{"g",std::make_shared<Int64Type>()}});
-        auto facts=test::Table({{test::Raw(foreign),test::Raw(suppliers)}},
+        auto facts=test::Table({{test::Raw(foreign,first>=INT32_MIN && first<=INT32_MAX-8?4:8),test::Raw(suppliers,first>=INT32_MIN && first<=INT32_MAX-8?4:8)}},
             {{"k",std::make_shared<Int64Type>()},{"s",std::make_shared<Int64Type>()}});
-        auto excluded=test::Table({{test::Raw({INT64_MIN,INT64_MIN+2,INT64_MAX-2,INT64_MAX})}},{{"s",std::make_shared<Int64Type>()}});
+        auto excluded=test::Table({{test::Raw({first,first+2,first+6,first+8,first<0?INT64_MAX:INT64_MIN})}},{{"s",std::make_shared<Int64Type>()}});
         registry.emplace("f",std::move(facts.at("t")));registry.emplace("x",std::move(excluded.at("t")));
         for(const std::string clause:{"", " AND f.s IN (SELECT s FROM x)", " AND f.s NOT IN (SELECT s FROM x)",
             " AND f.s IN (SELECT s FROM x WHERE s<0)", " AND f.s NOT IN (SELECT s FROM x WHERE s>0)",

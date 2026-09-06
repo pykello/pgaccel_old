@@ -111,6 +111,50 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
             };
             for(int g=worker;g<facts.RowGroupCount();g+=workers) {
                 const auto &rg=facts.GetRowGroup(g);
+                auto keyData=static_cast<const RawColumnDataBase *>(rg.columns[foreign.columnIdx].get());
+                auto valueData=static_cast<const RawColumnDataBase *>(rg.columns[counted.columnIdx].get());
+                if(avx && keyData->bytesPerValue==4 && valueData->bytesPerValue==4 &&
+                    sequence.minimum()>=INT32_MIN && sequence.maximum()<=INT32_MAX && rows<=INT32_MAX &&
+                    (q.membershipQueries.empty() || membership.values.empty()) &&
+                    (membership.bits.empty() || (membership.first>=INT32_MIN && membership.last<=INT32_MAX))) {
+                    auto rawKeys=reinterpret_cast<const int32_t *>(keyData->values);
+                    auto rawValues=reinterpret_cast<const int32_t *>(valueData->values);
+                    alignas(64)uint64_t packed[Block];
+                    for(int begin=0;begin<rg.size;begin+=Block) {
+                        int end=std::min(begin+Block,rg.size),accepted=0;
+                        for(int row=begin;row<end;row+=16) {
+                            int n=std::min(16,end-row);__mmask16 tail=n==16?0xffff:(1u<<n)-1;
+                            auto key=_mm512_maskz_loadu_epi32(tail,rawKeys+row);
+                            auto slot=_mm512_sub_epi32(key,_mm512_set1_epi32(sequence.minimum()));
+                            __mmask16 valid=tail & _mm512_cmp_epu32_mask(slot,_mm512_set1_epi32(rows),_MM_CMPINT_LT);
+                            auto group=_mm512_mask_i32gather_epi32(_mm512_set1_epi32(-1),valid,slot,groupIds.data(),4);
+                            valid&=_mm512_cmpneq_epi32_mask(group,_mm512_set1_epi32(-1));if(!valid)continue;
+                            auto value=_mm512_maskz_loadu_epi32(tail,rawValues+row);
+                            if(!q.membershipQueries.empty()) {
+                                __mmask16 found=0;
+                                if(!membership.bits.empty()) {
+                                    auto delta=_mm512_sub_epi32(value,_mm512_set1_epi32(membership.first));
+                                    auto in=valid & _mm512_cmpge_epi32_mask(value,_mm512_set1_epi32(membership.first)) &
+                                        _mm512_cmple_epi32_mask(value,_mm512_set1_epi32(membership.last));
+                                    auto words=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),in,
+                                        _mm512_srli_epi32(delta,5),membership.bits.data(),4);
+                                    found=in & _mm512_test_epi32_mask(_mm512_srlv_epi32(words,
+                                        _mm512_and_si512(delta,_mm512_set1_epi32(31))),_mm512_set1_epi32(1));
+                                }
+                                valid&=q.membershipQueries.front().anti?__mmask16(~found):found;
+                            }
+                            auto normalized=_mm512_sub_epi32(value,_mm512_set1_epi32(low));
+                            auto emit=[&](__m256i group,__m256i value,__mmask8 mask) {
+                                auto pair=_mm512_or_si512(_mm512_slli_epi64(_mm512_cvtepu32_epi64(group),32),_mm512_cvtepu32_epi64(value));
+                                _mm512_mask_compressstoreu_epi64(packed+accepted,mask,pair);accepted+=__builtin_popcount(mask);
+                            };
+                            emit(_mm512_castsi512_si256(group),_mm512_castsi512_si256(normalized),valid);
+                            emit(_mm512_extracti64x4_epi64(group,1),_mm512_extracti64x4_epi64(normalized,1),valid>>8);
+                        }
+                        pairs.insert(pairs.end(),packed,packed+accepted);
+                    }
+                    continue;
+                }
                 for(int begin=0;begin<rg.size;begin+=Block) {
                     int n=std::min(Block,rg.size-begin);decode(rg,foreign,begin,n,keys);decode(rg,counted,begin,n,values);
                     int i=0;
