@@ -106,14 +106,28 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             if (keys == 2) key.b = int64_t(Read(rg, columns[1], row).number);
             return key;
         };
-        for (int g = 0; g < q.tables[0]->RowGroupCount(); ++g) {
-            const auto &rg = q.tables[0]->GetRowGroup(g); uint8_t bitmap[BITMAP_SIZE];
-            if (outerFilter) { if (!outerFilter->ExecuteSet(rg, bitmap)) continue; }
-            else memset(bitmap, 0xff, (rg.size + 7) / 8);
-            members.intersect(rg, membership.column, false, avx, bitmap);
-            Selected(rg, bitmap, [&](int row) {
-                outerRows.push_back({uint32_t(g), uint32_t(row), 0});
+        {
+            int groups = q.tables[0]->RowGroupCount();
+            int outerWorkers = parallel ? std::min(8, std::max(1, groups)) : 1;
+            auto selected = RunTasks(outerWorkers, [&](int worker) {
+                ScopedValueResource memory(budget); Scratch scratch(budget, BITMAP_SIZE);
+                std::pmr::vector<SumOuterRow> rows(&budget);
+                for (int g = int64_t(groups) * worker / outerWorkers;
+                     g < int64_t(groups) * (worker + 1) / outerWorkers; ++g) {
+                    const auto &rg = q.tables[0]->GetRowGroup(g); uint8_t bitmap[BITMAP_SIZE];
+                    if (outerFilter) { if (!outerFilter->ExecuteSet(rg, bitmap)) continue; }
+                    else memset(bitmap, 0xff, (rg.size + 7) / 8);
+                    members.intersect(rg, membership.column, false, avx, bitmap);
+                    Selected(rg, bitmap, [&](int row) {
+                        rows.push_back({uint32_t(g), uint32_t(row), 0});
+                    });
+                }
+                return rows;
             });
+            size_t count = 0;
+            for (const auto &rows : selected) count += rows.size();
+            outerRows.reserve(count);
+            for (const auto &rows : selected) outerRows.insert(outerRows.end(), rows.begin(), rows.end());
         }
         index.reserve(outerRows.size());
         for (auto &selected : outerRows) {
