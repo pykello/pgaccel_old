@@ -1,6 +1,6 @@
 # Q9: profit aggregation through bounded repeated-key joins
 
-The implementation is at `c2321f0`; performance confirmation is pending.
+The implementation is at `c2321f0`; both benchmark gates pass; see [Q9 results](Q9.md).
 The revised acceptance gate is 2x faster than both DuckDB and ClickHouse
 at SF10 and SF100 with validated answers and full client timing.
 
@@ -38,7 +38,8 @@ Reference regressions cover duplicate pairs, missing pairs, negative and
 sparse keys, shuffled stripes, extra cost-table filters, differing nation
 labels, year boundaries and decimal scaling. They confirm fallback when the run proof fails and compare exact output
 against the general executor in scalar/vector and serial/parallel modes.
-All 244 native tests pass; sanitizer validation is pending.
+All 244 native tests and 10 focused ASan/UBSan tests pass. All22 SF1
+answers match on the frozen module.
 
 For duplicate matching pairs, the executor computes each row's revenue
 minus its cost-times-quantity separately, using checked wide arithmetic
