@@ -35,26 +35,6 @@ struct IdentityPayload {
     BitmapDomain domain() const {return {first,last,rank?rank->words():bits.data()};}
 };
 
-// Key-space gaps do not reduce the fraction of existing dimension rows that
-// qualify. Estimate surviving foreign keys from proved cardinality, then
-// account for the extra prefix and payload reads on a successful rank probe.
-std::vector<UniqueKeyJoinGraph::Edge> OrderIdentityArms(
-    std::vector<UniqueKeyJoinGraph::Edge> arms,const UniqueKeyJoinGraph &plan,
-    const std::vector<std::unique_ptr<IdentityPayload>> &payloads) {
-    auto selectivity=[&](int table) {
-        const auto &key=*plan.keys[table];
-        uint64_t count=key.sequence.active()?key.sequence.size():key.sorted.size();
-        return double(payloads[table]->selected)/double(count);
-    };
-    auto cost=[&](int a,int b) {
-        double first=payloads[a]->rank?3:1;
-        double second=payloads[b]->rank?1+2*selectivity(b):1;
-        return selectivity(a)*(first+second);
-    };
-    if(cost(arms[1].target,arms[0].target)<cost(arms[0].target,arms[1].target))std::swap(arms[0],arms[1]);
-    return arms;
-}
-
 // Separate independent gathers from the dependent bitmap insertions and
 // payload writes. Each full vector initializes its complete output region.
 [[gnu::noinline]] void GatherIdentityBlock(const RawColumnDataBase &foreign,
