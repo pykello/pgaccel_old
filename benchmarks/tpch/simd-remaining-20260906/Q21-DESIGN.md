@@ -1,6 +1,6 @@
 # Q21: summarize correlated supplier differences by order
 
-The implementation is at `9b3fd59`; performance confirmation is pending. It targets the revised
+The implementation is at `9b3fd59`; both benchmark gates pass; see [results](Q21.md). It targets the revised
 2x warm-median gate against both DuckDB and ClickHouse at both scales.
 
 For an order, record its first supplier and whether any supplier differs.
@@ -46,3 +46,6 @@ states, including every possible split-and-merge boundary. A runtime fixture
 includes an order spanning several shuffled stripes. The implementation
 uses existing project components and original code; no external algorithm
 implementation or new licensed dependency was introduced.
+
+All 252 native tests and five focused ASan/UBSan tests pass. All22 SF1
+answers match on the frozen module used in both scale confirmations.
