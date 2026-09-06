@@ -84,11 +84,12 @@ systemd-run --user --unit=pgaccel-tpch-sf100-clickhouse \
 curl -fsS http://127.0.0.1:18123/ping
 
 "$TPCH_PYTHON" benchmarks/tpch/load_clickhouse.py \
-  --data "$TPCH_WORK/data" --database tpch_sf100 --engine Memory \
+  --data "$TPCH_WORK/data" --database tpch_sf100_noreorder --engine Memory \
   --port 19000 --report "$TPCH_RESULTS/clickhouse-load.json"
 
 "$TPCH_PYTHON" benchmarks/tpch/compare_scale.py --engine clickhouse \
-  --database tpch_sf100 --queries "$TPCH_QUERIES" \
+  --database tpch_sf100_noreorder --queries "$TPCH_QUERIES" \
+  --clickhouse-join-order-limit 0 \
   --server-pid-file "$TPCH_WORK/clickhouse/server.pid" \
   --oracle "$TPCH_RESULTS/duckdb.jsonl" \
   --output "$TPCH_RESULTS/clickhouse.jsonl"
@@ -118,3 +119,22 @@ PGAccel source snapshots remain available for another load.
 The output includes every query and a compact checkpoint with raw hashes,
 settings, trial times, and memory peaks. Read PLAN.md for timing boundaries,
 NULL semantics, and the distinction between complete and failed phases.
+
+## Separate Q20 capacity check
+
+The 64 GiB PGAccel phase rejected Q20 at its query budget while the service
+remained below 192 GiB. After the complete three-engine baseline and the
+isolated ClickHouse shutdown, rerun Q20 in a fresh PGAccel service with an
+80 GiB query allowance. Preserve this as a separate checkpoint; do not
+replace the baseline failure or silently include it in the baseline total.
+
+```bash
+systemd-run --user --unit=pgaccel-tpch-sf100-q20-capacity \
+  --property=MemoryMax=192G --property=MemorySwapMax=0 \
+  --working-directory="$PWD" --setenv=TZ=UTC --wait --pipe \
+  "$TPCH_PYTHON" benchmarks/tpch/compare_scale.py --engine pgaccel \
+  --runner "$TPCH_RUNNER" --native "$TPCH_WORK/native" \
+  --queries "$TPCH_QUERIES" --oracle "$TPCH_RESULTS/duckdb.jsonl" \
+  --only 20 --repeats 3 --query-memory-gib 80 \
+  --output "$TPCH_RESULTS/q20-capacity-80g.jsonl"
+```

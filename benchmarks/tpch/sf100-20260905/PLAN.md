@@ -52,7 +52,7 @@ cap and will be reported as background host memory.
 |---|---|---|
 | PGAccel | All eight native tables loaded; auxiliary indexes disabled | 64 GiB query allocations plus resident inputs; fast paths enable eight workers, relational joins remain serial; 512 GiB spill quota where supported |
 | DuckDB 1.4.3 | Generated persistent native tables, normal buffer manager | Eight threads, 176 GiB memory limit, 512 GiB temporary spill limit |
-| ClickHouse 26.8.2.7 | Memory tables loaded from matching Parquet | Eight threads, 64 GiB query limit, query cache off, `join_use_nulls=1`, `aggregate_functions_null_for_empty=1` |
+| ClickHouse 26.8.2.7 | Memory tables loaded from matching Parquet | Eight threads, 64 GiB query limit, query cache off, `join_use_nulls=1`, `aggregate_functions_null_for_empty=1`, global join reordering disabled |
 
 ClickHouse uses a dedicated instance on HTTP 18123/native 19000. Its server
 memory threshold is 184 GiB inside the 192 GiB service cap. Insertion is
@@ -60,6 +60,24 @@ allowed 160 GiB because Memory tables may retain allocations throughout
 an INSERT; measured queries override that setting with 64 GiB. The full
 ClickHouse Memory dataset is loaded only for its phase and is released
 when that isolated service stops. Its source Parquet remains available.
+
+The initial ClickHouse attempt was stopped during Q5 after more than nine
+minutes without a completed trial. Its greedy plan joined customers and
+suppliers by nation before orders and lineitem, creating an enormous
+intermediate. The first four completed queries, partial load evidence,
+and EXPLAIN plans are archived under `greedy-attempt-*` and
+`clickhouse-q05-*-plan.txt`. This is an interrupted diagnostic, not a
+recorded Q5 timeout or a completed default-setting comparison.
+
+The final ClickHouse phase restarts from Q1 after a server restart and full
+reload into `tpch_sf100_noreorder`. Every query uses
+`query_plan_optimize_join_order_limit=0`. Plan inspection shows that this
+avoids the problematic Q5 nation-key join before the fact-table joins.
+Changing to `dpsub,greedy` alone retained that join in the plan, so it was
+not benchmarked. Memory tables have no explicitly collected column
+statistics here. ClickHouse describes the role of statistics in
+[global join reordering](https://clickhouse.com/blog/clickhouse-release-25-09).
+This controlled setting is not an exhaustive ClickHouse tuning exercise.
 
 The NULL settings align semantics: the small rehearsal found empty SUMs
 in Q17 and Q19 that ClickHouse otherwise returned as zero. SQL statements
