@@ -1,0 +1,986 @@
+{
+  "pgaccel-domain-before-sf10": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:06:43.694691+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-domain-before-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-domain-before-sf10.jsonl",
+        "database": null,
+        "runner": "/home/hadi/projects/tpch-work/checkpoints/q19-disjunctive-final-query-runner",
+        "native": "/home/hadi/projects/tpch-work/native-sf10",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 3,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          20,
+          17,
+          2
+        ]
+      },
+      "source_revision": "57a3e365b745095f880fa084973fe01c1c66a775",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 59986052,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 17991.407479,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 10277494784,
+        "load_ms": 17991.448028,
+        "indexed_columns": [],
+        "client_load_ms": 18008.956278004916
+      },
+      "runner_sha256": "bcb5a1101cb018bb1fb2aa5ebb6cc92e9eb7ae4f6d2ea1ccc51b8a4b81416914",
+      "open_ms": 18027.41254698776,
+      "loaded_rss": {
+        "VmRSS": 10277494784,
+        "VmHWM": 10277494784
+      }
+    },
+    "sha256": "34ce0cefd784821a4da0b76a1fcd3302134ed25996d0f3a1f95892e741e3fee0",
+    "queries": [
+      {
+        "id": 20,
+        "sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "status": "success",
+        "executed_sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:08:52.752574+00:00",
+        "oracle_types": [
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "execution_ms": 39546.151491,
+            "query_peak_allocation_bytes": 9193360376,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 91861,
+              "syscr": 1,
+              "syscw": 23,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39548.70658699656,
+            "correct": true,
+            "rss": {
+              "VmRSS": 16635437056,
+              "VmHWM": 17799917568
+            }
+          },
+          {
+            "execution_ms": 35748.899768,
+            "query_peak_allocation_bytes": 9193360376,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 91861,
+              "syscr": 1,
+              "syscw": 23,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 35751.972354002646,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018658816,
+              "VmHWM": 17932681216
+            }
+          },
+          {
+            "execution_ms": 35706.952415,
+            "query_peak_allocation_bytes": 9193360376,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 91861,
+              "syscr": 1,
+              "syscw": 23,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 35709.971815987956,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018740736,
+              "VmHWM": 17932681216
+            }
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "sql_sha256": "da436e2736a6c1f71667e2e20464c00ed5c23c6d895fe5be63a3521e6eaea326",
+        "status": "success",
+        "executed_sql_sha256": "da436e2736a6c1f71667e2e20464c00ed5c23c6d895fe5be63a3521e6eaea326",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:11:38.042477+00:00",
+        "oracle_types": [
+          "DOUBLE"
+        ],
+        "trials": [
+          {
+            "execution_ms": 55036.095227,
+            "query_peak_allocation_bytes": 3072380352,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 330,
+              "wchar": 178,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 55037.194250995526,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018740736,
+              "VmHWM": 17932681216
+            }
+          },
+          {
+            "execution_ms": 55277.882686,
+            "query_peak_allocation_bytes": 3072380352,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 330,
+              "wchar": 178,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 55278.36125600152,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018740736,
+              "VmHWM": 17932681216
+            }
+          },
+          {
+            "execution_ms": 54958.645296,
+            "query_peak_allocation_bytes": 3072380352,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 330,
+              "wchar": 178,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 54959.081930996035,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018740736,
+              "VmHWM": 17932681216
+            }
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "sql_sha256": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+        "status": "success",
+        "executed_sql_sha256": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:12:01.998269+00:00",
+        "oracle_types": [
+          "DECIMAL(15,2)",
+          "VARCHAR",
+          "VARCHAR",
+          "BIGINT",
+          "VARCHAR",
+          "VARCHAR",
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "execution_ms": 7944.541067,
+            "query_peak_allocation_bytes": 1195530684,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 842,
+              "wchar": 18099,
+              "syscr": 1,
+              "syscw": 5,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 7945.534519996727,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018740736,
+              "VmHWM": 17932681216
+            }
+          },
+          {
+            "execution_ms": 7993.187056,
+            "query_peak_allocation_bytes": 1195530684,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 842,
+              "wchar": 18099,
+              "syscr": 1,
+              "syscw": 5,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 7994.195854989812,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018740736,
+              "VmHWM": 17932681216
+            }
+          },
+          {
+            "execution_ms": 8011.362397,
+            "query_peak_allocation_bytes": 1195530684,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 842,
+              "wchar": 18099,
+              "syscr": 1,
+              "syscw": 5,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 8012.338136002654,
+            "correct": true,
+            "rss": {
+              "VmRSS": 17018740736,
+              "VmHWM": 17932681216
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "duckdb-domain-before-sf10": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:06:37.525507+00:00",
+      "engine": "duckdb",
+      "settings": {
+        "engine": "duckdb",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-domain-before-sf10.jsonl",
+        "oracle": null,
+        "database": "/home/hadi/projects/tpch-work/sf10/tpch.duckdb",
+        "runner": null,
+        "native": null,
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 3,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          20,
+          17,
+          2
+        ]
+      },
+      "source_revision": "57a3e365b745095f880fa084973fe01c1c66a775",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "version": "1.4.3",
+      "tables": [
+        [
+          "customer",
+          1500000
+        ],
+        [
+          "lineitem",
+          59986052
+        ],
+        [
+          "nation",
+          25
+        ],
+        [
+          "orders",
+          15000000
+        ],
+        [
+          "part",
+          2000000
+        ],
+        [
+          "partsupp",
+          8000000
+        ],
+        [
+          "region",
+          5
+        ],
+        [
+          "supplier",
+          100000
+        ]
+      ],
+      "open_ms": 90.35385599418078,
+      "loaded_rss": {
+        "VmRSS": 64802816,
+        "VmHWM": 64802816
+      }
+    },
+    "sha256": "50299343269179fa8d8032767a46ebee9e6788c061ac2c0a172012ab582574e7",
+    "queries": [
+      {
+        "id": 20,
+        "sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "status": "success",
+        "executed_sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:06:38.243896+00:00",
+        "oracle_types": [
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "process_io_delta": {
+              "rchar": 955514986,
+              "wchar": 0,
+              "syscr": 3647,
+              "syscw": 0,
+              "read_bytes": 126976,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 324.4040360004874,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1087393792,
+              "VmHWM": 1087393792
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 114,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 152.44792500743642,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1100865536,
+              "VmHWM": 1100865536
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 114,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 137.92438700329512,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1108795392,
+              "VmHWM": 1108795392
+            }
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "sql_sha256": "da436e2736a6c1f71667e2e20464c00ed5c23c6d895fe5be63a3521e6eaea326",
+        "status": "success",
+        "executed_sql_sha256": "da436e2736a6c1f71667e2e20464c00ed5c23c6d895fe5be63a3521e6eaea326",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:06:38.822430+00:00",
+        "oracle_types": [
+          "DOUBLE"
+        ],
+        "trials": [
+          {
+            "process_io_delta": {
+              "rchar": 193462388,
+              "wchar": 0,
+              "syscr": 740,
+              "syscw": 0,
+              "read_bytes": 225280,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 208.42030899075326,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1288888320,
+              "VmHWM": 1288888320
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 117,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 185.83700399904046,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1291051008,
+              "VmHWM": 1291051008
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 117,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 178.60218200075906,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1291771904,
+              "VmHWM": 1291771904
+            }
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "sql_sha256": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+        "status": "success",
+        "executed_sql_sha256": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:06:39.023470+00:00",
+        "oracle_types": [
+          "DECIMAL(15,2)",
+          "VARCHAR",
+          "VARCHAR",
+          "BIGINT",
+          "VARCHAR",
+          "VARCHAR",
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "process_io_delta": {
+              "rchar": 24379509,
+              "wchar": 0,
+              "syscr": 95,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 67.55295499169733,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1335746560,
+              "VmHWM": 1335746560
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 117,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 63.33921500481665,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1348362240,
+              "VmHWM": 1348362240
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 117,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 8192,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 68.20483099727426,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1358045184,
+              "VmHWM": 1358045184
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "clickhouse-domain-before-sf10": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:06:39.234363+00:00",
+      "engine": "clickhouse",
+      "settings": {
+        "engine": "clickhouse",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/clickhouse-domain-before-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-domain-before-sf10.jsonl",
+        "database": "tpch_sf10",
+        "runner": null,
+        "native": null,
+        "url": "http://127.0.0.1:8123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 3,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": "/home/hadi/projects/tpch-work/queries-clickhouse-double-1.4.3",
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          20,
+          17,
+          2
+        ],
+        "server_settings": {
+          "database": "tpch_sf10",
+          "max_threads": 8,
+          "join_use_nulls": 1,
+          "use_query_cache": 0,
+          "aggregate_functions_null_for_empty": 1,
+          "max_execution_time": 1800,
+          "max_memory_usage": 68719476736,
+          "wait_end_of_query": 1
+        }
+      },
+      "source_revision": "57a3e365b745095f880fa084973fe01c1c66a775",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "version": "26.8.2.7",
+      "tables": [
+        [
+          "customer",
+          "MergeTree",
+          1500000,
+          136011529
+        ],
+        [
+          "lineitem",
+          "MergeTree",
+          59986052,
+          3271877376
+        ],
+        [
+          "nation",
+          "MergeTree",
+          25,
+          3284
+        ],
+        [
+          "orders",
+          "MergeTree",
+          15000000,
+          709814297
+        ],
+        [
+          "part",
+          "MergeTree",
+          2000000,
+          112122531
+        ],
+        [
+          "partsupp",
+          "MergeTree",
+          8000000,
+          492878398
+        ],
+        [
+          "region",
+          "MergeTree",
+          5,
+          1385
+        ],
+        [
+          "supplier",
+          "MergeTree",
+          100000,
+          8311940
+        ]
+      ],
+      "open_ms": 35.400410008151084,
+      "loaded_rss": {}
+    },
+    "sha256": "e968376787e6e95d92f4a0145ba89252d36f753755d0f27b359141e3adb2dcdf",
+    "queries": [
+      {
+        "id": 20,
+        "sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "status": "success",
+        "executed_sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "server_settings": {
+          "database": "tpch_sf10",
+          "max_threads": 8,
+          "join_use_nulls": 1,
+          "use_query_cache": 0,
+          "aggregate_functions_null_for_empty": 1,
+          "max_execution_time": 1800,
+          "max_memory_usage": 68719476736,
+          "wait_end_of_query": 1
+        },
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:06:40.852209+00:00",
+        "oracle_types": [
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "server_ms": 689.2849749999999,
+            "statistics": {
+              "elapsed": "0.689284975",
+              "rows_read": 70086077,
+              "bytes_read": 1846737036
+            },
+            "process_io_delta": {},
+            "client_ms": 694.3756909895455,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 420.475424,
+            "statistics": {
+              "elapsed": "0.420475424",
+              "rows_read": 70086077,
+              "bytes_read": 1846737036
+            },
+            "process_io_delta": {},
+            "client_ms": 426.83193398988806,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 443.08969199999996,
+            "statistics": {
+              "elapsed": "0.443089692",
+              "rows_read": 70086077,
+              "bytes_read": 1846737036
+            },
+            "process_io_delta": {},
+            "client_ms": 448.2671480072895,
+            "correct": true,
+            "rss": {}
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "sql_sha256": "da436e2736a6c1f71667e2e20464c00ed5c23c6d895fe5be63a3521e6eaea326",
+        "status": "success",
+        "executed_sql_sha256": "d1389aae6ca4905569c058a6d626d9e3fa0f0755552e434c4da3db0cc13b38e3",
+        "sql_override_path": "/home/hadi/projects/tpch-work/queries-clickhouse-double-1.4.3/q17.sql",
+        "server_settings": {
+          "database": "tpch_sf10",
+          "max_threads": 8,
+          "join_use_nulls": 1,
+          "use_query_cache": 0,
+          "aggregate_functions_null_for_empty": 1,
+          "max_execution_time": 1800,
+          "max_memory_usage": 68719476736,
+          "wait_end_of_query": 1
+        },
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:06:42.659186+00:00",
+        "oracle_types": [
+          "DOUBLE"
+        ],
+        "trials": [
+          {
+            "server_ms": 624.101775,
+            "statistics": {
+              "elapsed": "0.624101775",
+              "rows_read": 121972104,
+              "bytes_read": 2458594506
+            },
+            "process_io_delta": {},
+            "client_ms": 626.7089800094254,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 576.285936,
+            "statistics": {
+              "elapsed": "0.576285936",
+              "rows_read": 121972104,
+              "bytes_read": 2458594506
+            },
+            "process_io_delta": {},
+            "client_ms": 578.4365040017292,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 591.419924,
+            "statistics": {
+              "elapsed": "0.591419924",
+              "rows_read": 121972104,
+              "bytes_read": 2458594506
+            },
+            "process_io_delta": {},
+            "client_ms": 594.7919080063002,
+            "correct": true,
+            "rss": {}
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "sql_sha256": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+        "status": "success",
+        "executed_sql_sha256": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+        "server_settings": {
+          "database": "tpch_sf10",
+          "max_threads": 8,
+          "join_use_nulls": 1,
+          "use_query_cache": 0,
+          "aggregate_functions_null_for_empty": 1,
+          "max_execution_time": 1800,
+          "max_memory_usage": 68719476736,
+          "wait_end_of_query": 1
+        },
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:06:43.562249+00:00",
+        "oracle_types": [
+          "DECIMAL(15,2)",
+          "VARCHAR",
+          "VARCHAR",
+          "BIGINT",
+          "VARCHAR",
+          "VARCHAR",
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "server_ms": 295.872822,
+            "statistics": {
+              "elapsed": "0.295872822",
+              "rows_read": 18200060,
+              "bytes_read": 505102293
+            },
+            "process_io_delta": {},
+            "client_ms": 300.1827979896916,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 299.96599499999996,
+            "statistics": {
+              "elapsed": "0.299965995",
+              "rows_read": 18200060,
+              "bytes_read": 505063181
+            },
+            "process_io_delta": {},
+            "client_ms": 304.6997000055853,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 291.102956,
+            "statistics": {
+              "elapsed": "0.291102956",
+              "rows_read": 18200060,
+              "bytes_read": 505063181
+            },
+            "process_io_delta": {},
+            "client_ms": 295.6702759984182,
+            "correct": true,
+            "rss": {}
+          }
+        ]
+      }
+    ]
+  },
+  "pgaccel-domain-v1-sf10": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:12:06.815966+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-domain-v1-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-domain-before-sf10.jsonl",
+        "database": null,
+        "runner": "/home/hadi/projects/tpch-work/checkpoints/q20-domain-v1-query-runner",
+        "native": "/home/hadi/projects/tpch-work/native-sf10",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 3,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          20
+        ]
+      },
+      "source_revision": "57a3e365b745095f880fa084973fe01c1c66a775",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 59986052,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 18007.584605,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 10276585472,
+        "load_ms": 18007.623057,
+        "indexed_columns": [],
+        "client_load_ms": 18023.670419002883
+      },
+      "runner_sha256": "d87c9aaa00a14664c8529e20b7cfac3bd0a6aa43f9160554e2c99f10d9a77bed",
+      "open_ms": 18042.111963994103,
+      "loaded_rss": {
+        "VmRSS": 10276585472,
+        "VmHWM": 10276585472
+      }
+    },
+    "sha256": "401d3f8bf9b201b0a3e67489f82cee9da4e4e69014207cb9a98877c5b398cf65",
+    "queries": [
+      {
+        "id": 20,
+        "sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "status": "success",
+        "executed_sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T08:12:30.964793+00:00",
+        "oracle_types": [
+          "VARCHAR",
+          "VARCHAR"
+        ],
+        "trials": [
+          {
+            "execution_ms": 2051.026017,
+            "query_peak_allocation_bytes": 101478648,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 91859,
+              "syscr": 1,
+              "syscw": 23,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 2053.410439999425,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10352001024,
+              "VmHWM": 10362732544
+            }
+          },
+          {
+            "execution_ms": 2002.678211,
+            "query_peak_allocation_bytes": 101478648,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 91859,
+              "syscr": 1,
+              "syscw": 23,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 2005.7375940086786,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10353577984,
+              "VmHWM": 10363174912
+            }
+          },
+          {
+            "execution_ms": 2024.498572,
+            "query_peak_allocation_bytes": 101478648,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 910,
+              "wchar": 91859,
+              "syscr": 1,
+              "syscw": 23,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 2028.2032529939897,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10353577984,
+              "VmHWM": 10363310080
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
