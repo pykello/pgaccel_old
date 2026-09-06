@@ -44,12 +44,14 @@ std::optional<Result<QueryOutput>> ExecuteJoinSum(const QueryDesc &, bool, bool)
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteMaterialized(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteGroupedExtreme(const QueryDesc &,bool,bool);
+std::optional<Result<QueryOutput>> ExecuteLeftCountHistogram(const QueryDesc &,bool,bool);
 Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
     if (!query.materializedSources.empty()) {
         if(auto extreme=ExecuteGroupedExtreme(query,useAvx,useParallelism))return std::move(*extreme);
+        if(auto histogram=ExecuteLeftCountHistogram(query,useAvx,useParallelism))return std::move(*histogram);
         return ExecuteMaterialized(query, useAvx, useParallelism);
     }
     if (query.tables.size() > 1 || !query.predicates.empty() || !query.membershipQueries.empty() || !query.scalarQueries.empty() ||
