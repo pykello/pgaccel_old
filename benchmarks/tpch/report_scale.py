@@ -76,6 +76,7 @@ def main():
             'queries': {str(i): {'status': records.get(i, {}).get('status', 'not_run'),
                                 'correct': records.get(i, {}).get('correct'), 'warm_min_s': warm(records.get(i)),
                                 'client_ms': [t['client_ms'] for t in records.get(i, {}).get('trials', [])],
+                                'server_settings': records.get(i, {}).get('server_settings'),
                                 'error': records.get(i, {}).get('error')} for i in range(1, 23)}}
     lines += ['', 'DuckDB supplies the saved typed oracle; its validation column includes',
               'consistency across its trials. PGAccel and ClickHouse are checked against',
