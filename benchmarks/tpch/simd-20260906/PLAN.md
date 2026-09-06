@@ -42,3 +42,22 @@ paper does not license copying its code or diagrams.
 
 Each retained engine change gets its own small commit with correctness
 and benchmark evidence. Failed experiments remain documented separately.
+
+## Join iteration after the Q1 scale gate
+
+Start the join work with Q14, then Q3. Q14 separates build costs from the
+larger multi-table planning problem in Q3. Explore a validated key-to-row
+position mapping before a general SIMD hash table: if an integer build
+column is exactly a consecutive sequence, prove that using SIMD and
+compute row positions directly. Verify every key during query execution;
+min/max metadata alone does not prove uniqueness or sequence order.
+Filtered, duplicate, sparse, or reordered keys must keep exact fallback
+semantics. This is a data-layout decision and must not recognize TPC-H
+column names or infer primary keys from benchmark knowledge.
+
+Related primary sources: [DuckDB perfect-hash join source](https://raw.githubusercontent.com/duckdb/duckdb/main/src/execution/operator/join/perfect_hash_join_executor.cpp)
+and [ClickHouse direct joins](https://clickhouse.com/blog/clickhouse-fully-supports-joins-direct-join-part4).
+These motivate comparing bounded key domains and direct lookups with
+hashing. A consecutive sequence proof is a narrower, independently
+implemented opportunity in the resident column representation. No code
+or diagrams from these sources are copied.
