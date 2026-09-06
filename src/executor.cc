@@ -45,6 +45,7 @@ std::optional<Result<QueryOutput>> ExecuteSeparateSum(const QueryDesc &, bool, b
 std::optional<Result<QueryOutput>> ExecuteIndependentRatio(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecutePairedProfit(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteChainSum(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteSupplierWait(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDisjunctiveSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteJoinSum(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool, bool);
@@ -77,6 +78,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if(auto ratio=ExecuteIndependentRatio(query,useAvx,useParallelism)) return std::move(*ratio);
         if(auto profit=ExecutePairedProfit(query,useAvx,useParallelism)) return std::move(*profit);
         if(auto chain=ExecuteChainSum(query,useAvx,useParallelism)) return std::move(*chain);
+        if(auto waiting=ExecuteSupplierWait(query,useAvx,useParallelism)) return std::move(*waiting);
         if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) return std::move(*joined);
         if(auto disjunction=ExecuteDisjunctiveSum(query,useAvx,useParallelism)) return std::move(*disjunction);
         return ExecuteRelational(query, useAvx, useParallelism);
