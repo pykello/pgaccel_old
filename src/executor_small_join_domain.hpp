@@ -63,14 +63,35 @@ void FilterSmallJoinDomains(const QueryDesc &q,
             covered &= low >= first && high <= last;
         }
         if (!supported || covered) continue;
-        size_t keep = 0;
-        for (uint64_t id : probe) {
-            const auto &rg = table.GetRowGroup(id >> 32);
-            int64_t key = int64_t(Read(rg, *edge.probe, uint32_t(id)).number);
-            bool found = width <= 64 ? key >= first && key <= last &&
-                (bits >> uint64_t(Wide(key) - first) & 1) :
-                std::binary_search(keys.begin(), keys.begin() + count, key);
-            if (found) probe[keep++] = id;
+        size_t keep = 0, begin = 0;
+        while (begin < probe.size()) {
+            uint64_t group = probe[begin] >> 32; size_t end = begin + 1;
+            while (end < probe.size() && (probe[end] >> 32) == group) ++end;
+            const auto &rg = table.GetRowGroup(group);
+            auto raw = static_cast<const RawColumnDataBase *>(rg.columns[edge.probe->columnIdx].get());
+            auto apply = [&]<class T, bool Bitmap>() {
+                auto values = reinterpret_cast<const T *>(raw->values);
+                for (size_t i = begin; i < end; ++i) {
+                    uint64_t id = probe[i]; int64_t key = values[uint32_t(id)]; bool found;
+                    if constexpr (Bitmap) {
+                        uint64_t delta = uint64_t(key) - uint64_t(first);
+                        found = delta < uint64_t(width) && (bits >> delta & 1);
+                    } else found = std::binary_search(keys.begin(), keys.begin() + count, key);
+                    if (found) probe[keep++] = id;
+                }
+            };
+            auto decode = [&]<class T>() {
+                if (width <= 64) apply.template operator()<T, true>();
+                else apply.template operator()<T, false>();
+            };
+            switch (raw->bytesPerValue) {
+            case 1: decode.template operator()<int8_t>(); break;
+            case 2: decode.template operator()<int16_t>(); break;
+            case 4: decode.template operator()<int32_t>(); break;
+            case 8: decode.template operator()<int64_t>(); break;
+            default: throw std::runtime_error("Invalid integer join storage width");
+            }
+            begin = end;
         }
         probe.resize(keep);
     }
