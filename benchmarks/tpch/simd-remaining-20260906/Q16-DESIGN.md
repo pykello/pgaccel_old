@@ -46,6 +46,21 @@ Validation before benchmarks: 206 native tests pass, including duplicate
 fact and dimension keys, cross-stripe dictionary identities, positive and
 negative membership, empty exclusions, signed integer endpoints, wide
 fallback, result slicing, and strict child budgets. Six focused AddressSanitizer/UndefinedBehaviorSanitizer tests also pass.
-Full SF1 answer checks are the next gate. Benchmark promotion requires fresh
+All 22 SF1 answers match DuckDB at `e2cfc7f`. Benchmark promotion requires fresh
 15-trial SF10 and 9-trial SF100 runs against both peers; warm medians omit
 only trial one and every answer must match.
+
+## Follow-up experiments
+
+The compact-output path (`cd9a536`) orders exact lexical component ordinals
+before formatting rows. Its isolated SF10 warm median is 100.739 ms,
+compared with 120.637 ms for the first packed-pair implementation. This is
+not a fourfold peer win. Raw trials are retained in the iteration report.
+
+Next, test bounded radix passes within independent pair partitions and
+normalize multi-column result order into fixed integer sort keys. DuckDB's
+[2025 sort redesign](https://duckdb.org/2025/09/24/sorting-again) explains how
+normalized keys and static integer comparisons reduce interpreted tuple
+comparison overhead. Our compact dictionary domains permit exact ordinal
+keys without storing string prefixes or truncating comparisons. Implement
+and measure these changes independently before retaining performance claims.
