@@ -11,8 +11,10 @@ class SequenceJoinIndex {
     uint32_t stride=0;
     std::pmr::vector<uint32_t> directory;
     template<class T>
-    static bool verify(const RawColumnDataBase &data,int64_t start,bool avx) {
+    static bool verify(const RawColumnDataBase &data,int64_t &start,bool avx) {
         auto values=reinterpret_cast<const T *>(data.values);
+        start=values[0];
+        if(Wide(start)+data.size-1>INT64_MAX)return false;
         int row=0;
         if(avx && data.size>=8) {
             auto expected=_mm512_setr_epi64(start,start+1,start+2,start+3,
@@ -50,8 +52,8 @@ public:
             const auto &rg=table.GetRowGroup(g);
             if(!rg.size || rg.columns[column.columnIdx]->type!=ColumnDataBase::RAW_COLUMN_DATA) return false;
             auto data=static_cast<const RawColumnDataBase *>(rg.columns[column.columnIdx].get());
-            int64_t start=int64_t(Read(rg,column,0).number);
-            if(Wide(start)+rg.size-1>INT64_MAX) return false;
+            if(data->size!=rg.size)return false;
+            int64_t start=0;
             bool valid=false;
             switch(data->bytesPerValue) {
             case 1:valid=verify<int8_t>(*data,start,avx);break;
