@@ -25,6 +25,7 @@ partial blocks, empty sums, cancellation with wide subsets and memory caps.
 This original implementation reuses project helpers without new dependencies.
 
 The fresh SF10 confirmation passes at 8.584 ms against DuckDB 53.349 ms
-and ClickHouse 199.319 ms. SF100 confirmation is pending.
+and ClickHouse 199.319 ms. SF100 also passes at 79.023 ms versus DuckDB 507.214 ms and ClickHouse
+1802.468 ms; [full confirmation](Q6.md).
 
 [All-query goal](ALL-QUERY-GOAL.md)

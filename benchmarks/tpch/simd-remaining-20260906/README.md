@@ -9,6 +9,7 @@ against DuckDB and ClickHouse. The target is fourfold warm-median speed.
 
 | Query | Current status | Evidence |
 |---|---|---|
+| Q6 | SF10 and SF100 gates pass | [Q6 results](Q6.md) |
 | Q4 | SF10 and SF100 gates pass | [Q4 results](Q4.md) |
 | Q12 | SF10 and SF100 gates pass | [Q12 results](Q12.md) |
 | Q19 | SF10 and SF100 gates pass | [Six-query confirmation](SIX.md) |
@@ -16,7 +17,7 @@ against DuckDB and ClickHouse. The target is fourfold warm-median speed.
 | Q2 | Large SF10 gains; latency target unmet | [Iterations](CORRELATED.md) |
 | Q20 | SF10 and SF100 gates pass | [Q20 results](Q20.md) |
 
-Q5–Q11, Q13, Q15–Q16, Q18, and Q21–Q22 remain queued. Q2 remains in progress; Q6 is next. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
+Q5, Q7–Q11, Q13, Q15–Q16, Q18, and Q21–Q22 remain queued. Q2 is next; Q6 passes both scales. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
 remains historical evidence. Q20's allocation failure in that baseline is
 resolved by the new capacity check; no fresh full-workload win is claimed.
 

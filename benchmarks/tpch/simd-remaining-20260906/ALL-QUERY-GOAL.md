@@ -26,7 +26,7 @@ for new arithmetic and threshold logic.
 | Q3 | Both scales pass at checkpoint `7c92573` |
 | Q4 | Both scales pass at checkpoint `7c92573` |
 | Q5 | Optimization pending |
-| Q6 | Optimization pending |
+| Q6 | Both scales pass at checkpoint `b12ce48`; [results](Q6.md) |
 | Q7 | Optimization pending |
 | Q8 | Optimization pending |
 | Q9 | Optimization pending |
