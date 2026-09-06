@@ -43,3 +43,26 @@ claim from their experiment. [Primary paper](https://www.vldb.org/pvldb/vol7/p85
 
 All implementations here are original changes to existing project code.
 No implementation from the research paper is imported.
+
+## After parallel outer filtering
+
+The instrumented sum-v8 checkpoint uses nine SF10 trials. These phase
+medians exclude trial 1 and are diagnostic only; they are not promotion
+timings. Parent membership time includes this child and must not be added
+to its phases.
+
+| Child phase | Diagnostic warm median ms |
+|---|---:|
+| membership | 6.862 |
+| outer-filter | 3.008 |
+| outer-index | 7.245 |
+| scan | 20.456 |
+| merge | 3.319 |
+| project | 2.581 |
+| output | 0.009 |
+
+Fact scanning remains the largest phase. The next experiment halves
+per-worker sum-state width only after bounding positive and negative
+contributions separately. Bounding only the final total would miss
+intermediate overflow during cancellation. Unproven ranges retain checked
+128-bit accumulation, and merged formula thresholds remain 128-bit.
