@@ -153,3 +153,38 @@ TEST(CorrelatedSum, PartitionedDirectoriesRetainSkewAndDuplicateRows) {
         }
     }
 }
+
+TEST(CorrelatedSum, AdditionalJoinedDomainsRestrictWholeGroups)
+{
+    auto registry = test::Table({{test::Raw({1,1,1,2,2}),test::Raw({10,10,20,10,30}),test::Raw({8,8,100,9,100})}},
+        {{"pk",std::make_shared<Int64Type>()},{"sk",std::make_shared<Int64Type>()},{"avail",std::make_shared<Int64Type>()}});
+    auto add = [&](const std::string &name, auto table) { registry.emplace(name,std::move(table.at("t"))); };
+    add("p",test::Table({{test::Raw({1,2,1})}},{{"k",std::make_shared<Int64Type>()}}));
+    add("f",test::Table({{test::Raw({1,1,1,2,2}),test::Raw({10,10,20,10,30}),test::Raw({6,8,2,10,2})}},
+        {{"pk",std::make_shared<Int64Type>()},{"sk",std::make_shared<Int64Type>()},{"qty",std::make_shared<Int64Type>()}}));
+    add("s",test::Table({{test::Raw({10,10,20,30}),test::Raw({1,1,2,2})}},
+        {{"k",std::make_shared<Int64Type>()},{"n",std::make_shared<Int64Type>()}}));
+    add("n",test::Table({{test::Raw({1,2}),test::Raw({1,0})}},
+        {{"k",std::make_shared<Int64Type>()},{"active",std::make_shared<Int64Type>()}}));
+    for (int active : {0,1,2}) {
+        auto q = ParseSelect("SELECT pk,sk FROM t WHERE pk IN (SELECT k FROM p) AND "
+            "sk IN (SELECT s.k FROM s,n WHERE s.n=n.k AND n.active="+std::to_string(active)+") AND "
+            "avail > (SELECT 0.5*sum(qty) FROM f WHERE f.pk=t.pk AND f.sk=t.sk) ORDER BY pk,sk",registry);
+        ASSERT_TRUE(q.ok()) << q.status().Message();
+        auto expected = ExecuteQuery(GenericSum(*q),false,false); ASSERT_TRUE(expected.ok());
+        for (bool avx : {false,true}) for (bool parallel : {false,true}) {
+            auto result = ExecuteCorrelatedSum(*q,avx,parallel); ASSERT_TRUE(result);
+            ASSERT_TRUE(result->ok()) << result->status().Message();
+            EXPECT_EQ((*result)->values,expected->values);
+        }
+        if (active==1) EXPECT_EQ(expected->values,Rows({{"1","10"},{"1","10"},{"2","10"}}));
+        if (active==2) EXPECT_TRUE(expected->values.empty());
+        auto limited = *q;
+        limited.membershipQueries[1].query = std::make_shared<QueryDesc>(*q->membershipQueries[1].query);
+        limited.membershipQueries[1].query->memoryBudgetBytes=1;
+        EXPECT_FALSE(ExecuteCorrelatedSum(limited,true,true));
+        EXPECT_FALSE(ExecuteQuery(limited,true,true).ok());
+        auto anti = *q; anti.membershipQueries[1].anti=true;
+        EXPECT_FALSE(ExecuteCorrelatedSum(anti,true,true));
+    }
+}

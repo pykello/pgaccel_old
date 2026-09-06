@@ -51,7 +51,7 @@ bool SumFits64(const ColumnarTable &table, const ColumnRef &column) {
 struct SumOuterRow { uint32_t stripe, row, slot; };
 }
 std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool avx, bool parallel) {
-    if (q.tables.size() != 1 || q.scalarQueries.size() != 1 || q.membershipQueries.size() != 1 ||
+    if (q.tables.size() != 1 || q.scalarQueries.size() != 1 || q.membershipQueries.empty() ||
         q.grouped || !q.groupExpressions.empty() || !q.having.empty() ||
         !q.existenceJoins.empty() || !q.leftJoins.empty() || q.predicates.size() != 1) return {};
     const auto &scalar = q.scalarQueries[0]; const auto &child = *scalar.query;
@@ -101,6 +101,12 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
     auto sourceKey = *source.aggregateClauses[0].columnRef;
     if (sourceKey.tableIdx != 0 || (sourceKey.Type()->type_num() != INT32_TYPE && sourceKey.Type()->type_num() != INT64_TYPE)) return {};
     auto innerMember = scalar.innerKeys[memberKey - scalar.outerKeys.begin()];
+    for (size_t i = 1; i < q.membershipQueries.size(); ++i) {
+        const auto &extra = q.membershipQueries[i];
+        if (extra.anti || extra.query->memoryBudgetBytes < q.memoryBudgetBytes ||
+            std::find(scalar.outerKeys.begin(), scalar.outerKeys.end(), extra.column) == scalar.outerKeys.end() ||
+            (extra.resultType->type_num() != INT32_TYPE && extra.resultType->type_num() != INT64_TYPE)) return {};
+    }
     try {
         Budget budget(q.memoryBudgetBytes); ScopedValueResource memory(budget);
         MembershipSet members(budget, 0);
@@ -125,6 +131,31 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             for (const auto &keys : selected) sourceKeys.insert(sourceKeys.end(), keys.begin(), keys.end());
             members.assignNumbers(sourceKeys, 0, budget);
         }
+        uint64_t spillBytes = 0;
+        std::pmr::vector<MembershipSet> extraMembers(&budget);
+        std::pmr::vector<ColumnRef> extraInner(&budget);
+        extraMembers.reserve(q.membershipQueries.size() - 1);
+        extraInner.reserve(q.membershipQueries.size() - 1);
+        for (size_t i = 1; i < q.membershipQueries.size(); ++i) {
+            const auto &extra = q.membershipQueries[i];
+            auto plan = *extra.query; plan.numericMembershipOutput = true;
+            plan.memoryBudgetBytes = std::min(plan.memoryBudgetBytes, budget.limit - budget.used.load());
+            plan.allowSpill = plan.allowSpill && q.allowSpill;
+            plan.spillByteBudget = std::min(plan.spillByteBudget, q.spillByteBudget - spillBytes);
+            auto result = ExecuteQuery(plan, avx, parallel);
+            if (!result.ok()) return Status::Invalid("Correlated sum domain: " + result.status().Message());
+            if (!result->numericMembership) return {};
+            if (result->spillBytes > q.spillByteBudget - spillBytes)
+                return Status::Invalid("Subquery spill budget exceeded");
+            spillBytes += result->spillBytes;
+            // Conservatively retain the child's peak throughout conversion.
+            // Its independent resource is gone, but the numeric buffer lives.
+            Scratch childMemory(budget, result->peakMemoryBytes);
+            extraMembers.emplace_back(budget, 0);
+            extraMembers.back().assignNumbers(*result->numericMembership, 0, budget);
+            auto key = std::find(scalar.outerKeys.begin(), scalar.outerKeys.end(), extra.column);
+            extraInner.push_back(scalar.innerKeys[key - scalar.outerKeys.begin()]);
+        }
         using SumIndex = FlatMap<SumKey, uint8_t, SumKeyHash, std::equal_to<SumKey>>;
         std::pmr::vector<SumOuterRow> outerRows(&budget);
         auto outerFilter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
@@ -145,6 +176,8 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
                     if (outerFilter) { if (!outerFilter->ExecuteSet(rg, bitmap)) continue; }
                     else memset(bitmap, 0xff, (rg.size + 7) / 8);
                     members.intersect(rg, membership.column, false, avx, bitmap);
+                    for (size_t i = 0; i < extraMembers.size(); ++i)
+                        extraMembers[i].intersect(rg, q.membershipQueries[i + 1].column, false, avx, bitmap);
                     Selected(rg, bitmap, [&](int row) {
                         rows.push_back({uint32_t(g), uint32_t(row), 0});
                     });
@@ -201,7 +234,9 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             return slot == SumIndex::missing ? slot : offsets[p] + slot;
         };
         QueryResults results(q, budget);
-        if (outerRows.empty()) return results.finish();
+        if (outerRows.empty()) {
+            auto output = results.finish(); output.spillBytes = spillBytes; return output;
+        }
         auto filter = child.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(child.filterClauses, avx);
         auto &facts = *child.tables[0];
         int workers = parallel ? std::min(8, std::max(1, facts.RowGroupCount())) : 1;
@@ -213,6 +248,8 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
                 if (filter) { if (!filter->ExecuteSet(rg, bitmap)) continue; }
                 else memset(bitmap, 0xff, (rg.size + 7) / 8);
                 members.intersect(rg, innerMember, false, avx, bitmap);
+                for (size_t i = 0; i < extraMembers.size(); ++i)
+                    extraMembers[i].intersect(rg, extraInner[i], false, avx, bitmap);
                 Selected(rg, bitmap, [&](int row) {
                     auto slot = lookup(keyAt(rg, scalar.innerKeys, row));
                     if (slot == SumIndex::missing) return;
@@ -302,6 +339,7 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             });
         }
         auto output = results.finish();
+        output.spillBytes = spillBytes;
         if (numeric) output.numericMembership = std::move(numericValues);
         return output;
     } catch (const NotDense &) { return {}; }
