@@ -1,0 +1,1801 @@
+{
+  "sf10": {
+    "pgaccel": {
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T17:12:37.370901+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-q11-confirm1-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-confirm1-sf10.jsonl",
+          "database": null,
+          "runner": "/home/hadi/projects/tpch-work/checkpoints/q11-final1-query-runner",
+          "native": "/home/hadi/projects/tpch-work/native-sf10",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 15,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            11
+          ]
+        },
+        "source_revision": "8d118bc94cc66fc69bb0be7c25b1b31d5bd2195b",
+        "source_dirty": false,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 59986052,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 17770.989259,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 10277986304,
+          "load_ms": 17771.025442,
+          "indexed_columns": [],
+          "client_load_ms": 17784.870603994932
+        },
+        "runner_sha256": "9d9e464030b6ebcc2125a48569376c70864179d194bc01cde86db3048f473c46",
+        "open_ms": 17806.270072993357,
+        "loaded_rss": {
+          "VmRSS": 10277986304,
+          "VmHWM": 10277986304
+        }
+      },
+      "raw_file": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-q11-confirm1-sf10.jsonl",
+      "sha256": "c4ea46b859c645a344b3a8c647953c48b0a28fd8697c76d7049651931611f6da",
+      "query": {
+        "id": 11,
+        "sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "status": "success",
+        "executed_sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T17:12:55.263572+00:00",
+        "oracle_types": [
+          "BIGINT",
+          "DECIMAL(38,2)"
+        ],
+        "trials": [
+          {
+            "execution_ms": 7.822275,
+            "query_peak_allocation_bytes": 8298856,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 105121,
+              "wchar": 153,
+              "syscr": 108,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 8.121272985590622,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.511012,
+            "query_peak_allocation_bytes": 8410216,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 153,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.697550000855699,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.283345,
+            "query_peak_allocation_bytes": 8335720,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 153,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.492890991969034,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.21573,
+            "query_peak_allocation_bytes": 8362728,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 152,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.390346002765,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.321618,
+            "query_peak_allocation_bytes": 8349544,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 153,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.537368018645793,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.195571,
+            "query_peak_allocation_bytes": 8328296,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 153,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.39128399011679,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.172232,
+            "query_peak_allocation_bytes": 8281576,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 153,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.400685022119433,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.248389,
+            "query_peak_allocation_bytes": 8311144,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 153,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.459652991499752,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.216533,
+            "query_peak_allocation_bytes": 8289048,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 153,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.4263009913265705,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.159265,
+            "query_peak_allocation_bytes": 8369256,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 154,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.378051991807297,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.285055,
+            "query_peak_allocation_bytes": 8285672,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 154,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.517911991570145,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.267898,
+            "query_peak_allocation_bytes": 8309480,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 154,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.471240012208,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.157296,
+            "query_peak_allocation_bytes": 8357864,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 154,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.3736519874073565,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.257686,
+            "query_peak_allocation_bytes": 8287336,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 154,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.467645019758493,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          },
+          {
+            "execution_ms": 4.127214,
+            "query_peak_allocation_bytes": 8275816,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 154,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 4.345380992162973,
+            "correct": true,
+            "rss": {
+              "VmRSS": 10285195264,
+              "VmHWM": 10285195264
+            }
+          }
+        ]
+      }
+    },
+    "duckdb": {
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T17:12:33.683840+00:00",
+        "engine": "duckdb",
+        "settings": {
+          "engine": "duckdb",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-confirm1-sf10.jsonl",
+          "oracle": null,
+          "database": "/home/hadi/projects/tpch-work/sf10/tpch.duckdb",
+          "runner": null,
+          "native": null,
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 15,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            11
+          ]
+        },
+        "source_revision": "8d118bc94cc66fc69bb0be7c25b1b31d5bd2195b",
+        "source_dirty": false,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "version": "1.4.3",
+        "tables": [
+          [
+            "customer",
+            1500000
+          ],
+          [
+            "lineitem",
+            59986052
+          ],
+          [
+            "nation",
+            25
+          ],
+          [
+            "orders",
+            15000000
+          ],
+          [
+            "part",
+            2000000
+          ],
+          [
+            "partsupp",
+            8000000
+          ],
+          [
+            "region",
+            5
+          ],
+          [
+            "supplier",
+            100000
+          ]
+        ],
+        "open_ms": 89.50359601294622,
+        "loaded_rss": {
+          "VmRSS": 64757760,
+          "VmHWM": 64757760
+        }
+      },
+      "raw_file": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-confirm1-sf10.jsonl",
+      "sha256": "2f778dc95fb92c5c75e84a91302b73125338a10b8f8bafdce9a77036d3d93a49",
+      "query": {
+        "id": 11,
+        "sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "status": "success",
+        "executed_sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T17:12:34.453786+00:00",
+        "oracle_types": [
+          "BIGINT",
+          "DECIMAL(38,2)"
+        ],
+        "trials": [
+          {
+            "process_io_delta": {
+              "rchar": 64225384,
+              "wchar": 0,
+              "syscr": 247,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 71.2627169850748,
+            "correct": true,
+            "rss": {
+              "VmRSS": 173252608,
+              "VmHWM": 173252608
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 50.5580099998042,
+            "correct": true,
+            "rss": {
+              "VmRSS": 188391424,
+              "VmHWM": 188391424
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 46.38652299763635,
+            "correct": true,
+            "rss": {
+              "VmRSS": 192716800,
+              "VmHWM": 192716800
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 44.78236997965723,
+            "correct": true,
+            "rss": {
+              "VmRSS": 199565312,
+              "VmHWM": 199565312
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 46.33015501894988,
+            "correct": true,
+            "rss": {
+              "VmRSS": 201728000,
+              "VmHWM": 201728000
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 42.689174006227404,
+            "correct": true,
+            "rss": {
+              "VmRSS": 207855616,
+              "VmHWM": 207855616
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 40.29503100900911,
+            "correct": true,
+            "rss": {
+              "VmRSS": 210378752,
+              "VmHWM": 210378752
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.816698001232,
+            "correct": true,
+            "rss": {
+              "VmRSS": 212385792,
+              "VmHWM": 212385792
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.91387001588009,
+            "correct": true,
+            "rss": {
+              "VmRSS": 212267008,
+              "VmHWM": 213106688
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 45.01776900724508,
+            "correct": true,
+            "rss": {
+              "VmRSS": 184352768,
+              "VmHWM": 213106688
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 40.30324099585414,
+            "correct": true,
+            "rss": {
+              "VmRSS": 193724416,
+              "VmHWM": 213106688
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.42820802330971,
+            "correct": true,
+            "rss": {
+              "VmRSS": 197328896,
+              "VmHWM": 213106688
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.36934701050632,
+            "correct": true,
+            "rss": {
+              "VmRSS": 199852032,
+              "VmHWM": 213106688
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.43969699321315,
+            "correct": true,
+            "rss": {
+              "VmRSS": 201990144,
+              "VmHWM": 213106688
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 105,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.44576199864969,
+            "correct": true,
+            "rss": {
+              "VmRSS": 203792384,
+              "VmHWM": 213106688
+            }
+          }
+        ]
+      }
+    },
+    "clickhouse": {
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T17:12:34.553238+00:00",
+        "engine": "clickhouse",
+        "settings": {
+          "engine": "clickhouse",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/clickhouse-q11-confirm1-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-confirm1-sf10.jsonl",
+          "database": "tpch_sf10",
+          "runner": null,
+          "native": null,
+          "url": "http://127.0.0.1:8123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 15,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": "/home/hadi/projects/tpch-work/queries-clickhouse-double-1.4.3",
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            11
+          ],
+          "server_settings": {
+            "database": "tpch_sf10",
+            "max_threads": 8,
+            "join_use_nulls": 1,
+            "use_query_cache": 0,
+            "aggregate_functions_null_for_empty": 1,
+            "max_execution_time": 1800,
+            "max_memory_usage": 68719476736,
+            "wait_end_of_query": 1
+          }
+        },
+        "source_revision": "8d118bc94cc66fc69bb0be7c25b1b31d5bd2195b",
+        "source_dirty": false,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "version": "26.8.2.7",
+        "tables": [
+          [
+            "customer",
+            "MergeTree",
+            1500000,
+            136011529
+          ],
+          [
+            "lineitem",
+            "MergeTree",
+            59986052,
+            3271877376
+          ],
+          [
+            "nation",
+            "MergeTree",
+            25,
+            3284
+          ],
+          [
+            "orders",
+            "MergeTree",
+            15000000,
+            709814297
+          ],
+          [
+            "part",
+            "MergeTree",
+            2000000,
+            112122531
+          ],
+          [
+            "partsupp",
+            "MergeTree",
+            8000000,
+            492878398
+          ],
+          [
+            "region",
+            "MergeTree",
+            5,
+            1385
+          ],
+          [
+            "supplier",
+            "MergeTree",
+            100000,
+            8311940
+          ]
+        ],
+        "open_ms": 36.153572000330314,
+        "loaded_rss": {}
+      },
+      "raw_file": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/clickhouse-q11-confirm1-sf10.jsonl",
+      "sha256": "7788771efa3cdb94c1d1ca2745154bfd61e696eb41720185c84bc02d44913b20",
+      "query": {
+        "id": 11,
+        "sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "status": "success",
+        "executed_sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "server_settings": {
+          "database": "tpch_sf10",
+          "max_threads": 8,
+          "join_use_nulls": 1,
+          "use_query_cache": 0,
+          "aggregate_functions_null_for_empty": 1,
+          "max_execution_time": 1800,
+          "max_memory_usage": 68719476736,
+          "wait_end_of_query": 1
+        },
+        "correct": true,
+        "finished_at_utc": "2026-09-06T17:12:37.252781+00:00",
+        "oracle_types": [
+          "BIGINT",
+          "DECIMAL(38,2)"
+        ],
+        "trials": [
+          {
+            "server_ms": 193.63306699999998,
+            "statistics": {
+              "elapsed": "0.193633067",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 196.02143397787586,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 180.820695,
+            "statistics": {
+              "elapsed": "0.180820695",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 183.54241098859347,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 163.111093,
+            "statistics": {
+              "elapsed": "0.163111093",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 165.95821399823762,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 168.333459,
+            "statistics": {
+              "elapsed": "0.168333459",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 171.35572599363513,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 171.850711,
+            "statistics": {
+              "elapsed": "0.171850711",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 175.14126902096905,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 179.123837,
+            "statistics": {
+              "elapsed": "0.179123837",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 182.4139730015304,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 158.316679,
+            "statistics": {
+              "elapsed": "0.158316679",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 161.92898599547334,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 175.564084,
+            "statistics": {
+              "elapsed": "0.175564084",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 179.46897199726664,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 167.113767,
+            "statistics": {
+              "elapsed": "0.167113767",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 170.965608995175,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 165.18411,
+            "statistics": {
+              "elapsed": "0.16518411",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 168.6028930125758,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 168.408752,
+            "statistics": {
+              "elapsed": "0.168408752",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 171.77599799470045,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 176.66544000000002,
+            "statistics": {
+              "elapsed": "0.17666544",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 180.05489200004376,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 182.25232499999998,
+            "statistics": {
+              "elapsed": "0.182252325",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 185.67938901833259,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 178.426366,
+            "statistics": {
+              "elapsed": "0.178426366",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 181.7810280190315,
+            "correct": true,
+            "rss": {}
+          },
+          {
+            "server_ms": 173.49580600000002,
+            "statistics": {
+              "elapsed": "0.173495806",
+              "rows_read": 16200050,
+              "bytes_read": 450400654
+            },
+            "process_io_delta": {},
+            "client_ms": 176.8938789900858,
+            "correct": true,
+            "rss": {}
+          }
+        ]
+      }
+    }
+  },
+  "sf100": {
+    "pgaccel": {
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T17:13:19.918875+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-q11-final1-sf100.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-final1-sf100.jsonl",
+          "database": null,
+          "runner": "/home/hadi/projects/tpch-work/checkpoints/q11-final1-query-runner",
+          "native": "/home/hadi/projects/tpch-work/sf100/native",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            11
+          ]
+        },
+        "source_revision": "8d118bc94cc66fc69bb0be7c25b1b31d5bd2195b",
+        "source_dirty": false,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 600037902,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 192984.555626,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 105040093184,
+          "load_ms": 192984.648382,
+          "indexed_columns": [],
+          "client_load_ms": 192998.39021501248
+        },
+        "runner_sha256": "9d9e464030b6ebcc2125a48569376c70864179d194bc01cde86db3048f473c46",
+        "open_ms": 193013.13945799484,
+        "loaded_rss": {
+          "VmRSS": 105040093184,
+          "VmHWM": 105040093184
+        }
+      },
+      "raw_file": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-q11-final1-sf100.jsonl",
+      "sha256": "67630fca23d8fcfd73a7a76455c1aa5d5ea9153ecb8e55e3f7a4e3558947a9d2",
+      "query": {
+        "id": 11,
+        "sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "status": "success",
+        "executed_sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T17:16:33.322293+00:00",
+        "oracle_types": [
+          "BIGINT",
+          "DECIMAL(38,2)"
+        ],
+        "trials": [
+          {
+            "execution_ms": 59.735532,
+            "query_peak_allocation_bytes": 80339904,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 845548,
+              "wchar": 156,
+              "syscr": 832,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 60.123481991468,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105043251200,
+              "VmHWM": 105094881280
+            }
+          },
+          {
+            "execution_ms": 41.23363,
+            "query_peak_allocation_bytes": 80339904,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 155,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 41.59183902083896,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105042980864,
+              "VmHWM": 105095516160
+            }
+          },
+          {
+            "execution_ms": 38.788878,
+            "query_peak_allocation_bytes": 80386624,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 156,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.096333988709375,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105043345408,
+              "VmHWM": 105095966720
+            }
+          },
+          {
+            "execution_ms": 40.421954,
+            "query_peak_allocation_bytes": 80452160,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 156,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 40.6910459860228,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105043734528,
+              "VmHWM": 105096331264
+            }
+          },
+          {
+            "execution_ms": 38.785895,
+            "query_peak_allocation_bytes": 80419392,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 156,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.077272987924516,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105043050496,
+              "VmHWM": 105096331264
+            }
+          },
+          {
+            "execution_ms": 37.984388,
+            "query_peak_allocation_bytes": 80480064,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 156,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 38.278829015325755,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105043468288,
+              "VmHWM": 105096331264
+            }
+          },
+          {
+            "execution_ms": 38.932226,
+            "query_peak_allocation_bytes": 80643904,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 156,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 39.21640699263662,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105043140608,
+              "VmHWM": 105096331264
+            }
+          },
+          {
+            "execution_ms": 39.932167,
+            "query_peak_allocation_bytes": 80353856,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 156,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 40.207691985415295,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105043861504,
+              "VmHWM": 105096486912
+            }
+          },
+          {
+            "execution_ms": 38.478193,
+            "query_peak_allocation_bytes": 80433344,
+            "spill_bytes_written": 0,
+            "process_io_delta": {
+              "rchar": 583,
+              "wchar": 156,
+              "syscr": 1,
+              "syscw": 1,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 38.83533400949091,
+            "correct": true,
+            "rss": {
+              "VmRSS": 105042841600,
+              "VmHWM": 105096486912
+            }
+          }
+        ]
+      }
+    },
+    "duckdb": {
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T17:12:59.772856+00:00",
+        "engine": "duckdb",
+        "settings": {
+          "engine": "duckdb",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-final1-sf100.jsonl",
+          "oracle": null,
+          "database": "/home/hadi/projects/tpch-work/sf100/duckdb/tpch.duckdb",
+          "runner": null,
+          "native": null,
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            11
+          ]
+        },
+        "source_revision": "8d118bc94cc66fc69bb0be7c25b1b31d5bd2195b",
+        "source_dirty": false,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "version": "1.4.3",
+        "tables": [
+          [
+            "customer",
+            15000000
+          ],
+          [
+            "lineitem",
+            600037902
+          ],
+          [
+            "nation",
+            25
+          ],
+          [
+            "orders",
+            150000000
+          ],
+          [
+            "part",
+            20000000
+          ],
+          [
+            "partsupp",
+            80000000
+          ],
+          [
+            "region",
+            5
+          ],
+          [
+            "supplier",
+            1000000
+          ]
+        ],
+        "open_ms": 99.7214209928643,
+        "loaded_rss": {
+          "VmRSS": 67284992,
+          "VmHWM": 67284992
+        }
+      },
+      "raw_file": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-final1-sf100.jsonl",
+      "sha256": "6185f0a1ec6c1cfe03870640f88e2b25de034703512cf21d9563bce8596a0739",
+      "query": {
+        "id": 11,
+        "sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "status": "success",
+        "executed_sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "correct": true,
+        "finished_at_utc": "2026-09-06T17:13:03.168967+00:00",
+        "oracle_types": [
+          "BIGINT",
+          "DECIMAL(38,2)"
+        ],
+        "trials": [
+          {
+            "process_io_delta": {
+              "rchar": 638582895,
+              "wchar": 0,
+              "syscr": 2439,
+              "syscw": 0,
+              "read_bytes": 721129472,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 725.5986949894577,
+            "correct": true,
+            "rss": {
+              "VmRSS": 944627712,
+              "VmHWM": 947138560
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 347.3268150119111,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1024647168,
+              "VmHWM": 1024647168
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 315.44195898459293,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1049784320,
+              "VmHWM": 1056706560
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 312.3959160002414,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1056825344,
+              "VmHWM": 1077841920
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 319.4673419930041,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1068953600,
+              "VmHWM": 1091702784
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 322.9688199935481,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1065984000,
+              "VmHWM": 1091702784
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 313.463355996646,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1014124544,
+              "VmHWM": 1091702784
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 310.229286988033,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1020092416,
+              "VmHWM": 1091702784
+            }
+          },
+          {
+            "process_io_delta": {
+              "rchar": 115,
+              "wchar": 0,
+              "syscr": 2,
+              "syscw": 0,
+              "read_bytes": 0,
+              "write_bytes": 0,
+              "cancelled_write_bytes": 0
+            },
+            "client_ms": 316.4986449992284,
+            "correct": true,
+            "rss": {
+              "VmRSS": 1067921408,
+              "VmHWM": 1091702784
+            }
+          }
+        ]
+      }
+    },
+    "clickhouse": {
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T17:13:07.809695+00:00",
+        "engine": "clickhouse",
+        "settings": {
+          "engine": "clickhouse",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/clickhouse-q11-final1-sf100.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-q11-final1-sf100.jsonl",
+          "database": "tpch_sf100_mergetree",
+          "runner": null,
+          "native": null,
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": "/home/hadi/projects/tpch-work/sf100/clickhouse/server.pid",
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": "/home/hadi/projects/tpch-work/queries-clickhouse-double-1.4.3",
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            11
+          ],
+          "server_settings": {
+            "database": "tpch_sf100_mergetree",
+            "max_threads": 8,
+            "join_use_nulls": 1,
+            "use_query_cache": 0,
+            "aggregate_functions_null_for_empty": 1,
+            "max_execution_time": 1800,
+            "max_memory_usage": 68719476736,
+            "wait_end_of_query": 1
+          }
+        },
+        "source_revision": "8d118bc94cc66fc69bb0be7c25b1b31d5bd2195b",
+        "source_dirty": false,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "version": "26.8.2.7",
+        "tables": [
+          [
+            "customer",
+            "MergeTree",
+            15000000,
+            1365560258
+          ],
+          [
+            "lineitem",
+            "MergeTree",
+            600037902,
+            33280991129
+          ],
+          [
+            "nation",
+            "MergeTree",
+            25,
+            8383
+          ],
+          [
+            "orders",
+            "MergeTree",
+            150000000,
+            7318654957
+          ],
+          [
+            "part",
+            "MergeTree",
+            20000000,
+            1125836310
+          ],
+          [
+            "partsupp",
+            "MergeTree",
+            80000000,
+            4931499647
+          ],
+          [
+            "region",
+            "MergeTree",
+            5,
+            3740
+          ],
+          [
+            "supplier",
+            "MergeTree",
+            1000000,
+            84727010
+          ]
+        ],
+        "open_ms": 35.08271698956378,
+        "loaded_rss": {
+          "VmRSS": 801406976,
+          "VmHWM": 816115712
+        }
+      },
+      "raw_file": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/clickhouse-q11-final1-sf100.jsonl",
+      "sha256": "e6bcfaf92391fd40e280781920893c721e21d561fa4d485dfe875225ff48d71d",
+      "query": {
+        "id": 11,
+        "sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "status": "success",
+        "executed_sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "server_settings": {
+          "database": "tpch_sf100_mergetree",
+          "max_threads": 8,
+          "join_use_nulls": 1,
+          "use_query_cache": 0,
+          "aggregate_functions_null_for_empty": 1,
+          "max_execution_time": 1800,
+          "max_memory_usage": 68719476736,
+          "wait_end_of_query": 1
+        },
+        "correct": true,
+        "finished_at_utc": "2026-09-06T17:13:17.127765+00:00",
+        "oracle_types": [
+          "BIGINT",
+          "DECIMAL(38,2)"
+        ],
+        "trials": [
+          {
+            "server_ms": 1800.7193340000001,
+            "statistics": {
+              "elapsed": "1.800719334",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 1802.9582950111944,
+            "correct": true,
+            "rss": {
+              "VmRSS": 900587520,
+              "VmHWM": 900587520
+            }
+          },
+          {
+            "server_ms": 993.8855530000001,
+            "statistics": {
+              "elapsed": "0.993885553",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 996.542351989774,
+            "correct": true,
+            "rss": {
+              "VmRSS": 954945536,
+              "VmHWM": 954945536
+            }
+          },
+          {
+            "server_ms": 898.10678,
+            "statistics": {
+              "elapsed": "0.89810678",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 900.3385129908565,
+            "correct": true,
+            "rss": {
+              "VmRSS": 951820288,
+              "VmHWM": 956747776
+            }
+          },
+          {
+            "server_ms": 918.824571,
+            "statistics": {
+              "elapsed": "0.918824571",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 921.3240230164956,
+            "correct": true,
+            "rss": {
+              "VmRSS": 951238656,
+              "VmHWM": 956747776
+            }
+          },
+          {
+            "server_ms": 901.827135,
+            "statistics": {
+              "elapsed": "0.901827135",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 904.025614989223,
+            "correct": true,
+            "rss": {
+              "VmRSS": 937201664,
+              "VmHWM": 956747776
+            }
+          },
+          {
+            "server_ms": 946.093906,
+            "statistics": {
+              "elapsed": "0.946093906",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 948.7760670017451,
+            "correct": true,
+            "rss": {
+              "VmRSS": 934682624,
+              "VmHWM": 956747776
+            }
+          },
+          {
+            "server_ms": 922.931431,
+            "statistics": {
+              "elapsed": "0.922931431",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 925.014406995615,
+            "correct": true,
+            "rss": {
+              "VmRSS": 938991616,
+              "VmHWM": 956747776
+            }
+          },
+          {
+            "server_ms": 952.104048,
+            "statistics": {
+              "elapsed": "0.952104048",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 954.7420640010387,
+            "correct": true,
+            "rss": {
+              "VmRSS": 931475456,
+              "VmHWM": 956747776
+            }
+          },
+          {
+            "server_ms": 917.089481,
+            "statistics": {
+              "elapsed": "0.917089481",
+              "rows_read": 162000050,
+              "bytes_read": 4504000654
+            },
+            "process_io_delta": {},
+            "client_ms": 918.8490380183794,
+            "correct": true,
+            "rss": {
+              "VmRSS": 940359680,
+              "VmHWM": 956747776
+            }
+          }
+        ]
+      }
+    }
+  },
+  "both_scales_pass": true,
+  "resources": {
+    "duckdb-q11-final1-sf100": {
+      "peak_bytes": 1773682688,
+      "swap_bytes": 0,
+      "oom_events": 0
+    },
+    "q11-final1-ch-sf100-layout": {
+      "peak_bytes": 1054535680,
+      "swap_bytes": 0,
+      "oom_events": 0
+    },
+    "clickhouse-q11-final1-sf100": {
+      "peak_bytes": 1642708992,
+      "swap_bytes": 0,
+      "oom_events": 0
+    },
+    "pgaccel-q11-final1-sf100": {
+      "peak_bytes": 121454534656,
+      "swap_bytes": 0,
+      "oom_events": 0
+    }
+  }
+}
