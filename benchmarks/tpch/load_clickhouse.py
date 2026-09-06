@@ -16,14 +16,21 @@ def main():
     parser.add_argument('--data', type=Path, required=True)
     parser.add_argument('--database', required=True)
     parser.add_argument('--engine', choices=['Memory', 'MergeTree'], default='MergeTree')
+    parser.add_argument('--statistics', action='store_true',
+                        help='build minmax, uniq, and countmin statistics for MergeTree columns')
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=9000)
     parser.add_argument('--client', default='clickhouse-client')
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
+    if args.statistics and args.engine != 'MergeTree':
+        parser.error('column statistics require MergeTree')
     if not re.fullmatch('[a-z][a-z0-9_]*', args.database):
         parser.error('database must contain lowercase letters, digits, or underscores')
     command = [args.client, '--host', args.host, '--port', str(args.port)]
+    if args.statistics:
+        command += ['--materialize_statistics_on_insert=1',
+                    '--materialize_statistics_on_insert_max_table_size=0']
 
     def query(sql, **kwargs):
         return subprocess.check_output(command+['--query', sql], **kwargs).decode().strip()
@@ -32,6 +39,7 @@ def main():
     # Plain CREATE deliberately fails for an existing database: no duplicate inserts.
     query(f'CREATE DATABASE {args.database}')
     report = {'database': args.database, 'engine': args.engine,
+              'statistics': 'minmax,uniq,countmin' if args.statistics else None,
               'version': query('SELECT version()'), 'tables': {}}
     for table, info in manifest['tables'].items():
         if not re.fullmatch('[a-z][a-z0-9_]*', table):
@@ -57,6 +65,8 @@ def main():
                 raise ValueError(f'Unsupported type: {field}')
             columns.append(f'{field.name} {ch}')
         engine = 'Memory' if args.engine == 'Memory' else 'MergeTree ORDER BY tuple()'
+        if args.statistics:
+            engine += " SETTINGS auto_statistics_types = 'minmax,uniq,countmin'"
         ddl = f'CREATE TABLE {args.database}.{table} ({", ".join(columns)}) ENGINE = {engine}'
         query(ddl)
         start = time.monotonic()
