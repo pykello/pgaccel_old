@@ -11,6 +11,7 @@ excluded from warm medians. These are iterations, not fresh promotion gates.
 | profile-v2 | 57.029 | 56.891 | 29497912 |
 | rootbits-v1 | 46.824 | 46.677 | 29310392 |
 | narrow-v1 | 40.366 | 40.222 | 24810302 |
+| q07-simd-v1 | 41.665 | 41.508 | 24810311 |
 
 The first profile identifies roughly 11.2 ms building customer payloads,
 20.8 ms building selected order payloads, and 20.5 ms scanning fact rows.

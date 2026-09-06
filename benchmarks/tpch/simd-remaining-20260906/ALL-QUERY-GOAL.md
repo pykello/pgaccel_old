@@ -29,7 +29,7 @@ for new arithmetic and threshold logic.
 | Q4 | Both scales pass at checkpoint `7c92573` |
 | Q5 | Native Python passes both scales at `f76d659`; [results](Q5.md) |
 | Q6 | Both scales pass at checkpoint `b12ce48`; [results](Q6.md) |
-| Q7 | Active: projection pull-up and dimension payload joins |
+| Q7 | SF10 passes, SF100 DuckDB gate fails; [confirmations](Q7-CONFIRMATIONS.md); probe ordering active |
 | Q8 | Optimization pending |
 | Q9 | Optimization pending |
 | Q10 | Optimization pending |

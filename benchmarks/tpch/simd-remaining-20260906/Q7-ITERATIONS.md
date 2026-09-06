@@ -9,6 +9,9 @@ fresh promotion confirmations.
 | before-native | 10190.153 | 10189.877 | 902447808 |
 | separate-v1 | 52.560 | 52.306 | 56092858 |
 | profile-v1 | 53.998 | 53.755 | 56092858 |
+| simd-v1 | 51.453 | 51.184 | 56092870 |
+| profile-v2 | 46.014 | 45.759 | 56092870 |
+| batched-v1 | 43.448 | 43.177 | 56092870 |
 
 ## Diagnostic phase medians
 
