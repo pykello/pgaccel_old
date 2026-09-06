@@ -27,7 +27,7 @@ the other 16 queries. See the [active targets](ALL-QUERY-GOAL.md).
 
 Q7 meets the revised twofold target at both scales in its recorded
 confirmations. Q8 also passes both scales; [results](Q8.md). Q9 also passes both scales; [results](Q9.md).
-Q10 is next, followed by Q21 and Q22. Q5 passes both scales. Q16 passes through the native Python API; Q2 and Q6 pass both scales. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
+Q10 passes both scales; [results](Q10.md). Q21 is next, followed by Q22. Q5 passes both scales. Q16 passes through the native Python API; Q2 and Q6 pass both scales. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
 remains historical evidence. Q20's allocation failure in that baseline is
 resolved by the new capacity check; no fresh full-workload win is claimed.
 

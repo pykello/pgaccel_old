@@ -9,8 +9,8 @@ checkpoints do not replace the final full-workload comparison.
 Q7 already meets the revised twofold target at both scales at `7b452eb`:
 4.10x/13.58x against DuckDB/ClickHouse at SF10 and 3.57x/8.24x at SF100.
 Q8 also meets the twofold target at `0de993a`; Q9 passes at `c37ed93`.
-Thus 19 queries meet their individual targets in recorded checkpoints;
-Q10, Q21 and Q22 remain. Q7's revised status uses its existing trials;
+Q10 passes at `2e427ac`. Thus 20 queries meet their individual targets;
+Q21 and Q22 remain. Q7's revised status uses its existing trials;
 Q8 and Q9 have fresh confirmations. Historical fourfold failures remain
 recorded.
 
@@ -41,7 +41,7 @@ for new arithmetic and threshold logic.
 | Q7 | Both scales meet revised 2x target at `7b452eb`; [confirmations](Q7-CONFIRMATIONS.md) |
 | Q8 | Both scales meet 2x target at `0de993a`; [results](Q8.md) |
 | Q9 | Both scales meet 2x target at `c37ed93`; [results](Q9.md) |
-| Q10 | Optimization pending; 2x target at both scales |
+| Q10 | Both scales meet 2x target at `2e427ac`; [results](Q10.md) |
 | Q11 | Both scales pass at checkpoint `8d118bc`; [results](Q11.md) |
 | Q12 | Both scales pass at checkpoint `7c92573` |
 | Q13 | Both scales pass at checkpoint `5190383`; [results](Q13.md) |
@@ -55,7 +55,7 @@ for new arithmetic and threshold logic.
 | Q21 | Optimization pending; 2x target at both scales |
 | Q22 | Optimization pending; 2x target; recent SF10 answer check passes |
 
-Continue with Q10, Q21 and Q22 one by one. Recheck Q7 and the
+Continue with Q21 and Q22 one by one. Recheck Q7 and the
 16 fourfold confirmations in the final sweep on one frozen module. Retain original implementations or permissively
 licensed dependencies only. Each retained change gets a separate small
 commit with an explanatory body wrapped at 72 characters. Record rejected

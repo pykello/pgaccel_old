@@ -1,6 +1,6 @@
 # Q10: aggregate by a proved unique dimension key
 
-The implementation is at `2e427ac`; benchmark confirmation is pending. The target is 2x faster
+The implementation is at `2e427ac`; both benchmark gates pass; see [results](Q10.md). The target is 2x faster
 than both DuckDB and ClickHouse at SF10 and SF100 with validated answers.
 
 The query groups by customer key plus customer attributes and nation name.
@@ -35,3 +35,6 @@ labels, missing joins, filters, empty results, limits and offsets, duplicate
 keys, and grouping fields not determined by the unique key. The query
 allocation limit is also checked. No table names or generated key formulas
 are assumed, and no external algorithm implementation was copied.
+
+All 248 native tests and seven focused ASan/UBSan tests pass. All22 SF1
+answers match on the frozen module used in both scale confirmations.
