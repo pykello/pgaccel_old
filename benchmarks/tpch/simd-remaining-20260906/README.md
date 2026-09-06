@@ -33,3 +33,5 @@ fourfold target. Q20 now completes SF100 correctly with 953 MiB peak query alloc
 its latency target remains unmet.
 
 [Phase measurements and next steps](PROFILE-NEXT.md).
+
+[Active fourfold goal for all 22 queries](ALL-QUERY-GOAL.md).
