@@ -28,6 +28,7 @@ std::optional<Result<QueryOutput>> ExecutePostingGroupedCount(const QueryDesc &,
 std::optional<Result<QueryOutput>> ExecuteGroupedCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
+std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool);
 Result<QueryOutput> ExecuteMaterialized(const QueryDesc &, bool, bool);
@@ -57,6 +58,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if (auto weighted = ExecuteDictionaryWeighted(query,useAvx,useParallelism)) return std::move(*weighted);
         if (auto lengths = ExecuteDenseLength(query,useAvx,useParallelism)) return std::move(*lengths);
         if (auto numeric = ExecuteRadixNumeric(query,useAvx,useParallelism)) return std::move(*numeric);
+        if (auto dense = ExecuteDenseArithmetic(query,useAvx,useParallelism)) return std::move(*dense);
         if (auto composite = ExecuteComposite(query,useAvx,useParallelism)) return std::move(*composite);
         if (auto counts = ExecuteGroupedCount(query,useAvx,useParallelism)) return std::move(*counts);
         if (auto distinct = ExecuteDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
