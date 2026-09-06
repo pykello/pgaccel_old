@@ -58,7 +58,8 @@ with the general relational executor in scalar/vector and serial/parallel
 modes. They cover sparse shuffled order keys, missing foreign keys,
 duplicate-key fallback, aliases, negative dates, different date
 representations, filters, conditional labels, empty results and slices.
-Sanitizer and benchmark results will be recorded after their runs finish.
+All 17 focused ASan/UBSan tests pass. All22 SF1 answers also match on the
+frozen module. Fresh comparisons are recorded in [Q8 results](Q8.md).
 
 This is an original implementation using the project's existing licensed
 components. No external join implementation was copied. The bounded-key
