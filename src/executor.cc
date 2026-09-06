@@ -40,6 +40,7 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &, bool, 
 std::optional<Result<QueryOutput>> ExecuteJoinCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteExistsCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDisjunctiveSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteJoinSum(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool, bool);
@@ -67,6 +68,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if(auto distinct=ExecuteJoinDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
         if(auto counts=ExecuteJoinCount(query,useAvx,useParallelism)) return std::move(*counts);
         if(auto star=ExecuteStarSum(query,useAvx,useParallelism)) return std::move(*star);
+        if(auto convergent=ExecuteConvergentSum(query,useAvx,useParallelism)) return std::move(*convergent);
         if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) return std::move(*joined);
         if(auto disjunction=ExecuteDisjunctiveSum(query,useAvx,useParallelism)) return std::move(*disjunction);
         return ExecuteRelational(query, useAvx, useParallelism);
