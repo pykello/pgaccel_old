@@ -52,12 +52,17 @@ def main():
     p.add_argument('--repeats', type=int, default=3)
     p.add_argument('--timeout', type=int, default=1800)
     p.add_argument('--query-memory-gib', type=int, default=64)
+    p.add_argument('--clickhouse-join-order-limit', type=int,
+                   help='override global join reordering; 0 disables it')
     p.add_argument('--duckdb-memory-gib', type=int, default=176)
     p.add_argument('--temp-directory', type=Path)
     p.add_argument('--only', type=int, nargs='*')
     args = p.parse_args()
     if min(args.threads, args.repeats, args.timeout, args.query_memory_gib, args.duckdb_memory_gib) < 1:
         p.error('thread, trial, timeout, and memory limits must be positive')
+    if args.clickhouse_join_order_limit is not None and (
+            args.engine != 'clickhouse' or args.clickhouse_join_order_limit < 0):
+        p.error('join-order limit requires ClickHouse and a nonnegative value')
     if args.engine != 'duckdb' and not args.oracle:
         p.error('non-DuckDB phases require saved --oracle answers')
     if args.engine == 'pgaccel' and (not args.runner or not args.native):
@@ -98,6 +103,8 @@ def main():
     ch_settings = {'database': args.database, 'max_threads': args.threads, 'join_use_nulls': 1,
                    'use_query_cache': 0, 'aggregate_functions_null_for_empty': 1, 'max_execution_time': args.timeout,
                    'max_memory_usage': query_bytes, 'wait_end_of_query': 1}
+    if args.clickhouse_join_order_limit is not None:
+        ch_settings['query_plan_optimize_join_order_limit'] = args.clickhouse_join_order_limit
 
     def ch_query(sql):
         url = args.url + '/?' + urllib.parse.urlencode(ch_settings)
