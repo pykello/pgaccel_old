@@ -50,3 +50,19 @@ TEST(PackedDistinct, RadixPassesSkipConstantBitsAndPreserveFullIdentity) {
         for(size_t group=0;group<counts.size();++group)if(group!=2 && !expected.contains(group))EXPECT_EQ(counts[group],0);
     }
 }
+TEST(PackedDistinct, BitmapCandidatesPreserveHashCollisionsAndUniquePairs) {
+    Budget budget(1<<25);std::vector<std::pmr::vector<uint64_t>> inputs;
+    inputs.emplace_back(&budget);std::map<uint32_t,std::set<uint32_t>> expected;
+    for(uint32_t group=0;group<4;++group)for(uint32_t i=0;i<2048;++i) {
+        uint32_t value=group==0?0:group==1?i:(i*7919)%977;
+        inputs[0].push_back((uint64_t(group)<<32)|value);expected[group].insert(value);
+    }
+    // Deliberately collide distinct pairs in the prefilter's 8192 buckets.
+    for(uint32_t value=0;expected[4].size()<128;++value) {
+        uint64_t pair=(uint64_t(4)<<32)|value;
+        if((pair*0x9e3779b97f4a7c15ULL)>>51)continue;
+        inputs[0].push_back(pair);expected[4].insert(value);
+    }
+    auto counts=CountPackedDistinct(inputs,8,budget,true);
+    for(const auto &[group,values]:expected)EXPECT_EQ(counts[group],values.size());
+}

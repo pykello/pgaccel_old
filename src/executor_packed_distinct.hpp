@@ -43,13 +43,33 @@ std::pmr::vector<uint64_t> CountPackedDistinct(std::vector<std::pmr::vector<uint
         OverwriteBuffer<uint64_t> temporary(maximum,budget);
         Scratch stack(budget,2048*sizeof(size_t));
         size_t histogram[2048];
+        auto bitmapSize=[](size_t n){return std::bit_ceil(std::min<size_t>(1<<14,std::max<size_t>(128,n))*64);};
+        OverwriteBuffer<uint64_t> seenAndRepeated(maximum>=128?bitmapSize(maximum)/32:0,budget);
         for(size_t p=worker;p<partitions;p+=workers) {
             auto begin=ordered.data()+offsets[p],end=ordered.data()+offsets[p+1];
-            size_t size=end-begin;
+            size_t size=end-begin;auto original=begin;
+            if(size>=128) {
+                size_t bits=bitmapSize(size),words=bits/64;unsigned shift=64-std::countr_zero(bits);
+                auto seen=seenAndRepeated.data(),repeated=seen+words;
+                std::fill(seen,repeated+words,0);
+                // A bucket hit once proves its pair unique. Every duplicate
+                // pair hashes to a repeated bucket and receives exact checking.
+                for(auto value=begin;value!=end;++value) {
+                    uint64_t bucket=(*value*0x9e3779b97f4a7c15ULL)>>shift,bit=uint64_t(1)<<(bucket%64);
+                    repeated[bucket/64]|=seen[bucket/64]&bit;seen[bucket/64]|=bit;
+                }
+                size_t candidates=0;
+                for(auto value=begin;value!=end;++value) {
+                    uint64_t bucket=(*value*0x9e3779b97f4a7c15ULL)>>shift;
+                    if(repeated[bucket/64]&(uint64_t(1)<<(bucket%64)))temporary[candidates++]=*value;
+                    else ++counts[*value>>32];
+                }
+                begin=temporary.data();end=begin+candidates;size=candidates;if(!size)continue;
+            }
             if(size<128)std::sort(begin,end);
             else {
                 uint64_t differences=0;for(auto value=begin+1;value!=end;++value)differences|=*value^*begin;
-                auto source=begin,destination=temporary.data();
+                auto source=begin,destination=begin==temporary.data()?original:temporary.data();
                 while(differences) {
                     unsigned shift=std::countr_zero(differences),bits=std::min(11u,64-shift);
                     size_t bins=size_t(1)<<bits,mask=bins-1;
