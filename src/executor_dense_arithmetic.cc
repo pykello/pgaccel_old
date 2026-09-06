@@ -242,6 +242,14 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                             int j=0; int64_t sum=0;
                             if(avx) {
                                 __m512i total=_mm512_setzero_si512();
+                                __m512i t1=total,t2=total,t3=total;
+                                for(;j+32<=vectorEnd;j+=32) {
+                                    total=_mm512_add_epi64(total,_mm512_maskz_loadu_epi64(masks[j/8],values+j));
+                                    t1=_mm512_add_epi64(t1,_mm512_maskz_loadu_epi64(masks[j/8+1],values+j+8));
+                                    t2=_mm512_add_epi64(t2,_mm512_maskz_loadu_epi64(masks[j/8+2],values+j+16));
+                                    t3=_mm512_add_epi64(t3,_mm512_maskz_loadu_epi64(masks[j/8+3],values+j+24));
+                                }
+                                total=_mm512_add_epi64(_mm512_add_epi64(total,t1),_mm512_add_epi64(t2,t3));
                                 for(;j<vectorEnd;j+=8)
                                     total=_mm512_add_epi64(total,_mm512_maskz_loadu_epi64(masks[j/8],values+j));
                                 sum=_mm512_reduce_add_epi64(total);
