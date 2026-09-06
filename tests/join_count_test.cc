@@ -39,5 +39,13 @@ TEST(JoinCount, SparseKeysDatePredicatesConditionalCountsAndDuplicateFallback) {
                 EXPECT_EQ(actual->values,expected->values);
             }
         }
+        for(const std::string extra:{"", ",count(*)"}) {
+            auto q=ParseSelect("SELECT f.mode"+extra+" FROM t,f WHERE t.k=f.k AND f.a<f.b GROUP BY f.mode ORDER BY f.mode",registry);
+            ASSERT_TRUE(q.ok());auto direct=ExecuteJoinCount(*q,true,true);EXPECT_EQ(direct.has_value(),!duplicate);
+            QueryDesc reference=*q;reference.predicates.push_back(reference.predicates.front());
+            auto expected=ExecuteQuery(reference,false,false),actual=ExecuteQuery(*q,true,true);
+            ASSERT_TRUE(expected.ok());ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,expected->values);
+            QueryDesc limited=*q;limited.memoryBudgetBytes=1;limited.allowSpill=false;EXPECT_FALSE(ExecuteQuery(limited,true,true).ok());
+        }
     }
 }
