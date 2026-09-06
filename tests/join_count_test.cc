@@ -18,8 +18,8 @@ TEST(JoinCount, SparseKeysDatePredicatesConditionalCountsAndDuplicateFallback) {
         for(int g=0;g<3;++g) {
             std::vector<int64_t> keys;std::vector<int32_t> a,b;std::vector<std::string> mode;
             for(int i=0;i<259;++i){keys.push_back(keyOffset+i);a.push_back(i%5);b.push_back(i%7);mode.push_back(i%3==0?"mail":i%3==1?"ship":"air");}
-            keys[0]=INT64_MIN;keys[1]=INT64_MAX;
-            groups.push_back({test::Raw(keys),test::Dict<DateType>(a),test::Dict<DateType>(b),test::Dict<StringType>(mode)});
+            keys[6]=keyOffset?INT64_MIN:INT32_MIN;keys[12]=keyOffset?INT64_MAX:INT32_MAX;
+            groups.push_back({test::Raw(keys,keyOffset?8:4),test::Dict<DateType>(a),test::Dict<DateType>(b),test::Dict<StringType>(mode)});
         }
         auto fact=test::Table(std::move(groups),{{"k",std::make_shared<Int64Type>()},{"a",std::make_shared<DateType>()},{"b",std::make_shared<DateType>()},{"mode",std::make_shared<StringType>()}});
         registry.emplace("f",std::move(fact.at("t")));

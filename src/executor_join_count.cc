@@ -123,9 +123,38 @@ std::optional<Result<QueryOutput>> ExecuteJoinCount(const QueryDesc &q,bool avx,
                 auto dict=static_cast<const DictColumnDataBase *>(data);if(dict->dictSize()>256)throw NotDense{};int codeWidth=dict->bytesPerValue();
                 std::array<Counts,256> counts{};std::array<bool,256> visited{};
                 std::vector<DateOrderPredicate> predicates;for(const auto &p:comparisons)predicates.emplace_back(*p,rg,budget);
+                auto keyData=rg.columns[probeKey->columnIdx].get();
+                auto raw=keyData->type==ColumnDataBase::RAW_COLUMN_DATA?static_cast<const RawColumnDataBase *>(keyData):nullptr;
                 int n=0;auto consume=[&] {
                     for(const auto &p:predicates)n=p.select(selected,n,selected,avx);
-                    for(int row=0;row<n;++row) {
+                    int row=0;
+                    if(avx && raw && raw->bytesPerValue==4 && low>=0 && high<=INT32_MAX && dict->dictSize()<=16)
+                    for(;row+16<=n;row+=16) {
+                        auto ids=_mm512_loadu_si512(selected+row),keys=_mm512_i32gather_epi32(ids,raw->values,4);
+                        auto delta=_mm512_sub_epi32(keys,_mm512_set1_epi32(low)),positions=_mm512_srli_epi32(delta,5);
+                        auto shifts=_mm512_and_si512(delta,_mm512_set1_epi32(31));
+                        auto valid=_mm512_cmpge_epi32_mask(keys,_mm512_set1_epi32(low)) & _mm512_cmple_epi32_mask(keys,_mm512_set1_epi32(high));
+                        auto words=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),valid,positions,present.data(),4);
+                        auto live=valid & _mm512_test_epi32_mask(_mm512_srlv_epi32(words,shifts),_mm512_set1_epi32(1));
+                        if(!live)continue;
+                        std::array<__mmask16,8> matches{};
+                        for(size_t i=0;i<q.aggregateClauses.size();++i) {
+                            if(bits[i]) {
+                                auto values=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),live,positions,bits[i]->data(),4);
+                                matches[i]=live & _mm512_test_epi32_mask(_mm512_srlv_epi32(values,shifts),_mm512_set1_epi32(1));
+                            } else if(q.aggregateClauses[i].type==AggregateClause::AGGREGATE_COUNT)matches[i]=live;
+                        }
+                        alignas(64)uint32_t codes[16];
+                        for(int lane=0;lane<16;++lane)codes[lane]=codeWidth==1?dict->values[selected[row+lane]]:
+                            reinterpret_cast<const uint16_t *>(dict->values)[selected[row+lane]];
+                        auto groups=_mm512_load_si512(codes);
+                        for(size_t code=0;code<dict->dictSize();++code) {
+                            auto mask=live & _mm512_cmpeq_epi32_mask(groups,_mm512_set1_epi32(code));if(!mask)continue;
+                            visited[code]=true;
+                            for(size_t i=0;i<q.aggregateClauses.size();++i)counts[code][i]+=__builtin_popcount(mask & matches[i]);
+                        }
+                    }
+                    for(;row<n;++row) {
                         Wide delta=Read(rg,*probeKey,selected[row]).number-low;if(delta<0 || delta>=width)continue;
                         uint64_t word=uint64_t(delta)/64,bit=uint64_t(1)<<(uint64_t(delta)%64);if(!(present[word]&bit))continue;
                         int code=codeWidth==1?dict->values[selected[row]]:reinterpret_cast<const uint16_t *>(dict->values)[selected[row]];visited[code]=true;
