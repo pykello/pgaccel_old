@@ -24,7 +24,8 @@ retain the complete trial sequence to expose noise.
 
 The 4× gate is **54.94 ms** (one quarter of the faster competitor).
 The final SF10 kernel passes that gate in a fresh-process confirmation.
-SF100 validation is the next phase; no SF100 speed claim is made yet.
+The [SF100 comparison](Q1-SF100.md) also passes the fourfold gate: 428 ms
+PGAccel versus 2367 ms DuckDB and 6659 ms ClickHouse on warm medians.
 
 ClickHouse uses the existing `tpch_sf10` MergeTree database on port 8123;
 DuckDB uses a persistent SF10 database imported from the same Parquet
