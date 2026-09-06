@@ -119,3 +119,21 @@ partitions let workers repeatedly write different counters in the same
 array's cache-line boundaries. Because the partition bits are the low group
 bits, the same boundary applies to every higher group component. This
 changes worker ownership while preserving the exact partition assignment.
+
+## Subsequent checks and the repeated-key experiment
+
+The first fresh confirmation remains short of the DuckDB target. Compact
+integer IN filters, equality-OR folding, private partition counters, verified
+identical dictionaries, and vectorized JSON escaping were then measured.
+The second fresh 15-trial comparison still yields about 53.6 ms client time,
+so none of these iteration figures is a promotion. See the confirmation
+report for every peer time and trial. All 22 SF1 answers match at `1b05f3d`.
+
+The next join experiment infers a power-of-two foreign-key fanout of at
+most sixteen from actual row counts. It verifies every stored key against
+the repeated sequence, then checks sorted stripe ranges for complete,
+non-overlapping coverage of the dimension key domain. A small query-local
+stripe directory can then locate the supplier run for a selected part.
+The runtime must retain its gather path when any proof fails. The fanout
+is inferred and checked; the TPC-H value of four is not hard-coded. The
+full proof is timed during each query and no persisted index is introduced.
