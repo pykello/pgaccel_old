@@ -12,6 +12,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v3 | 69.331 | 64.989 | 80.216 | 30.73 |
 | sum-v4 | 65.962 | 60.470 | 72.885 | 30.73 |
 | sum-v5 | 63.145 | 60.754 | 82.531 | 30.73 |
+| sum-v6 | 62.231 | 53.149 | 71.507 | 30.73 |
+
+Sum-v6 (`e620fb6`) scans source stripes in parallel. Its median is
+62.231 ms; the full warm range remains in the table rather than selecting
+the fastest trials. All nine answers, 166 native tests and focused
+sanitizer checks pass, including duplicate source keys across stripes.
 
 Sum-v5 (`25aa392`) evaluates thresholds and compacts numeric projection
 ranges in parallel. Its median is 63.145 ms with nine correct answers.
