@@ -56,6 +56,8 @@ def main():
                    help='override global join reordering; 0 disables it')
     p.add_argument('--clickhouse-no-reorder-queries', type=int, nargs='*', default=[],
                    help='query IDs that disable reordering instead of the phase default')
+    p.add_argument('--clickhouse-query-overrides', type=Path,
+                   help='optional qNN.sql dialect adaptations; preserve source SQL hashes')
     p.add_argument('--duckdb-memory-gib', type=int, default=176)
     p.add_argument('--temp-directory', type=Path)
     p.add_argument('--only', type=int, nargs='*')
@@ -68,6 +70,9 @@ def main():
     if args.clickhouse_no_reorder_queries and (args.engine != 'clickhouse' or
             any(i < 1 or i > 22 for i in args.clickhouse_no_reorder_queries)):
         p.error('per-query reordering overrides require ClickHouse and query IDs 1-22')
+    if args.clickhouse_query_overrides and (args.engine != 'clickhouse' or
+            not args.clickhouse_query_overrides.is_dir()):
+        p.error('query overrides require ClickHouse and an existing directory')
     if args.engine != 'duckdb' and not args.oracle:
         p.error('non-DuckDB phases require saved --oracle answers')
     if args.engine == 'pgaccel' and (not args.runner or not args.native):
@@ -155,11 +160,20 @@ def main():
                         ch_settings['query_plan_optimize_join_order_limit'] = args.clickhouse_join_order_limit
                 sql = (args.queries/f'q{number:02}.sql').read_text()
                 digest = hashlib.sha256(sql.encode()).hexdigest()
+                override = None
+                if args.clickhouse_query_overrides:
+                    candidate = args.clickhouse_query_overrides/f'q{number:02}.sql'
+                    if candidate.exists():
+                        sql = candidate.read_text()
+                        override = str(candidate.resolve())
                 expected = oracle.get(number)
                 if expected and expected.get('sql_sha256') != digest:
                     raise RuntimeError(f'Q{number} oracle SQL hash mismatch')
                 valid_oracle = bool(expected and expected.get('correct'))
                 record = {'id': number, 'sql_sha256': digest, 'status': 'success', 'trials': []}
+                record['executed_sql_sha256'] = hashlib.sha256(sql.encode()).hexdigest()
+                if override:
+                    record['sql_override_path'] = override
                 if args.engine == 'clickhouse':
                     record['server_settings'] = ch_settings.copy()
                 if valid_oracle:
