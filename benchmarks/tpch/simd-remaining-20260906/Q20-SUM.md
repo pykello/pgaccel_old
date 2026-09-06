@@ -18,6 +18,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v9 | 49.631 | 39.883 | 54.417 | 17.41 |
 | sum-v10 | 54.245 | 39.566 | 59.336 | 17.41 |
 | sum-v11 | 37.682 | 34.459 | 41.136 | 17.41 |
+| sum-v12 | 36.952 | 33.842 | 40.945 | 17.41 |
+
+Sum-v12 (`20b860a`) precomputes comparison scales and avoids repeated
+expression traversal for row thresholds. Its median is 36.952 ms, with
+nine correct answers. All 169 native tests and focused sanitizer checks
+pass for every operator and both scalar operand orders.
 
 Sum-v11 (`b2deffc`) builds independent tuple directories in parallel.
 Its median is 37.682 ms with nine correct answers and 17.41 MiB peak
