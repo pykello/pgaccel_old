@@ -8,9 +8,11 @@ checkpoints do not replace the final full-workload comparison.
 
 Q7 already meets the revised twofold target at both scales at `7b452eb`:
 4.10x/13.58x against DuckDB/ClickHouse at SF10 and 3.57x/8.24x at SF100.
-Q8 also meets the twofold target at `0de993a`. Q9 passes at `c2321f0`. Thus 19 queries meet their
-individual targets in recorded checkpoints; Q10, Q21 and Q22 remain. No new measurement is implied by this
-change of target. Historical fourfold gate failures remain recorded.
+Q8 also meets the twofold target at `0de993a`; Q9 passes at `c37ed93`.
+Thus 19 queries meet their individual targets in recorded checkpoints;
+Q10, Q21 and Q22 remain. Q7's revised status uses its existing trials;
+Q8 and Q9 have fresh confirmations. Historical fourfold failures remain
+recorded.
 
 Run engines sequentially with eight workers and preserve all trial times.
 Exclude only trial 1 from warm medians. Use fresh multi-trial comparisons
@@ -38,7 +40,7 @@ for new arithmetic and threshold logic.
 | Q6 | Both scales pass at checkpoint `b12ce48`; [results](Q6.md) |
 | Q7 | Both scales meet revised 2x target at `7b452eb`; [confirmations](Q7-CONFIRMATIONS.md) |
 | Q8 | Both scales meet 2x target at `0de993a`; [results](Q8.md) |
-| Q9 | Both scales meet 2x target at `c2321f0`; [results](Q9.md) |
+| Q9 | Both scales meet 2x target at `c37ed93`; [results](Q9.md) |
 | Q10 | Optimization pending; 2x target at both scales |
 | Q11 | Both scales pass at checkpoint `8d118bc`; [results](Q11.md) |
 | Q12 | Both scales pass at checkpoint `7c92573` |

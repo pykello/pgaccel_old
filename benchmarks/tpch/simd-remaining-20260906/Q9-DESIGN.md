@@ -51,3 +51,12 @@ every stored key and accepts shuffled stripes only when their verified
 ranges form the required sequence. No generated-key formula is assumed.
 This is an original extension of existing project components; no external
 join code or newly licensed dependency was introduced.
+
+## Direct rank-order payload writes
+
+At `c37ed93`, an unfiltered terminal year or eligibility projection can
+write its payload directly in bitmap rank order. The sorted unique-key
+proof establishes each stripe global row offset, and every row survives.
+This removes per-key temporary pairs and their later scatter pass. Filtered
+dimensions keep the original rank/scatter path. Cardinality is checked after
+bitmap finalization; no key-gap formula is assumed. See [results](Q9.md).
