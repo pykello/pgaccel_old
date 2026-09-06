@@ -1,5 +1,6 @@
 #include "executor_arithmetic_program.hpp"
 #include "executor_sequence_join.hpp"
+#include "executor_sorted_key.hpp"
 #include "executor_rank_join.hpp"
 #include "executor_bitmap_probe.hpp"
 #include "executor_result.hpp"
@@ -75,7 +76,7 @@ int StarSelectRows(const BitmapDomain &domain,const RowGroup &rg,const ColumnRef
 }
 std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bool parallel) {
     if(q.tables.size()!=3 || q.predicates.size()!=2 || !q.grouped || q.groupExpressions.empty() ||
-        !q.existenceJoins.empty() || !q.leftJoins.empty() || !q.membershipQueries.empty() ||
+        !q.existenceJoins.empty() || !q.leftJoins.empty() || q.membershipQueries.size()>1 ||
         !q.scalarQueries.empty() || q.aggregateClauses.size()>8) return {};
     struct Edge {ColumnRef a,b;};std::vector<Edge> edges;int degree[3]{};
     for(const auto &p:q.predicates) {
@@ -112,6 +113,12 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
         if(valid && identity){fact=candidate;dimension=dk.tableIdx;factKey=fk;bridgeKey=bk;bridgeDimension=bd;dimensionKey=dk;}
     }
     if(fact<0)return {};
+    if(!q.membershipQueries.empty()) {
+        const auto &member=q.membershipQueries.front();
+        if(member.anti || member.column!=bridgeKey || !member.resultType ||
+            (member.resultType->type_num()!=INT32_TYPE && member.resultType->type_num()!=INT64_TYPE))return {};
+        for(const auto &filter:q.filterClauses)if(filter.columnRef.tableIdx==bridge)return {};
+    }
     try {
         Budget budget(q.memoryBudgetBytes);ScopedValueResource memory(budget);
         uint64_t sizes[3]{};
@@ -153,10 +160,41 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
             }
             return pairs;
         };
-        auto parts=RunTasks(workers,build);
+        uint64_t spillBytes=0;
+        std::vector<std::pmr::vector<Pair>> parts;
+        if(q.membershipQueries.empty())parts=RunTasks(workers,build);
+        else {
+            auto child=*q.membershipQueries.front().query;
+            child.numericMembershipOutput=true;
+            child.memoryBudgetBytes=std::min(child.memoryBudgetBytes,budget.limit-budget.used.load());
+            child.allowSpill=child.allowSpill && q.allowSpill;
+            child.spillByteBudget=std::min(child.spillByteBudget,q.spillByteBudget);
+            auto output=ExecuteQuery(child,avx,parallel);
+            if(!output.ok())return Status::Invalid("Star membership: "+output.status().Message());
+            if(!output->numericMembership)return {};
+            if(output->spillBytes>q.spillByteBudget)return Status::Invalid("Subquery spill budget exceeded");
+            spillBytes=output->spillBytes;
+            Scratch childMemory(budget,output->peakMemoryBytes);
+            auto retained=std::move(output).ValueUnsafe();
+            auto &keys=*retained.numericMembership;
+            std::sort(keys.begin(),keys.end());keys.erase(std::unique(keys.begin(),keys.end()),keys.end());
+            if(keys.size()>1000000 || (sizes[bridge]>1024 && keys.size()>sizes[bridge]/8))return {};
+            SortedKeyIndex ordered(budget);
+            if(!keys.empty() && !ordered.prepare(bridgeTable,bridgeKey,avx,parallel))return {};
+            parts=RunTasks(workers,[&](int worker) {
+                ScopedValueResource memory(budget);std::pmr::vector<Pair> pairs(&budget);
+                for(size_t i=worker;i<keys.size();i+=workers) {
+                    if(keys[i]<INT64_MIN || keys[i]>INT64_MAX)continue;
+                    auto row=ordered.lookup(int64_t(keys[i]));if(!row)continue;
+                    auto dimensionValue=Read(bridgeTable.GetRowGroup(*row>>32),bridgeDimension,uint32_t(*row));
+                    if(dimensionDomain.contains(int64_t(dimensionValue.number)))pairs.push_back({int64_t(keys[i]),*row});
+                }
+                return pairs;
+            });
+        }
         int64_t low=INT64_MAX,high=INT64_MIN;uint64_t selectedCount=0;
         for(const auto &part:parts)for(const auto &p:part){low=std::min(low,p.key);high=std::max(high,p.key);++selectedCount;}
-        QueryResults results(q,budget);if(!selectedCount)return results.finish();
+        QueryResults results(q,budget);if(!selectedCount){auto output=results.finish();output.spillBytes=spillBytes;return output;}
         Wide width=Wide(high)-low+1;
         if(width>Wide(sizes[bridge])*8 || width>(Wide(1)<<34))throw NotDense{};
         RankJoinIndex index(low,high,budget);
@@ -260,7 +298,7 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
             });
             for(auto &part:candidates)for(auto &row:part)results.add(std::move(row));
         }
-        return results.finish();
+        auto output=results.finish();output.spillBytes=spillBytes;return output;
     } catch(const NotDense &) {return {};}
     catch(const std::exception &e) {return Status::Invalid(e.what());}
 }

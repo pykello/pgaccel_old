@@ -123,3 +123,30 @@ TEST(StarSum, DimensionProjectionUsesVerifiedBridgeIdentity) {
         }
     }
 }
+
+TEST(StarSum, SparseMembershipFindsGappedOrdersAndPreservesMultiplicity) {
+    for(bool duplicate:{false,true}) {
+        auto registry=StarTables(duplicate);
+        auto members=test::Table({{test::Raw({2,2,18,25,99,INT64_MAX})}},{{"k",std::make_shared<Int64Type>()}});
+        registry.emplace("m",std::move(members.at("t")));
+        for(const std::string source:{"SELECT k FROM m", "SELECT k FROM m WHERE k<0",
+                "SELECT k FROM m GROUP BY k HAVING sum(k)>3"})
+        for(const std::string slice:{"", " LIMIT 1 OFFSET 1"}) {
+            auto q=ParseSelect("SELECT b.k,c.k,b.day,sum(f.x),count(*) FROM t f,b,c "
+                "WHERE f.k=b.k AND b.c=c.k AND b.k IN ("+source+") "
+                "GROUP BY b.k,c.k,b.day ORDER BY b.k"+slice,registry);
+            ASSERT_TRUE(q.ok())<<q.status().Message();
+            QueryDesc reference=*q;reference.predicates.push_back(reference.predicates.front());
+            auto expected=ExecuteQuery(reference,false,false);ASSERT_TRUE(expected.ok())<<expected.status().Message();
+            for(bool avx:{false,true})for(bool parallel:{false,true}) {
+                auto direct=ExecuteStarSum(*q,avx,parallel);
+                if(!duplicate){ASSERT_TRUE(direct);ASSERT_TRUE(direct->ok())<<direct->status().Message();}
+                auto actual=ExecuteQuery(*q,avx,parallel);ASSERT_TRUE(actual.ok())<<actual.status().Message();
+                EXPECT_EQ(actual->values,expected->values);
+            }
+            q->membershipQueries.front().query->memoryBudgetBytes=1;
+            q->membershipQueries.front().query->allowSpill=false;
+            EXPECT_FALSE(ExecuteQuery(*q,true,true).ok());
+        }
+    }
+}
