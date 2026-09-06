@@ -64,3 +64,29 @@ TEST(ScalarSubquery, CorrelationOwnsStringKeysAfterChildOutputIsReleased) {
     ASSERT_TRUE(q.ok()) << q.status().Message(); auto result = ExecuteQuery(*q, false, false);
     ASSERT_TRUE(result.ok()) << result.status().Message(); EXPECT_EQ(result->values, (Rows{{"alpha"}}));
 }
+
+TEST(ScalarSubquery, MembershipBoundsCompositeCorrelationBeforeGrouping) {
+    auto registry = test::Table({{test::Raw({1, 1, 2, 3, 4}),
+        test::Raw({1, 2, 1, 1, 1}), test::Raw({7, 7, 20, 99, 99})}},
+        {{"k", std::make_shared<Int64Type>()}, {"b", std::make_shared<Int64Type>()},
+         {"v", std::make_shared<Int64Type>()}});
+    auto other = test::Table({{test::Raw({1, 1, 1, 2, 3}),
+        test::Raw({1, 1, 2, 1, 1}), test::Raw({4, 6, 9, 10, 1})}},
+        {{"k", std::make_shared<Int64Type>()}, {"b", std::make_shared<Int64Type>()},
+         {"v", std::make_shared<Int64Type>()}});
+    registry.emplace("u", std::move(other.at("t")));
+    for (bool avx : {false, true}) {
+        for (const auto &[membership, expected] : std::vector<std::pair<std::string, Rows>>{
+            {"IN (SELECT k FROM t WHERE k<=2)", {{"1", "1"}, {"2", "1"}}},
+            {"IN (SELECT k FROM t WHERE k=4)", {}},
+            {"IN (SELECT k FROM t WHERE k=99)", {}},
+            {"NOT IN (SELECT k FROM t WHERE k<=2)", {{"3", "1"}}}}) {
+            auto q = ParseSelect("SELECT k,b FROM t WHERE k " + membership +
+                " AND v>(SELECT avg(v) FROM u WHERE u.k=t.k AND u.b=t.b) ORDER BY k,b", registry);
+            ASSERT_TRUE(q.ok()) << q.status().Message();
+            auto result = ExecuteQuery(*q, avx, true);
+            ASSERT_TRUE(result.ok()) << result.status().Message();
+            EXPECT_EQ(result->values, expected) << membership;
+        }
+    }
+}

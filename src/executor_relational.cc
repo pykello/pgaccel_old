@@ -132,6 +132,18 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
         for (const auto &scalar : q.scalarQueries) {
             scalarValues.emplace_back(budget);
             auto sub = childPlan(*scalar.query);
+            // A required outer IN domain also bounds the matching correlation
+            // key. Apply it before grouping so unreachable child groups never
+            // consume aggregate state. Keep the original membership query:
+            // its normal executor preserves types, duplicates and budgets.
+            for (size_t key = 0; key < scalar.outerKeys.size(); ++key) {
+                for (const auto &membership : q.membershipQueries) {
+                    if (membership.anti || membership.column != scalar.outerKeys[key]) continue;
+                    auto restricted = membership;
+                    restricted.column = scalar.innerKeys[key];
+                    sub.membershipQueries.push_back(std::move(restricted));
+                }
+            }
             auto result = ExecuteQuery(sub, avx, false);
             if (!result.ok()) return Status::Invalid("Scalar subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
