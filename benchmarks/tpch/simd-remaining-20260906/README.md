@@ -1,5 +1,8 @@
 # Remaining TPC-H optimization work
 
+[Current same-binary SF10/SF100 comparison](SIX.md) covers Q1, Q3, Q4,
+Q12, Q14, and Q19. All six pass the fourfold median target.
+
 Continue from the validated Q1, Q14, and Q3 checkpoint. Every new query
 uses SF10 iteration, exact answer validation, and a fresh SF100 comparison
 against DuckDB and ClickHouse. The target is fourfold warm-median speed.
@@ -7,8 +10,8 @@ against DuckDB and ClickHouse. The target is fourfold warm-median speed.
 | Query | Current status | Evidence |
 |---|---|---|
 | Q4 | SF10 and SF100 gates pass | [Q4 results](Q4.md) |
-| Q12 | SF10 implementation and iteration in progress | [Iterations](RESULTS.md) |
-| Q19 | Baseline recorded; next after Q12 | [Plan](PLAN.md) |
+| Q12 | SF10 and SF100 gates pass | [Q12 results](Q12.md) |
+| Q19 | SF10 and SF100 gates pass | [Six-query confirmation](SIX.md) |
 
 Q2, Q5–Q11, Q13, Q15–Q18, and Q20–Q22 remain queued after this first
 cohort. Their prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
