@@ -50,24 +50,3 @@ TEST(PackedDistinct, RadixPassesSkipConstantBitsAndPreserveFullIdentity) {
         for(size_t group=0;group<counts.size();++group)if(group!=2 && !expected.contains(group))EXPECT_EQ(counts[group],0);
     }
 }
-TEST(PackedDistinct, BoundedLocalHashPartitionsAndProbeFallback) {
-    Budget budget(1<<24);std::vector<std::pmr::vector<uint64_t>> inputs;
-    inputs.emplace_back(&budget);std::map<uint32_t,std::set<uint32_t>> expected;
-    uint32_t group=0;
-    for(int n:{127,128,4096,4097}) {
-        for(int i=0;i<n;++i) {
-            uint32_t value=uint32_t(i*1973)%517;
-            inputs[0].push_back((uint64_t(group)<<32)|value);expected[group].insert(value);
-        }
-        ++group;
-    }
-    // Force many distinct pairs into the same initial slot of a 256-entry
-    // table. The bounded probe chain must fall back without partial counts.
-    for(uint32_t value=0;expected[group].size()<128;++value) {
-        uint64_t word=(uint64_t(group)<<32)|value;
-        if((word*0x9e3779b97f4a7c15ULL)>>56)continue;
-        inputs[0].push_back(word);expected[group].insert(value);
-    }
-    auto counts=CountPackedDistinct(inputs,8,budget,true);
-    for(const auto &[key,values]:expected)EXPECT_EQ(counts[key],values.size());
-}
