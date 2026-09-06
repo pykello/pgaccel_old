@@ -22,7 +22,7 @@ for new arithmetic and threshold logic.
 | Query | Current state |
 |---|---|
 | Q1 | Both scales pass at checkpoint `7c92573` |
-| Q2 | SF10 183 ms; target unmet |
+| Q2 | SF10 145 ms; target unmet |
 | Q3 | Both scales pass at checkpoint `7c92573` |
 | Q4 | Both scales pass at checkpoint `7c92573` |
 | Q5 | Optimization pending |
@@ -40,7 +40,7 @@ for new arithmetic and threshold logic.
 | Q17 | Both scales pass at checkpoint `fdda059`; [results](Q17.md) |
 | Q18 | Optimization pending; recent SF10 answer check passes |
 | Q19 | Both scales pass at checkpoint `7c92573` |
-| Q20 | Latest SF10 iteration 41 ms vs fresh 33 ms target; [comparison](Q20-PEERS.md) |
+| Q20 | Latest SF10 iteration 34 ms vs fresh 33 ms target; [comparison](Q20-PEERS.md) |
 | Q21 | Optimization pending |
 | Q22 | Optimization pending; recent SF10 answer check passes |
 

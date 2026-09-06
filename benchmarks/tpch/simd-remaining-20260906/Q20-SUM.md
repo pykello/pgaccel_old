@@ -22,6 +22,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v13 | 41.629 | 39.858 | 44.820 | 17.41 |
 | sum-v14 | 34.974 | 31.622 | 38.053 | 17.41 |
 | sum-v15 | 40.503 | 33.957 | 47.720 | 17.41 |
+| sum-v16 | 33.654 | 28.426 | 37.714 | 17.41 |
+
+Sum-v16 (`df36317`) prunes generic inner joins with tiny integer build
+domains. Its median is 33.654 ms with nine correct answers. Q2 measures
+145.168 ms and Q17 remains within its SF10 gate. All 172 native and
+sanitizer tests pass; [all 22 SF1 answers match DuckDB](SMALL-DOMAINS.md).
 
 Sum-v15 (`8185921`) changes only runner stream buffering. A controlled
 [interactive comparison](RUNNER-BUFFER.md) shows lower client overhead in
