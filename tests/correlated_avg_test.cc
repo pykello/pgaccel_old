@@ -77,6 +77,11 @@ TEST(CorrelatedAverage, RoundedAverageThresholdAndReversedComparison) {
             auto expected = ExecuteQuery(GenericAverage(*q), false, false);
             ASSERT_TRUE(expected.ok()); EXPECT_EQ(actual->values, expected->values);
         }
+        auto childLimited = *q;
+        childLimited.scalarQueries[0].query = std::make_shared<QueryDesc>(*q->scalarQueries[0].query);
+        childLimited.scalarQueries[0].query->memoryBudgetBytes = 1;
+        EXPECT_FALSE(ExecuteCorrelatedAvg(childLimited, true, true));
+        EXPECT_FALSE(ExecuteQuery(childLimited, true, true).ok());
         auto limited = *q; limited.memoryBudgetBytes = 1; limited.allowSpill = false;
         EXPECT_FALSE(ExecuteQuery(limited, true, true).ok());
     }

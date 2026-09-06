@@ -35,6 +35,7 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
         !q.existenceJoins.empty() || !q.leftJoins.empty() || q.aggregateClauses.size() > 32) return {};
     const auto &scalar = q.scalarQueries[0];
     const auto &child = *scalar.query;
+    if (child.memoryBudgetBytes < q.memoryBudgetBytes) return {};
     if (scalar.outerKeys.size() != 1 || scalar.innerKeys.size() != 1 || scalar.keyOutputs.size() != 1 ||
         child.tables.size() != 1 || !child.grouped || child.groupExpressions.size() != 1 ||
         !child.predicates.empty() || !child.filterClauses.empty() || !child.membershipQueries.empty() ||
