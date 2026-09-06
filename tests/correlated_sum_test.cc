@@ -117,3 +117,36 @@ TEST(CorrelatedSum, WidePartialSumsRemainExactDespiteCancellation) {
         EXPECT_EQ((*fast)->values,expected->values);EXPECT_EQ((*fast)->values,Rows({{"2"}}));
     }
 }
+
+TEST(CorrelatedSum, PartitionedDirectoriesRetainSkewAndDuplicateRows) {
+    auto integer=std::make_shared<Int64Type>();
+    for(bool skew:{false,true}) {
+        std::vector<std::vector<ColumnDataP>> groups;
+        for(int g=0;g<6;++g) {
+            std::vector<int64_t> pk,sk,avail;
+            for(int j=0;j<1000;++j) {
+                int i=g*1000+j;pk.push_back((i%32+1)*(skew?8:1));
+                sk.push_back(i/32%5);avail.push_back(i%13);
+            }
+            groups.push_back({test::Raw(pk,4),test::Raw(sk,4),test::Raw(avail,4)});
+        }
+        auto registry=test::Table(std::move(groups),{{"pk",integer},{"sk",integer},{"avail",integer}});
+        std::vector<int64_t> pk,sk,qty,keys;
+        for(int k=1;k<=32;++k) {
+            keys.push_back(k*(skew?8:1));
+            for(int supplier=0;supplier<5;++supplier)for(int quantity:{1,4}) {
+                pk.push_back(keys.back());sk.push_back(supplier);qty.push_back(quantity);
+            }
+        }
+        auto parts=test::Table({{test::Raw(keys,4)}},{{"k",integer}});registry.emplace("p",std::move(parts.at("t")));
+        auto facts=test::Table({{test::Raw(pk,4),test::Raw(sk,4),test::Raw(qty,4)}},
+            {{"pk",integer},{"sk",integer},{"qty",integer}});registry.emplace("f",std::move(facts.at("t")));
+        auto q=ParseSelect("SELECT pk,sk,avail FROM t WHERE pk IN (SELECT k FROM p) AND avail > "
+            "(SELECT 0.5*sum(qty) FROM f WHERE f.pk=t.pk AND f.sk=t.sk) ORDER BY pk,sk,avail",registry);
+        ASSERT_TRUE(q.ok());auto expected=ExecuteQuery(GenericSum(*q),false,false);ASSERT_TRUE(expected.ok());
+        for(bool avx:{false,true})for(bool parallel:{false,true}) {
+            auto fast=ExecuteCorrelatedSum(*q,avx,parallel);ASSERT_TRUE(fast);ASSERT_TRUE(fast->ok())<<fast->status().Message();
+            EXPECT_EQ((*fast)->values,expected->values);
+        }
+    }
+}

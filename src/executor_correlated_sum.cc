@@ -121,7 +121,7 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             for (const auto &keys : selected) sourceKeys.insert(sourceKeys.end(), keys.begin(), keys.end());
             members.assignNumbers(sourceKeys, 0, budget);
         }
-        FlatMap<SumKey, uint8_t, SumKeyHash, std::equal_to<SumKey>> index(budget);
+        using SumIndex = FlatMap<SumKey, uint8_t, SumKeyHash, std::equal_to<SumKey>>;
         std::pmr::vector<SumOuterRow> outerRows(&budget);
         auto outerFilter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
         auto keyAt = [&](const RowGroup &rg, const std::vector<ColumnRef> &columns, int row) {
@@ -152,11 +152,50 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             outerRows.reserve(count);
             for (const auto &rows : selected) outerRows.insert(outerRows.end(), rows.begin(), rows.end());
         }
-        index.reserve(outerRows.size());
-        for (auto &selected : outerRows) {
-            const auto &rg = q.tables[0]->GetRowGroup(selected.stripe);
-            selected.slot = index.get(keyAt(rg, scalar.outerKeys, selected.row), [] { return uint8_t(0); }).first;
+        int partitions = parallel && outerRows.size() >= 4096 ? 8 : 1;
+        auto partition = [&](const SumKey &key) { return uint64_t(key.a) & (partitions - 1); };
+        std::pmr::vector<SumIndex> indexes(&budget); indexes.reserve(partitions);
+        for (int p = 0; p < partitions; ++p) indexes.emplace_back(budget);
+        std::array<uint32_t, 9> offsets{};
+        size_t slotCount = 0;
+        {
+            std::pmr::vector<SumKey> rowKeys(outerRows.size(), &budget);
+            RunTasks(partitions, [&](int worker) {
+                ScopedValueResource memory(budget);
+                for (size_t i = outerRows.size() * worker / partitions;
+                     i < outerRows.size() * (worker + 1) / partitions; ++i) {
+                    const auto &selected = outerRows[i];
+                    rowKeys[i] = keyAt(q.tables[0]->GetRowGroup(selected.stripe), scalar.outerKeys, selected.row);
+                }
+                return 0;
+            });
+            // Each partition owns its directory and every occurrence of its
+            // keys. Bounded repeated routing passes avoid shared insertion.
+            RunTasks(partitions, [&](int worker) {
+                ScopedValueResource memory(budget);
+                size_t count = 0;
+                for (const auto &key : rowKeys) count += partition(key) == size_t(worker);
+                indexes[worker].reserve(count);
+                for (size_t i = 0; i < rowKeys.size(); ++i) if (partition(rowKeys[i]) == size_t(worker))
+                    outerRows[i].slot = indexes[worker].get(rowKeys[i], [] { return uint8_t(0); }).first;
+                return 0;
+            });
+            for (int p = 0; p < partitions; ++p) {
+                slotCount += indexes[p].size();
+                if (slotCount > UINT32_MAX) throw std::runtime_error("Correlated sum slot count exceeds 32 bits");
+                offsets[p + 1] = uint32_t(slotCount);
+            }
+            RunTasks(partitions, [&](int worker) {
+                for (size_t i = outerRows.size() * worker / partitions;
+                     i < outerRows.size() * (worker + 1) / partitions; ++i)
+                    outerRows[i].slot += offsets[partition(rowKeys[i])];
+                return 0;
+            });
         }
+        auto lookup = [&](const SumKey &key) {
+            auto p = partition(key); auto slot = indexes[p].find(key);
+            return slot == SumIndex::missing ? slot : offsets[p] + slot;
+        };
         QueryResults results(q, budget);
         if (outerRows.empty()) return results.finish();
         auto filter = child.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(child.filterClauses, avx);
@@ -164,15 +203,15 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
         int workers = parallel ? std::min(8, std::max(1, facts.RowGroupCount())) : 1;
         auto scan = [&]<class State>() { return RunTasks(workers, [&](int worker) {
             ScopedValueResource memory(budget); Scratch scratch(budget, BITMAP_SIZE);
-            std::pmr::vector<State> states(index.size(), &budget); uint8_t bitmap[BITMAP_SIZE];
+            std::pmr::vector<State> states(slotCount, &budget); uint8_t bitmap[BITMAP_SIZE];
             for (int g = worker; g < facts.RowGroupCount(); g += workers) {
                 const auto &rg = facts.GetRowGroup(g);
                 if (filter) { if (!filter->ExecuteSet(rg, bitmap)) continue; }
                 else memset(bitmap, 0xff, (rg.size + 7) / 8);
                 members.intersect(rg, innerMember, false, avx, bitmap);
                 Selected(rg, bitmap, [&](int row) {
-                    auto slot = index.find(keyAt(rg, scalar.innerKeys, row));
-                    if (slot == decltype(index)::missing) return;
+                    auto slot = lookup(keyAt(rg, scalar.innerKeys, row));
+                    if (slot == SumIndex::missing) return;
                     auto &state = states[slot];
                     Wide value = Read(rg, *child.aggregateClauses[sum].columnRef, row).number;
                     if constexpr (std::is_same_v<State, NarrowSumState>) state.sum += int64_t(value);
@@ -182,11 +221,11 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             }
             return states;
         }); };
-        std::pmr::vector<SumState> states(index.size(), &budget);
+        std::pmr::vector<SumState> states(slotCount, &budget);
         auto merge = [&](const auto &partials) { RunTasks(workers, [&](int worker) {
             ScopedValueResource memory(budget);
-            for (size_t slot = index.size() * worker / workers;
-                 slot < index.size() * (worker + 1) / workers; ++slot) {
+            for (size_t slot = slotCount * worker / workers;
+                 slot < slotCount * (worker + 1) / workers; ++slot) {
                 for (const auto &p : partials) {
                     states[slot].sum = Add(states[slot].sum, p[slot].sum);
                     states[slot].count += p[slot].count;
