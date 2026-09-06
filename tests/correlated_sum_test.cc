@@ -20,7 +20,8 @@ TEST(CorrelatedSum, CompositeKeysOuterDuplicatesDatesAndMissingGroups) {
         auto registry = test::Table({{test::Raw({base+1,base+1,base+1,base+2,base+2,base+3,base+1,base+2},width),
             test::Raw({1,1,2,1,2,1,1,3}),test::Raw({7,3,1,10,20,99,7,1})}},
             {{"pk",std::make_shared<Int64Type>()},{"sk",std::make_shared<Int64Type>()},{"avail",std::make_shared<Int64Type>()}});
-        auto parts = test::Table({{test::Raw(keys,width),test::Dict<StringType>(names)}},
+        auto parts = test::Table({{test::Raw(keys,width),test::Dict<StringType>(names)},
+            {test::Raw({base+1,base+65},width),test::Dict<StringType>({"forest duplicate","forest unused"})}},
             {{"k",std::make_shared<Int64Type>()},{"name",std::make_shared<StringType>()}});
         registry.emplace("p",std::move(parts.at("t")));
         auto decimal=std::make_shared<DecimalType>();decimal->scale=2;

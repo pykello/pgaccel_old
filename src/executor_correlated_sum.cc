@@ -77,15 +77,27 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
     try {
         Budget budget(q.memoryBudgetBytes); ScopedValueResource memory(budget);
         MembershipSet members(budget, 0);
-        auto sourceFilter = source.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(source.filterClauses, avx);
-        std::pmr::vector<Wide> sourceKeys(&budget);
-        for (int g = 0; g < source.tables[0]->RowGroupCount(); ++g) {
-            const auto &rg = source.tables[0]->GetRowGroup(g); uint8_t bitmap[BITMAP_SIZE];
-            if (sourceFilter && !sourceFilter->ExecuteSet(rg, bitmap)) continue;
-            Selected(rg, sourceFilter ? bitmap : nullptr, [&](int row) { sourceKeys.push_back(Read(rg, sourceKey, row).number); });
+        {
+            auto sourceFilter = source.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(source.filterClauses, avx);
+            int groups = source.tables[0]->RowGroupCount();
+            int sourceWorkers = parallel ? std::min(8, std::max(1, groups)) : 1;
+            auto selected = RunTasks(sourceWorkers, [&](int worker) {
+                ScopedValueResource memory(budget); Scratch scratch(budget, BITMAP_SIZE);
+                std::pmr::vector<Wide> keys(&budget);
+                for (int g = worker; g < groups; g += sourceWorkers) {
+                    const auto &rg = source.tables[0]->GetRowGroup(g); uint8_t bitmap[BITMAP_SIZE];
+                    if (sourceFilter && !sourceFilter->ExecuteSet(rg, bitmap)) continue;
+                    Selected(rg, sourceFilter ? bitmap : nullptr,
+                        [&](int row) { keys.push_back(Read(rg, sourceKey, row).number); });
+                }
+                return keys;
+            });
+            size_t count = 0;
+            for (const auto &keys : selected) count += keys.size();
+            std::pmr::vector<Wide> sourceKeys(&budget); sourceKeys.reserve(count);
+            for (const auto &keys : selected) sourceKeys.insert(sourceKeys.end(), keys.begin(), keys.end());
+            members.assignNumbers(sourceKeys, 0, budget);
         }
-        members.assignNumbers(sourceKeys, 0, budget);
-        sourceKeys.clear(); sourceKeys.shrink_to_fit();
         FlatMap<SumKey, uint8_t, SumKeyHash, std::equal_to<SumKey>> index(budget);
         std::pmr::vector<SumOuterRow> outerRows(&budget);
         auto outerFilter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);
