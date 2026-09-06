@@ -225,9 +225,13 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
             return true;
         };
         RunTasks(workers,scan);
-        for(size_t word=0;word<visited.size();++word)for(uint64_t bits=visited[word];bits;bits&=bits-1) {
+        int outputWorkers=q.limit && *q.limit<=10000 && q.offset<=10000?workers:1;
+        auto candidates=RunTasks(outputWorkers,[&](int worker) {
+        ScopedValueResource memory(budget);QueryResults local(q,budget);
+        for(size_t word=visited.size()*worker/outputWorkers;word<visited.size()*(worker+1)/outputWorkers;++word)
+        for(uint64_t bits=visited[word];bits;bits&=bits-1) {
             uint32_t rank=word*64+__builtin_ctzll(bits);
-            results.addLazy([&](size_t i) {
+            local.addLazy([&](size_t i) {
                 const auto &a=q.aggregateClauses[i];FinalCell cell;
                 cell.type=a.expression?a.expression->type.get():nullptr;
                 if(a.type==AggregateClause::AGGREGATE_COUNT){cell.type=nullptr;cell.value.number=sums[rank*stateCount+stateIndex[i]];}
@@ -241,6 +245,9 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
                 return cell;
             });
         }
+        return local.takeCandidates();
+        });
+        for(auto &part:candidates)for(auto &row:part)results.add(std::move(row));
         return results.finish();
     } catch(const NotDense &) {return {};}
     catch(const std::exception &e) {return Status::Invalid(e.what());}

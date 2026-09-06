@@ -56,24 +56,27 @@ TEST(StarSum, DuplicateBridgeAndMissingGroupIdentityRetainFallback) {
 
 TEST(StarSum, SixteenLaneProbesMaskOutsideDomainAndPartialBlocks) {
     std::vector<int64_t> dimensionKeys,keep,bridgeKeys,customerKeys,factKeys,amounts;
-    for(int i=0;i<66;++i) {dimensionKeys.push_back(i+7);keep.push_back(i%3!=0);}
-    for(int i=0;i<65;++i) {
+    for(int i=0;i<258;++i) {dimensionKeys.push_back(i+7);keep.push_back(i%3!=0);}
+    for(int i=0;i<257;++i) {
         bridgeKeys.push_back(100+i);customerKeys.push_back(i+6);
         factKeys.push_back(100+i);amounts.push_back(i-30);
     }
-    for(int64_t key:{int64_t(INT32_MIN),int64_t(INT32_MAX),int64_t(99),int64_t(165)}) {
+    for(int64_t key:{int64_t(INT32_MIN),int64_t(INT32_MAX),int64_t(99),int64_t(357)}) {
         factKeys.push_back(key);amounts.push_back(1);
     }
-    auto registry=test::Table({{test::Raw(factKeys,4),test::Raw(amounts,4)}},
+    auto registry=test::Table({{test::Raw(factKeys,4),test::Raw(amounts,4)},
+        {test::Raw(factKeys,4),test::Raw(amounts,4)},
+        {test::Raw(factKeys,4),test::Raw(amounts,4)}},
         {{"k",std::make_shared<Int64Type>()},{"x",std::make_shared<Int64Type>()}});
     auto bridge=test::Table({{test::Raw(bridgeKeys,4),test::Raw(customerKeys,4)}},
         {{"k",std::make_shared<Int64Type>()},{"c",std::make_shared<Int64Type>()}});
     auto dimension=test::Table({{test::Raw(dimensionKeys,4),test::Raw(keep,4)}},
         {{"k",std::make_shared<Int64Type>()},{"keep",std::make_shared<Int64Type>()}});
     registry.emplace("b",std::move(bridge.at("t")));registry.emplace("c",std::move(dimension.at("t")));
+    for(const std::string suffix:{"", " LIMIT 7 OFFSET 3"})
     for(const std::string filter:{"", " AND f.x>=0", " AND b.k<150"}) {
         auto q=ParseSelect("SELECT f.k,sum(f.x),count(*) FROM t f,b,c "
-            "WHERE f.k=b.k AND b.c=c.k AND c.keep=1"+filter+" GROUP BY f.k ORDER BY f.k",registry);
+            "WHERE f.k=b.k AND b.c=c.k AND c.keep=1"+filter+" GROUP BY f.k ORDER BY f.k"+suffix,registry);
         ASSERT_TRUE(q.ok())<<q.status().Message();
         auto direct=ExecuteStarSum(*q,true,true);ASSERT_TRUE(direct.has_value());ASSERT_TRUE(direct->ok());
         QueryDesc reference=*q;reference.predicates.push_back(reference.predicates.front());
