@@ -9,13 +9,22 @@ class ValuePredicate : public FilterNodeImpl {
   FilterClause f;
   std::unique_ptr<RE2> pattern;
   std::string needle;
+  std::vector<std::string> sequence;
   bool substring = false, prefix = false, negate = false, avx;
   StringSignature required;
   std::unordered_set<Cell, Hash> members;
   bool matches(Cell value) const {
-    // ASCII strings need only a byte-prefix check. Keep RE2 for all
-    // non-ASCII values, including its treatment of malformed encodings.
-    bool yes = prefix && IsAscii(value.text) ? value.text.starts_with(needle) :
+    // ASCII literals use byte searches with nonoverlapping ordered matches.
+    // Keep RE2 for non-ASCII values and malformed encodings.
+    bool yes;
+    if (!sequence.empty() && IsAscii(value.text)) {
+      size_t position = 0; yes = true;
+      for (const auto &literal : sequence) {
+        position = value.text.find(literal, position);
+        if (position == std::string_view::npos) { yes = false; break; }
+        position += literal.size();
+      }
+    } else yes = prefix && IsAscii(value.text) ? value.text.starts_with(needle) :
         pattern
             ? (substring && IsAscii(value.text) ? value.text.find(needle) != std::string_view::npos
                          : RE2::FullMatch(re2::StringPiece(value.text.data(),
@@ -197,6 +206,15 @@ public:
       pattern = std::make_unique<RE2>(regex, options);
       if (!pattern->ok())
         throw std::invalid_argument("Invalid UTF-8 LIKE pattern");
+      if (f.value.size() >= 3 && f.value.front() == '%' && f.value.back() == '%' &&
+          IsAscii(f.value) && f.value.find_first_of("_\\") == std::string::npos) {
+        for (size_t begin = 1; begin < f.value.size() - 1;) {
+          size_t end = f.value.find('%', begin);
+          if (end > begin) sequence.push_back(f.value.substr(begin, end - begin));
+          begin = end + 1;
+        }
+        if (sequence.size() < 2) sequence.clear();
+      }
       if (f.value.size() >= 2 && f.value.back() == '%') {
         auto literal = f.value.substr(0, f.value.size() - 1);
         if (literal.find_first_of("%_\\") == std::string::npos) {
