@@ -35,6 +35,29 @@ struct IdentityPayload {
     BitmapDomain domain() const {return {first,last,rank?rank->words():bits.data()};}
 };
 
+// Separate independent gathers from the dependent bitmap insertions and
+// payload writes. Each full vector initializes its complete output region.
+[[gnu::noinline]] void GatherIdentityBlock(const RawColumnDataBase &foreign,
+    const CompactUnsignedArray &child,int64_t low,int64_t high,int begin,int n,
+    const uint8_t *bitmap,uint32_t *values) {
+    auto first=_mm512_set1_epi32(low),last=_mm512_set1_epi32(high);
+    const int width=foreign.bytesPerValue;const auto base=foreign.values;
+    for(int offset=0;offset<n;offset+=16) {
+        int row=begin+offset;uint16_t mask=0xffff;
+        if(bitmap)std::memcpy(&mask,bitmap+row/8,2);
+        auto found=_mm512_setzero_si512();
+        if(mask) {
+            __m512i keys;
+            if(width==1)keys=_mm512_cvtepi8_epi32(_mm_loadu_si128(reinterpret_cast<const __m128i *>(base+row)));
+            else if(width==2)keys=_mm512_cvtepi16_epi32(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(base+row*2)));
+            else keys=_mm512_loadu_si512(base+row*4);
+            mask&=_mm512_cmpge_epi32_mask(keys,first)&_mm512_cmple_epi32_mask(keys,last);
+            if(mask)found=child.gather(_mm512_sub_epi32(keys,first),mask);
+        }
+        _mm512_storeu_si512(values+offset,found);
+    }
+}
+
 std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
     const QueryDesc &q,const UniqueKeyJoinGraph &plan,int fact,const std::vector<int> &order,
     const std::vector<int> &centerOf,const std::vector<const uint8_t *> &accepted,
@@ -64,7 +87,7 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
             struct Pair {int64_t key;uint32_t value;};
             int workers=parallel?std::min(8,std::max(1,table.RowGroupCount())):1;
             auto parts=RunTasks(workers,[&](int worker) {
-                ScopedValueResource memory(budget);Scratch scratch(budget,RowGroupSize/8+256);
+                ScopedValueResource memory(budget);Scratch scratch(budget,RowGroupSize/8+4096);
                 std::pmr::vector<Pair> pairs(&budget);uint8_t bitmap[RowGroupSize/8];
                 const auto *edge=plan.outgoing[t].empty()?nullptr:&plan.outgoing[t].front();
                 for(int g=worker;g<table.RowGroupCount();g+=workers) {
@@ -90,24 +113,22 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
                         (foreign->bytesPerValue==1 || foreign->bytesPerValue==2 || foreign->bytesPerValue==4) &&
                         child->first>=INT32_MIN && child->last<=INT32_MAX && Wide(child->last)-child->first<=INT32_MAX;
                     if(vectorable) {
-                        auto first=_mm512_set1_epi32(child->first),last=_mm512_set1_epi32(child->last);
                         auto lanes=_mm512_setr_epi32(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
-                        alignas(64)uint32_t selected[16],values[16];int row=0;
-                        for(;row+16<=rg.size;row+=16) {
-                            uint16_t mask=0xffff;if(count!=rg.size)std::memcpy(&mask,bitmap+row/8,2);
-                            if(!mask)continue;
-                            __m512i keys;
-                            if(foreign->bytesPerValue==1)keys=_mm512_cvtepi8_epi32(_mm_loadu_si128(reinterpret_cast<const __m128i *>(foreign->values+row)));
-                            else if(foreign->bytesPerValue==2)keys=_mm512_cvtepi16_epi32(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(foreign->values+row*2)));
-                            else keys=_mm512_loadu_si512(foreign->values+row*4);
-                            mask&=_mm512_cmpge_epi32_mask(keys,first)&_mm512_cmple_epi32_mask(keys,last);
-                            if(!mask)continue;
-                            auto found=child->dense->gather(_mm512_sub_epi32(keys,first),mask);
-                            mask&=_mm512_cmpneq_epi32_mask(found,_mm512_setzero_si512());
-                            if(!mask)continue;
-                            _mm512_mask_compressstoreu_epi32(selected,mask,_mm512_add_epi32(lanes,_mm512_set1_epi32(row)));
-                            _mm512_mask_compressstoreu_epi32(values,mask,found);
-                            for(int i=0;i<__builtin_popcount(mask);++i)emit(selected[i],values[i]);
+                        alignas(64)uint32_t selected[16],values[16],block[Block];int row=0;
+                        while(row+16<=rg.size) {
+                            int n=std::min(Block,(rg.size-row)&~15);
+                            GatherIdentityBlock(*foreign,*child->dense,child->first,child->last,row,n,
+                                count==rg.size?nullptr:bitmap,block);
+                            for(int offset=0;offset<n;offset+=16) {
+                                auto found=_mm512_load_si512(block+offset);
+                                uint16_t mask=_mm512_cmpneq_epi32_mask(found,_mm512_setzero_si512());
+                                if(!mask)continue;
+                                _mm512_mask_compressstoreu_epi32(selected,mask,_mm512_add_epi32(lanes,_mm512_set1_epi32(row+offset)));
+                                _mm512_mask_compressstoreu_epi32(values,mask,found);
+                                int accepted=__builtin_popcount(mask);
+                                for(int i=0;i<accepted;++i)emit(selected[i],values[i]);
+                            }
+                            row+=n;
                         }
                         for(;row<rg.size;++row)if(count==rg.size || (bitmap[row/8]>>(row%8)&1))
                             emit(row,child->lookup(IdentityRead(*foreign,row)));
