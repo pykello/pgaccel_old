@@ -17,6 +17,13 @@ This work has not passed the fourfold target against both engines.
 | sum-v8 | 52.954 | 43.791 | 57.649 | 29.19 |
 | sum-v9 | 49.631 | 39.883 | 54.417 | 17.41 |
 | sum-v10 | 54.245 | 39.566 | 59.336 | 17.41 |
+| sum-v11 | 37.682 | 34.459 | 41.136 | 17.41 |
+
+Sum-v11 (`b2deffc`) builds independent tuple directories in parallel.
+Its median is 37.682 ms with nine correct answers and 17.41 MiB peak
+query allocations. All 169 native tests and focused sanitizer checks
+pass, including duplicate rows and keys concentrated in one partition.
+This version excludes the rejected prefix interval experiment.
 
 Reject sum-v10 (`d712eb2`, reverted by `58c4008`). Its SIMD prefix
 interval experiment measured 54.245 ms and did not show consistent gains
