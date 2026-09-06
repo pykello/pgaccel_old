@@ -96,3 +96,24 @@ TEST(CorrelatedSum, CompositeKeysOuterDuplicatesDatesAndMissingGroups) {
         }
     }
 }
+
+TEST(CorrelatedSum, WidePartialSumsRemainExactDespiteCancellation) {
+    auto integer=std::make_shared<Int64Type>();
+    auto registry=test::Table({{test::Raw({1,2}),test::Raw({1,1}),test::Raw({1,1})}},
+        {{"pk",integer},{"sk",integer},{"avail",integer}});
+    auto parts=test::Table({{test::Raw({1,2})}},{{"k",integer}});
+    registry.emplace("p",std::move(parts.at("t")));
+    auto facts=test::Table({{test::Raw({1,1,1,2,2,2}),test::Raw({1,1,1,1,1,1}),
+        test::Raw({INT64_MAX,INT64_MAX,-INT64_MAX,INT64_MIN,INT64_MIN,INT64_MAX})}},
+        {{"pk",integer},{"sk",integer},{"qty",integer}});
+    registry.emplace("f",std::move(facts.at("t")));
+    auto q=ParseSelect("SELECT pk FROM t WHERE pk IN (SELECT k FROM p) AND avail > "
+        "(SELECT 0.5*sum(qty) FROM f WHERE f.pk=t.pk AND f.sk=t.sk) ORDER BY pk",registry);
+    ASSERT_TRUE(q.ok())<<q.status().Message();
+    for(bool avx:{false,true})for(bool parallel:{false,true}) {
+        auto fast=ExecuteCorrelatedSum(*q,avx,parallel);ASSERT_TRUE(fast);
+        ASSERT_TRUE(fast->ok())<<fast->status().Message();
+        auto expected=ExecuteQuery(GenericSum(*q),false,false);ASSERT_TRUE(expected.ok());
+        EXPECT_EQ((*fast)->values,expected->values);EXPECT_EQ((*fast)->values,Rows({{"2"}}));
+    }
+}

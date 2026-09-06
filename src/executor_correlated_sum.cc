@@ -25,6 +25,29 @@ bool SumScalarFormula(const Expression &e, int slot, int depth = 0) {
         e.left && e.right && SumScalarFormula(*e.left, slot, depth + 1) && SumScalarFormula(*e.right, slot, depth + 1);
 }
 struct SumState { Wide sum = 0; uint64_t count = 0; };
+struct NarrowSumState { int64_t sum = 0; uint64_t count = 0; };
+// Bound positive and negative contributions separately: every subset, not
+// just the final total, must fit before worker accumulators can be narrowed.
+bool SumFits64(const ColumnarTable &table, const ColumnRef &column) {
+    auto type = column.Type()->type_num();
+    if (type != INT32_TYPE && type != INT64_TYPE && type != DECIMAL_TYPE) return false;
+    Wide low = 0, high = 0;
+    for (int g = 0; g < table.RowGroupCount(); ++g) {
+        const auto &rg = table.GetRowGroup(g); if (!rg.size) continue;
+        auto data = rg.columns[column.columnIdx].get(); Wide lo, hi;
+        if (data->type != ColumnDataBase::RAW_COLUMN_DATA) return false;
+        if (type == INT32_TYPE) {
+            auto raw = static_cast<const RawColumnData<Int32Type> *>(data); lo = raw->minValue; hi = raw->maxValue;
+        } else if (type == DECIMAL_TYPE) {
+            auto raw = static_cast<const RawColumnData<DecimalType> *>(data); lo = raw->minValue; hi = raw->maxValue;
+        } else {
+            auto raw = static_cast<const RawColumnData<Int64Type> *>(data); lo = raw->minValue; hi = raw->maxValue;
+        }
+        low += std::min<Wide>(0, lo) * rg.size; high += std::max<Wide>(0, hi) * rg.size;
+        if (low < INT64_MIN || high > INT64_MAX) return false;
+    }
+    return true;
+}
 struct SumOuterRow { uint32_t stripe, row, slot; };
 }
 std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool avx, bool parallel) {
@@ -139,9 +162,9 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
         auto filter = child.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(child.filterClauses, avx);
         auto &facts = *child.tables[0];
         int workers = parallel ? std::min(8, std::max(1, facts.RowGroupCount())) : 1;
-        auto partials = RunTasks(workers, [&](int worker) {
+        auto scan = [&]<class State>() { return RunTasks(workers, [&](int worker) {
             ScopedValueResource memory(budget); Scratch scratch(budget, BITMAP_SIZE);
-            std::pmr::vector<SumState> states(index.size(), &budget); uint8_t bitmap[BITMAP_SIZE];
+            std::pmr::vector<State> states(index.size(), &budget); uint8_t bitmap[BITMAP_SIZE];
             for (int g = worker; g < facts.RowGroupCount(); g += workers) {
                 const auto &rg = facts.GetRowGroup(g);
                 if (filter) { if (!filter->ExecuteSet(rg, bitmap)) continue; }
@@ -151,13 +174,16 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
                     auto slot = index.find(keyAt(rg, scalar.innerKeys, row));
                     if (slot == decltype(index)::missing) return;
                     auto &state = states[slot];
-                    state.sum = Add(state.sum, Read(rg, *child.aggregateClauses[sum].columnRef, row).number); ++state.count;
+                    Wide value = Read(rg, *child.aggregateClauses[sum].columnRef, row).number;
+                    if constexpr (std::is_same_v<State, NarrowSumState>) state.sum += int64_t(value);
+                    else state.sum = Add(state.sum, value);
+                    ++state.count;
                 });
             }
             return states;
-        });
+        }); };
         std::pmr::vector<SumState> states(index.size(), &budget);
-        RunTasks(workers, [&](int worker) {
+        auto merge = [&](const auto &partials) { RunTasks(workers, [&](int worker) {
             ScopedValueResource memory(budget);
             for (size_t slot = index.size() * worker / workers;
                  slot < index.size() * (worker + 1) / workers; ++slot) {
@@ -170,7 +196,9 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
                         [&](const ColumnRef &) { return Cell{states[slot].sum}; }).number;
             }
             return 0;
-        });
+        }); };
+        if (SumFits64(facts, *child.aggregateClauses[sum].columnRef)) merge(scan.template operator()<NarrowSumState>());
+        else merge(scan.template operator()<SumState>());
         bool numeric = q.numericMembershipOutput && q.aggregateClauses.size() == 1 &&
             q.aggregateClauses[0].columnRef->Type()->type_num() != STRING_TYPE &&
             q.orderBy.empty() && !q.limit && !q.offset;
