@@ -25,6 +25,13 @@ This work has not passed the fourfold target against both engines.
 | sum-v16 | 33.654 | 28.426 | 37.714 | 17.41 |
 | sum-v17 | 36.378 | 28.462 | 41.981 | 17.41 |
 | sum-v18 | 32.915 | 28.005 | 36.714 | 17.41 |
+| sum-v19 | 25.244 | 22.800 | 29.445 | 1.93 |
+
+Sum-v19 (`409c4ca`) pushes the parent output-key domain into correlated
+groups. Its SF10 iteration median is 25.244 ms, with all nine answers
+correct. The fresh SF10 confirmation passes at 31.368 ms versus DuckDB
+132.183 ms and ClickHouse 480.652 ms; SF100 confirmation is pending.
+See [algorithm and guards](OUTPUT-DOMAINS.md).
 
 Sum-v18 (`ec6f893`) skips identity scaling in membership operations.
 Its nine-trial median is 32.915 ms, but the fresh confirmation measured
