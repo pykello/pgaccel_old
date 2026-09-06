@@ -48,3 +48,16 @@ key-offset arithmetic had no clear gain; signed-boundary tests remain.
 Complement sharing alone saved memory but regressed latency, motivating
 a branch-free construction experiment. It still did not beat v3, so both
 sharing experiments were rejected. The faster separate bitmaps remain.
+
+
+## Q19 disjunctive join aggregation
+
+The retained implementation compiles shared native filter leaves and
+Boolean bitmap operations, then probes exact build-key membership for
+each disjunct. Matching probe rows are unioned before arithmetic so
+overlapping branches contribute once. Sequence-key uniqueness is proved
+during each statement; unsupported shapes use the general executor.
+
+Nine correct SF10 trials: warm median 21.922 ms,
+range 21.681–24.596 ms. Retained; final scale results
+and earlier-query regression checks are in [SIX.md](SIX.md).

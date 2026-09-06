@@ -1391,5 +1391,75 @@
       "correct": true,
       "query_peak_bytes": 15687120
     }
+  ],
+  "q19_iterations": [
+    {
+      "version": 1,
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T07:43:21.292948+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-disjunct-v1-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-before-sf10.jsonl",
+          "database": null,
+          "runner": "build/query_runner",
+          "native": "/home/hadi/projects/tpch-work/native-sf10",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            19
+          ]
+        },
+        "source_revision": "a0ccfe39dae4144ddb63cce5a957210e2f608ace",
+        "source_dirty": true,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 59986052,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 17813.202311,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 10277470208,
+          "load_ms": 17813.241369,
+          "indexed_columns": [],
+          "client_load_ms": 17830.10282101168
+        },
+        "runner_sha256": "c8a117166de2f96ac8276e4a7a21f26ae75a5b360efe4371ca127f731e4c500d",
+        "open_ms": 17847.783906006953,
+        "loaded_rss": {
+          "VmRSS": 10277470208,
+          "VmHWM": 10277470208
+        }
+      },
+      "client_ms": [
+        29.741944003035314,
+        24.59561699652113,
+        22.477667007478885,
+        22.061543000745587,
+        21.942621999187395,
+        21.901058993535116,
+        21.750957996118814,
+        21.792018989799544,
+        21.68073099164758
+      ],
+      "correct": true,
+      "raw_sha256": "268b36dee7986526d2fb4647dfd283f82449eb008fe875ffe20553dc0fdde689"
+    }
   ]
 }
