@@ -113,7 +113,35 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
                 const auto &rg=facts.GetRowGroup(g);
                 for(int begin=0;begin<rg.size;begin+=Block) {
                     int n=std::min(Block,rg.size-begin);decode(rg,foreign,begin,n,keys);decode(rg,counted,begin,n,values);
-                    for(int i=0;i<n;++i) {
+                    int i=0;
+                    if(avx && (q.membershipQueries.empty() || !membership.bits.empty() || membership.values.empty())) {
+                        alignas(64)uint64_t packed[8];
+                        for(;i+8<=n;i+=8) {
+                            auto key=_mm512_load_si512(keys+i),value=_mm512_load_si512(values+i);
+                            auto slot=_mm512_sub_epi64(key,_mm512_set1_epi64(sequence.minimum()));
+                            __mmask8 valid=_mm512_cmp_epu64_mask(slot,_mm512_set1_epi64(rows),_MM_CMPINT_LT);
+                            auto group=_mm512_cvtepu32_epi64(_mm512_mask_i64gather_epi32(_mm256_set1_epi32(-1),valid,slot,groupIds.data(),4));
+                            valid&=_mm512_cmpneq_epi64_mask(group,_mm512_set1_epi64(UINT32_MAX));
+                            if(!q.membershipQueries.empty()) {
+                                __mmask8 found=0;
+                                if(!membership.bits.empty()) {
+                                    auto delta=_mm512_sub_epi64(value,_mm512_set1_epi64(membership.first));
+                                    auto in=valid & _mm512_cmpge_epi64_mask(value,_mm512_set1_epi64(membership.first)) &
+                                        _mm512_cmple_epi64_mask(value,_mm512_set1_epi64(membership.last));
+                                    auto words=_mm512_mask_i64gather_epi64(_mm512_setzero_si512(),in,
+                                        _mm512_srli_epi64(delta,6),membership.bits.data(),8);
+                                    found=in & _mm512_test_epi64_mask(_mm512_srlv_epi64(words,
+                                        _mm512_and_si512(delta,_mm512_set1_epi64(63))),_mm512_set1_epi64(1));
+                                }
+                                valid&=q.membershipQueries.front().anti?__mmask8(~found):found;
+                            }
+                            auto pair=_mm512_or_si512(_mm512_slli_epi64(group,32),
+                                _mm512_and_si512(_mm512_sub_epi64(value,_mm512_set1_epi64(low)),_mm512_set1_epi64(UINT32_MAX)));
+                            _mm512_mask_compressstoreu_epi64(packed,valid,pair);
+                            pairs.insert(pairs.end(),packed,packed+__builtin_popcount(valid));
+                        }
+                    }
+                    for(;i<n;++i) {
                         uint64_t slot=uint64_t(keys[i])-uint64_t(sequence.minimum());if(slot>=rows)continue;
                         auto group=groupIds[slot];if(group==UINT32_MAX)continue;
                         if(!q.membershipQueries.empty() && membership.contains(Cell{Wide(values[i])})==q.membershipQueries.front().anti)continue;

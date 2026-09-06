@@ -48,3 +48,29 @@ TEST(JoinDistinct, SignedEndpointsAndUnsupportedDomains) {
         auto actual=ExecuteQuery(*q,true,true);ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,reference->values);
     }
 }
+TEST(JoinDistinct, MaskedGatherBoundsTailsAndMembershipRepresentations) {
+    for(int64_t first:{INT64_MIN,INT64_MAX-8}) {
+        std::vector<int64_t> keys,groups,foreign,suppliers;
+        for(int i=0;i<9;++i){keys.push_back(first+i);groups.push_back(i%3);}
+        for(int i=0;i<259;++i) {
+            foreign.push_back(i%13<9?first+i%13:(first==INT64_MIN?INT64_MAX:INT64_MIN));
+            suppliers.push_back(first+i%7);
+        }
+        auto registry=test::Table({{test::Raw(keys),test::Raw(groups)}},
+            {{"k",std::make_shared<Int64Type>()},{"g",std::make_shared<Int64Type>()}});
+        auto facts=test::Table({{test::Raw(foreign),test::Raw(suppliers)}},
+            {{"k",std::make_shared<Int64Type>()},{"s",std::make_shared<Int64Type>()}});
+        auto excluded=test::Table({{test::Raw({INT64_MIN,INT64_MIN+2,INT64_MAX-2,INT64_MAX})}},{{"s",std::make_shared<Int64Type>()}});
+        registry.emplace("f",std::move(facts.at("t")));registry.emplace("x",std::move(excluded.at("t")));
+        for(const std::string clause:{"", " AND f.s IN (SELECT s FROM x)", " AND f.s NOT IN (SELECT s FROM x)",
+            " AND f.s IN (SELECT s FROM x WHERE s<0)", " AND f.s NOT IN (SELECT s FROM x WHERE s>0)",
+            " AND f.s NOT IN (SELECT s FROM x WHERE s=0)"}) {
+            auto q=ParseSelect("SELECT t.g,count(DISTINCT f.s) FROM t,f WHERE t.k=f.k"+clause+" GROUP BY t.g ORDER BY t.g",registry);ASSERT_TRUE(q.ok());
+            auto expected=ExecuteRelational(*q,false,false);ASSERT_TRUE(expected.ok())<<expected.status().Message();
+            for(bool avx:{false,true})for(bool parallel:{false,true}) {
+                auto actual=ExecuteJoinDistinct(*q,avx,parallel);ASSERT_TRUE(actual);ASSERT_TRUE(actual->ok())<<actual->status().Message();
+                EXPECT_EQ((**actual).values,expected->values);
+            }
+        }
+    }
+}
