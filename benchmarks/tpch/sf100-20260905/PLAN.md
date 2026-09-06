@@ -69,11 +69,11 @@ and EXPLAIN plans are archived under `greedy-attempt-*` and
 `clickhouse-q05-*-plan.txt`. This is an interrupted diagnostic, not a
 recorded Q5 timeout or a completed default-setting comparison.
 
-A full diagnostic with global join reordering disabled is retained under
+A partial diagnostic with global join reordering disabled is retained under
 `global-noreorder-*`. It avoids Q5's intermediate explosion, but Q3 takes
 61–78 seconds per trial versus about two seconds in the first attempt.
-This demonstrates why the final configuration does not disable the planner
-for every query.
+Q1–Q7 completed; Q8 was interrupted after 243 seconds. This demonstrates
+why the final configuration does not disable the planner for every query.
 
 The final ClickHouse phase restarts from Q1 after another server restart
 and full reload into `tpch_sf100_final`. It uses the default planner except
