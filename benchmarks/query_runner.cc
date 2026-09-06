@@ -20,6 +20,8 @@ static std::string Json(const std::string &s) {
     return out+'"';
 }
 int main(int argc,char **argv) {
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
     if(argc<7) { std::cerr<<"query_runner parquet|native|native-dir PATH TABLE SCHEMA|- PARALLEL AVX [REPEATS=1] [SAVE_PATH]\n";return 2; }
     using Clock=std::chrono::steady_clock;auto begin=Clock::now();
     std::map<std::string,std::string> schema;
