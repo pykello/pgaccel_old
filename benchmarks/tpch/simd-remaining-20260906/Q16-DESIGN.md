@@ -64,3 +64,24 @@ normalized keys and static integer comparisons reduce interpreted tuple
 comparison overhead. Our compact dictionary domains permit exact ordinal
 keys without storing string prefixes or truncating comparisons. Implement
 and measure these changes independently before retaining performance claims.
+
+## Narrow probes and output materialization
+
+The first gather implementation widens input blocks and probes eight
+64-bit keys. A later path proves both key domains fit signed 32-bit bounds,
+then probes sixteen rows directly from raw storage, skipping supplier
+loads when the dimension mask is empty. It preserves masked tails and
+falls back to wide keys or scalar sparse memberships as needed.
+
+Output rows are independent after ordering. The executor reserves their
+storage and charges a conservative per-row string bound before formatting
+disjoint ranges in parallel. This removes serial formatting and avoids
+per-cell budget atomics between workers. The isolated SF10 client median
+is 62.943 ms at `a57b51c`, still short of the fourfold peer requirement.
+
+The benchmark runner now buffers the identical JSON rows before writing
+them. Escaping, complete answers, and client timing boundaries are unchanged.
+This is a response serialization improvement, separate from engine runtime;
+its additional response buffer is reflected in process memory, not the
+executor's temporary allocation counter. Final comparisons use one frozen
+runner at both scales and retain all answer conversions in client timing.

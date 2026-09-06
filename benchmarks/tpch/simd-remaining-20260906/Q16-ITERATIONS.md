@@ -13,10 +13,19 @@ Every answer matches the DuckDB oracle. These are not promotion runs.
 | sortkey-v1 | 105.942 | 69.193 | 39064365 |
 | gather-v1 | 94.416 | 59.438 | 39064301 |
 | json-v1 | 81.278 | 61.714 | 39064301 |
+| nokey-v1 | 89.032 | 66.668 | 39064301 |
+| profile-v2 | 76.556 | 57.271 | 39064301 |
+| narrow-v1 | 75.356 | 55.004 | 39063789 |
+| format-v1 | 62.943 | 41.168 | 39063789 |
 
 The profile binary adds per-stage timers and is diagnostic only. Its
-warm phase medians are approximately: preparation 2.9 ms, dimension
+First-profile warm phase medians: preparation 2.9 ms, dimension
 3.7 ms, membership 2.4 ms, fact scan 12.4 ms, distinct sorting 19.6 ms,
 and output 37.8 ms. The original uninstrumented runner is retained.
+After radix, gathers, buffered JSON, and the sort-key revert, profile v2
+shows fact probing around 17.3 ms, distinct 7.5 ms, ordering 10.0 ms,
+and formatting 12.2 ms. Reverting the sort-key experiment did not recover
+its earlier baseline timing; retain that uncertainty rather than attributing
+all timing differences to one sorting algorithm.
 
 [Design](Q16-DESIGN.md) · [Every iteration trial](Q16-ITERATIONS.json)
