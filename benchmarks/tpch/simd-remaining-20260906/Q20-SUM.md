@@ -23,6 +23,16 @@ This work has not passed the fourfold target against both engines.
 | sum-v14 | 34.974 | 31.622 | 38.053 | 17.41 |
 | sum-v15 | 40.503 | 33.957 | 47.720 | 17.41 |
 | sum-v16 | 33.654 | 28.426 | 37.714 | 17.41 |
+| sum-v17 | 36.378 | 28.462 | 41.981 | 17.41 |
+
+The [latest 15-trial confirmation](Q20-CONFIRM1.md) measured 37.346 ms
+against DuckDB 136.716 ms and ClickHouse 457.847 ms. The current target
+is 34.179 ms; SF100 was not started because this gate failed.
+
+Sum-v17 (`640dce8`) binds raw probe decoding once per stripe. Its full
+Q20 iteration median was 36.378 ms; a [controlled projection comparison](DOMAIN-DECODE.md)
+shows a consistent local gain. All 172 native tests and focused sanitizers
+pass, including signed wraparound and stripe-boundary cases.
 
 Sum-v16 (`df36317`) prunes generic inner joins with tiny integer build
 domains. Its median is 33.654 ms with nine correct answers. Q2 measures
@@ -106,7 +116,7 @@ new dependency is introduced.
 
 The prior fresh SF10 competitor baseline is DuckDB 145.186 ms and
 ClickHouse 437.550 ms. A new comparison against both engines is required
-before promotion; [fresh results](Q20-PEERS.md) now set a 32.720 ms target. Q17 also
+before promotion; [latest confirmation](Q20-CONFIRM1.md) sets a 34.179 ms target. Q17 also
 validated in the same sum-v1 run and remains below its SF10 target.
 
 [Full objective](ALL-QUERY-GOAL.md) · [Q17 scale results](Q17.md) ·

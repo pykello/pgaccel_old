@@ -1,4 +1,6 @@
-# Q20 fresh SF10 comparison
+# Q20 earlier SF10 comparison
+
+Superseded by the [latest confirmation](Q20-CONFIRM1.md).
 
 Checkpoint `2bbcf4a`, eight workers, 15 sequential trials per engine.
 Warm medians exclude only trial 1. Client elapsed time includes execution,
