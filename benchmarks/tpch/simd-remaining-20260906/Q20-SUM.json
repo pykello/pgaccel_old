@@ -1747,5 +1747,255 @@
         }
       ]
     }
+  },
+  "sum-v7": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T09:46:04.607188+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-sum-v7-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-domain-before-sf10.jsonl",
+        "database": null,
+        "runner": "/home/hadi/projects/tpch-work/checkpoints/q20-sum-v7-query-runner",
+        "native": "/home/hadi/projects/tpch-work/native-sf10",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 9,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          20,
+          17
+        ]
+      },
+      "source_revision": "2bbcf4a9779a50773cd4fb48ba0bb5a527150471",
+      "source_dirty": false,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 59986052,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 17903.262831,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 10277675008,
+        "load_ms": 17903.300578,
+        "indexed_columns": [],
+        "client_load_ms": 17920.66404900106
+      },
+      "runner_sha256": "672cdac4f7d55accccf462f36ef1c92ea16f06c10621e44ce4c60d839a54fd6d",
+      "open_ms": 17934.056471000076,
+      "loaded_rss": {
+        "VmRSS": 10278035456,
+        "VmHWM": 10278035456
+      }
+    },
+    "raw_sha256": "67a3afbdb866c57bd3aa1b073ab981a3407e103de291a16b9a901d918d59c768",
+    "query": {
+      "id": 20,
+      "sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+      "status": "success",
+      "executed_sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+      "correct": true,
+      "finished_at_utc": "2026-09-06T09:46:23.122645+00:00",
+      "oracle_types": [
+        "VARCHAR",
+        "VARCHAR"
+      ],
+      "trials": [
+        {
+          "execution_ms": 52.767552,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 105399,
+            "wchar": 91856,
+            "syscr": 108,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 54.87710499437526,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10283347968,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 47.800395,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91856,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 50.667481002165005,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10300035072,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 49.681953,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91856,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 52.84210899844766,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10300035072,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 53.952558,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91856,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 57.12834499718156,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10300035072,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 57.771469,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91856,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 60.99859799724072,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10299936768,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 61.997641,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91856,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 69.53026299015619,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10299936768,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 62.919767,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91856,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 66.08854199294001,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10300297216,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 62.41326,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91855,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 65.77816799108405,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10300035072,
+            "VmHWM": 10312638464
+          }
+        },
+        {
+          "execution_ms": 61.503879,
+          "query_peak_allocation_bytes": 31146416,
+          "spill_bytes_written": 0,
+          "process_io_delta": {
+            "rchar": 910,
+            "wchar": 91856,
+            "syscr": 1,
+            "syscw": 23,
+            "read_bytes": 0,
+            "write_bytes": 0,
+            "cancelled_write_bytes": 0
+          },
+          "client_ms": 64.73493100202177,
+          "correct": true,
+          "rss": {
+            "VmRSS": 10300035072,
+            "VmHWM": 10312638464
+          }
+        }
+      ]
+    }
   }
 }

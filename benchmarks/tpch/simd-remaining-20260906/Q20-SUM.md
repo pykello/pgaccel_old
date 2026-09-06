@@ -13,6 +13,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v4 | 65.962 | 60.470 | 72.885 | 30.73 |
 | sum-v5 | 63.145 | 60.754 | 82.531 | 30.73 |
 | sum-v6 | 62.231 | 53.149 | 71.507 | 30.73 |
+| sum-v7 | 62.867 | 50.667 | 69.530 | 29.70 |
+
+Sum-v7 (`2bbcf4a`) reserves the tuple directory. Its 62.867 ms median
+does not improve on sum-v6, though peak allocations fall by about 1 MiB.
+Retain provisionally for memory and parallel row collection; see the
+[fresh 15-trial comparison](Q20-PEERS.md) for the current target.
 
 Sum-v6 (`e620fb6`) scans source stripes in parallel. Its median is
 62.231 ms; the full warm range remains in the table rather than selecting
@@ -47,7 +53,7 @@ new dependency is introduced.
 
 The prior fresh SF10 competitor baseline is DuckDB 145.186 ms and
 ClickHouse 437.550 ms. A new comparison against both engines is required
-before promotion; the current DuckDB target remains unmet. Q17 also
+before promotion; [fresh results](Q20-PEERS.md) now set a 32.720 ms target. Q17 also
 validated in the same sum-v1 run and remains below its SF10 target.
 
 [Full objective](ALL-QUERY-GOAL.md) · [Q17 scale results](Q17.md) ·
