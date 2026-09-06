@@ -19,9 +19,10 @@ struct MembershipSet {
         values.clear(); bits.clear(); first = 0; last = -1;
         if (numbers.empty()) return;
         Wide factor = Power(scale - sourceScale);
-        Wide lo = Multiply(numbers.front(), factor), hi = lo;
+        auto normalize = [&](Wide value) { return factor == 1 ? value : Multiply(value, factor); };
+        Wide lo = normalize(numbers.front()), hi = lo;
         for (Wide number : numbers) {
-            Wide value = Multiply(number, factor);
+            Wide value = normalize(number);
             lo = std::min(lo, value); hi = std::max(hi, value);
         }
         if (lo >= INT64_MIN && hi <= INT64_MAX) {
@@ -31,13 +32,13 @@ struct MembershipSet {
                 words * sizeof(uint64_t) <= (budget.limit - budget.used.load()) / 2) {
                 bits.assign(words, 0); first = int64_t(lo); last = int64_t(hi);
                 for (Wide number : numbers) {
-                    uint64_t offset = uint64_t(Multiply(number, factor) - lo);
+                    uint64_t offset = uint64_t(normalize(number) - lo);
                     bits[offset / 64] |= uint64_t(1) << (offset % 64);
                 }
                 return;
             }
         }
-        for (Wide number : numbers) values.insert(Cell{Multiply(number, factor)});
+        for (Wide number : numbers) values.insert(Cell{normalize(number)});
     }
     void compact(Budget &budget) {
         if (values.empty()) return;
@@ -94,7 +95,7 @@ struct MembershipSet {
             uint8_t bit = uint8_t(1) << (row % 8);
             if (!(bitmap[row / 8] & bit)) continue;
             auto key = Read(rg, column, row);
-            if (!key.string) key.number = Multiply(key.number, Power(adjustment));
+            if (!key.string && adjustment) key.number = Multiply(key.number, Power(adjustment));
             if (contains(key) == anti) bitmap[row / 8] &= ~bit;
         }
     }
