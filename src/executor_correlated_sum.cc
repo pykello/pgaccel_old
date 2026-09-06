@@ -112,9 +112,13 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             else memset(bitmap, 0xff, (rg.size + 7) / 8);
             members.intersect(rg, membership.column, false, avx, bitmap);
             Selected(rg, bitmap, [&](int row) {
-                auto [slot, added] = index.get(keyAt(rg, scalar.outerKeys, row), [] { return uint8_t(0); });
-                outerRows.push_back({uint32_t(g), uint32_t(row), slot});
+                outerRows.push_back({uint32_t(g), uint32_t(row), 0});
             });
+        }
+        index.reserve(outerRows.size());
+        for (auto &selected : outerRows) {
+            const auto &rg = q.tables[0]->GetRowGroup(selected.stripe);
+            selected.slot = index.get(keyAt(rg, scalar.outerKeys, selected.row), [] { return uint8_t(0); }).first;
         }
         QueryResults results(q, budget);
         if (outerRows.empty()) return results.finish();

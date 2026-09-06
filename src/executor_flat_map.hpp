@@ -52,6 +52,20 @@ class FlatMap
     Entry &at(uint32_t index) { return entries[index]; }
     const Entry &at(uint32_t index) const { return entries[index]; }
 
+    void reserve(size_t count)
+    {
+        if (count > UINT32_MAX)
+            throw std::runtime_error("Query memory budget exceeded (flat map entry indexes)");
+        size_t capacity = std::max<size_t>(16, slots.size());
+        while (count > capacity - capacity / 4) {
+            if (capacity > slots.max_size() / 2)
+                throw std::runtime_error("Query memory budget exceeded (flat map capacity)");
+            capacity *= 2;
+        }
+        entries.reserve(count);
+        if (capacity > slots.size()) grow(capacity);
+    }
+
     template <class Factory>
     std::pair<uint32_t, bool> get(const Key &key, Factory initial)
     {
