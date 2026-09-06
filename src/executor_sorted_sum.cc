@@ -27,11 +27,11 @@ std::optional<Result<QueryOutput>> ExecuteSortedSum(const QueryDesc &q,bool avx,
         };
         auto scan=bounds.empty()
             ? ScanSortedSums(*q.tables[0],*q.groupExpressions[0]->column,*q.aggregateClauses[sum].expression,
-                filterRows,budget,avx,parallel)
+                filterRows,budget,avx,parallel,KeepSortedSums{},!filter)
             : ScanSortedSums(*q.tables[0],*q.groupExpressions[0]->column,*q.aggregateClauses[sum].expression,
                 filterRows,budget,avx,parallel,[&](int64_t value,int64_t total) {
                     return SortedSumMatches(bounds,key,value,total);
-                });
+                },!filter);
         return FinishSortedSums(q,key,sum,scan,budget,parallel);
     } catch (const NotDense &) { return {}; }
     catch (const std::exception &e) { return Status::Invalid(e.what()); }

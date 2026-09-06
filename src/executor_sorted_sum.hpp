@@ -39,7 +39,7 @@ struct KeepSortedSums { bool operator()(int64_t,int64_t) const {return true;} };
 // selected group can then require a cross-stripe merge.
 template<class Filter,class Keep=KeepSortedSums>
 SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,const Expression &value,
-    Filter filter,Budget &budget,bool avx,bool parallel,Keep keep={}) {
+    Filter filter,Budget &budget,bool avx,bool parallel,Keep keep={},bool allRows=false) {
     SortedSumScan result(budget);
     auto type=key.Type()->type_num();if (type!=INT32_TYPE && type!=INT64_TYPE) throw NotDense{};
     for (int g=0;g<table.RowGroupCount();++g) {
@@ -73,15 +73,15 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
             if (op.low*rg.size<INT64_MIN || op.high*rg.size>INT64_MAX) throw NotDense{};
             const auto raw=static_cast<const RawColumnDataBase *>(rg.columns[key.columnIdx].get());
             auto &stripe=result.stripes[f];int n=0;
-            auto consume=[&] {
+            auto consume=[&]<bool Gather>(int begin) {
                 switch (raw->bytesPerValue) {
-                case 1:DecodeNumbers<int8_t,true>(raw,0,n,keys,avx,selected);break;
-                case 2:DecodeNumbers<int16_t,true>(raw,0,n,keys,avx,selected);break;
-                case 4:DecodeNumbers<int32_t,true>(raw,0,n,keys,avx,selected);break;
-                case 8:DecodeNumbers<int64_t,true>(raw,0,n,keys,avx,selected);break;
+                case 1:DecodeNumbers<int8_t,Gather>(raw,begin,n,keys,avx,selected);break;
+                case 2:DecodeNumbers<int16_t,Gather>(raw,begin,n,keys,avx,selected);break;
+                case 4:DecodeNumbers<int32_t,Gather>(raw,begin,n,keys,avx,selected);break;
+                case 8:DecodeNumbers<int64_t,Gather>(raw,begin,n,keys,avx,selected);break;
                 default:throw NotDense{};
                 }
-                program.evaluate<true>(0,n,buffers,avx,selected);const auto values=buffers+root*Block;
+                program.evaluate<Gather>(begin,n,buffers,avx,selected);const auto values=buffers+root*Block;
                 for (int i=0;i<n;++i) {
                     if (stripe.groups.empty() || stripe.groups.back().key!=keys[i]) {
                         if (!stripe.groups.empty() && stripe.groups.back().key>keys[i]) throw NotDense{};
@@ -97,7 +97,14 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
                 }
                 stripe.count+=n;n=0;
             };
-            Selected(rg,bitmap,[&](int row){selected[n++]=row;if (n==Block) consume();});if (n) consume();
+            if(allRows) {
+                for(int begin=0;begin<rg.size;begin+=Block) {
+                    n=std::min(Block,rg.size-begin);consume.template operator()<false>(begin);
+                }
+            } else {
+                Selected(rg,bitmap,[&](int row){selected[n++]=row;if(n==Block)consume.template operator()<true>(0);});
+                if(n)consume.template operator()<true>(0);
+            }
         }
         return 0;
     });
