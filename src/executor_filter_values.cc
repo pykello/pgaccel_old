@@ -17,7 +17,7 @@ class ValuePredicate : public FilterNodeImpl {
     // non-ASCII values, including its treatment of malformed encodings.
     bool yes = prefix && IsAscii(value.text) ? value.text.starts_with(needle) :
         pattern
-            ? (substring ? value.text.find(needle) != std::string_view::npos
+            ? (substring && IsAscii(value.text) ? value.text.find(needle) != std::string_view::npos
                          : RE2::FullMatch(re2::StringPiece(value.text.data(),
                                                            value.text.size()),
                                           *pattern))
