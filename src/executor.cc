@@ -43,6 +43,7 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &, bool, bool)
 std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteSeparateSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteIndependentRatio(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecutePairedProfit(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteDisjunctiveSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteJoinSum(const QueryDesc &, bool, bool);
 Result<QueryOutput> ExecuteRelational(const QueryDesc &, bool, bool);
@@ -73,6 +74,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if(auto convergent=ExecuteConvergentSum(query,useAvx,useParallelism)) return std::move(*convergent);
         if(auto separate=ExecuteSeparateSum(query,useAvx,useParallelism)) return std::move(*separate);
         if(auto ratio=ExecuteIndependentRatio(query,useAvx,useParallelism)) return std::move(*ratio);
+        if(auto profit=ExecutePairedProfit(query,useAvx,useParallelism)) return std::move(*profit);
         if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) return std::move(*joined);
         if(auto disjunction=ExecuteDisjunctiveSum(query,useAvx,useParallelism)) return std::move(*disjunction);
         return ExecuteRelational(query, useAvx, useParallelism);
