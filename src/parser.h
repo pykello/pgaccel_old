@@ -108,6 +108,8 @@ struct AggregateClause {
 };
 
 struct QueryDesc {
+    // Internal membership consumers may request one unformatted numeric column.
+    bool numericMembershipOutput = false;
     std::vector<ColumnarTable *> tables;
     struct MaterializedSource {
         size_t table;

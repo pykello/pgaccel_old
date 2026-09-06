@@ -54,6 +54,8 @@ struct QueryOutput {
     uint64_t spillBytes = 0;
     Row fieldNames;
     std::vector<Row> values;
+    // Present only for an internal numeric membership projection.
+    std::optional<std::vector<__int128_t>> numericMembership;
 };
 
 Result<QueryOutput> ExecuteQuery(

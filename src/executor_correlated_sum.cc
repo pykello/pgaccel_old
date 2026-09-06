@@ -132,18 +132,32 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             if (states[slot].count && sum != 0)
                 states[slot].sum = EvaluateWith(*child.aggregateClauses[0].expression, [&](const ColumnRef &) { return Cell{states[slot].sum}; }).number;
         }
+        bool numeric = q.numericMembershipOutput && q.aggregateClauses.size() == 1 &&
+            q.aggregateClauses[0].columnRef->Type()->type_num() != STRING_TYPE &&
+            q.orderBy.empty() && !q.limit && !q.offset;
+        // Standard storage outlives this child's memory resource. Charge its
+        // whole capacity before allocation; the parent accounts retained bytes.
+        Scratch numericMemory(budget, numeric ? outerRows.size() * sizeof(Wide) + 64 : 0);
+        std::vector<Wide> numericValues;
+        if (numeric) numericValues.reserve(outerRows.size());
         for (const auto &selected : outerRows) {
             const auto &state = states[selected.slot]; if (!state.count) continue;
             const auto &rg = q.tables[0]->GetRowGroup(selected.stripe);
             if (!EvaluateWith(comparison, [&](const ColumnRef &column) {
                 return column.tableIdx == -2 ? Cell{state.sum} : Read(rg, column, selected.row);
             }).number) continue;
+            if (numeric) {
+                numericValues.push_back(Read(rg, *q.aggregateClauses[0].columnRef, selected.row).number);
+                continue;
+            }
             results.addLazy([&](size_t i) {
                 const auto &column = *q.aggregateClauses[i].columnRef;
                 return FinalCell{Read(rg, column, selected.row), column.Type().get()};
             });
         }
-        return results.finish();
+        auto output = results.finish();
+        if (numeric) output.numericMembership = std::move(numericValues);
+        return output;
     } catch (const NotDense &) { return {}; }
     catch (const std::exception &e) { return Status::Invalid(e.what()); }
 }

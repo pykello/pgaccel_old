@@ -36,6 +36,8 @@ uint64_t OutputFootprint(const QueryOutput &output) {
         bytes += row.capacity() * sizeof(std::string) + 64;
         for (const auto &value : row) bytes += value.capacity() + 17;
     };
+    if (output.numericMembership)
+        bytes += output.numericMembership->capacity() * sizeof(Wide) + 64;
     strings(output.fieldNames);
     bytes += output.values.capacity() * sizeof(Row) + 64;
     for (const auto &row : output.values) strings(row);
@@ -173,15 +175,20 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx, bool pa
             int scale = std::max(sourceScale, Scale(membership.column.Type().get()));
             memberships.emplace_back(budget, scale);
             auto sub = childPlan(*membership.query);
+            sub.numericMembershipOutput = true;
             auto result = ExecuteQuery(sub, avx, parallel && !sub.membershipQueries.empty());
             if (!result.ok()) return Status::Invalid("Membership subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;
             Scratch childMemory(budget, childOutputBytes(*result));
-            for (const auto &row : result->values) {
-                Cell key = ResultKey(row[0], membership.resultType.get(), scale, budget);
-                memberships.back().values.insert(std::move(key));
+            if (result->numericMembership) {
+                memberships.back().assignNumbers(*result->numericMembership, sourceScale, budget);
+            } else {
+                for (const auto &row : result->values) {
+                    Cell key = ResultKey(row[0], membership.resultType.get(), scale, budget);
+                    memberships.back().values.insert(std::move(key));
+                }
+                memberships.back().compact(budget);
             }
-            memberships.back().compact(budget);
         }
         std::pmr::vector<RowId> bound(tables, 0, &budget);
         struct MissingScalar {};
