@@ -32,6 +32,7 @@ std::optional<Result<QueryOutput>> ExecuteDistinct(const QueryDesc &, bool, bool
 Result<QueryOutput> ExecuteExternal(const QueryDesc &, bool);
 std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteComposite(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteCorrelatedMin(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &, bool, bool);
@@ -51,6 +52,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         std::any_of(query.aggregateClauses.begin(), query.aggregateClauses.end(), [](const auto &a) {
             return a.type == AggregateClause::AGGREGATE_FORMULA;
         })) {
+        if(auto sorted=ExecuteSortedJoinSum(query,useAvx,useParallelism)) return std::move(*sorted);
         if(auto minimum=ExecuteCorrelatedMin(query,useAvx,useParallelism)) return std::move(*minimum);
         if(auto summed=ExecuteCorrelatedSum(query,useAvx,useParallelism)) return std::move(*summed);
         if(auto correlated=ExecuteCorrelatedAvg(query,useAvx,useParallelism)) return std::move(*correlated);
