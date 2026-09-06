@@ -30,6 +30,9 @@ or sharing is not assumed. All 155 native and sanitizer tests pass.
 | pgaccel-domain-v3-sf10 | Q17 | 195.697 | 193.578 | 201.508 | 3.20 |
 | pgaccel-domain-v3-sf10 | Q2 | 187.239 | 186.044 | 188.367 | 6.45 |
 | pgaccel-domain-v3-sf10 | Q20 | 895.040 | 888.271 | 923.528 | 94.72 |
+| pgaccel-domain-v4-sf10 | Q17 | 122.720 | 121.438 | 123.378 | 3.62 |
+| pgaccel-domain-v4-sf10 | Q2 | 182.752 | 180.945 | 184.545 | 6.45 |
+| pgaccel-domain-v4-sf10 | Q20 | 867.227 | 852.793 | 889.320 | 94.72 |
 | pgaccel-domain-capacity-sf100 | Q20 | 10853.663 | 10799.385 | 10907.941 | 952.78 |
 
 Retain v1 for the measured capacity and latency improvement. It is still
@@ -45,6 +48,12 @@ qualify. Broader or unsupported shapes keep the prior execution plan.
 Duplicate dimension rows retain join multiplicity. All 159 native and
 sanitizer tests pass. Q17 and Q2 improve substantially but still miss
 the fourfold target; their measured temporary states are now small.
+
+Retain v4: parallel native/membership mask preparation uses at most
+2 MiB batch scratch and preserves serial correlation bindings. Q17 falls
+from 195.697 ms to 122.720 ms. Q2 and Q20 changes are small enough that
+no separate speedup claim is made for them. All 160 native and sanitizer
+tests pass, including partial final batches and anti-membership.
 
 SF100 capacity checks, if listed above, are separate from the latency
 gate. They run under a 192 GiB service cap, zero swap, and a 64 GiB query
@@ -62,3 +71,10 @@ Service peak including loading/cache is 107.07 GiB, with
 its 64 GiB query allocation limit; this capacity failure is resolved.
 Competitors were not rerun at SF100 in this capacity-only experiment.
 This is not a fresh full 22-query comparison or a latency-gate pass.
+
+## Shared-executor regression checks
+
+Q16, Q18 and Q22 each pass a fresh SF10 answer check against DuckDB and
+ClickHouse using the v4 binary (`6cba692`). These are single-trial
+correctness checks, not warm performance comparisons. Evidence and raw
+hashes are in [MEMBERSHIP-REGRESSION.json](MEMBERSHIP-REGRESSION.json).

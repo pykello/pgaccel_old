@@ -1,0 +1,287 @@
+{
+  "pgaccel": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:30:42.247753+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-membership-regression-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-membership-regression-sf10.jsonl",
+        "database": null,
+        "runner": "/home/hadi/projects/tpch-work/checkpoints/q20-domain-v4-query-runner",
+        "native": "/home/hadi/projects/tpch-work/native-sf10",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 1,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          16,
+          18,
+          22
+        ]
+      },
+      "source_revision": "8a4ef62cd33c46d82cba597beb8121e07b176182",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 59986052,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 17985.286161,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 10277957632,
+        "load_ms": 17985.347117,
+        "indexed_columns": [],
+        "client_load_ms": 17998.46324499231
+      },
+      "runner_sha256": "0e89c534ee2c98d21dd6555f4a1fb4d0d65d37cd540a70d92e673fadc28d90b4",
+      "open_ms": 18014.162491992465,
+      "loaded_rss": {
+        "VmRSS": 10277957632,
+        "VmHWM": 10277957632
+      }
+    },
+    "sha256": "011c7b72bc37a2e6fe5d5a4ee5b3a7cd5daabc21205bda8223d7ccc26e5e23d4",
+    "queries": [
+      {
+        "id": 16,
+        "correct": true,
+        "client_ms": 3603.3574970060727
+      },
+      {
+        "id": 18,
+        "correct": true,
+        "client_ms": 52494.47315299767
+      },
+      {
+        "id": 22,
+        "correct": true,
+        "client_ms": 12292.115238989936
+      }
+    ]
+  },
+  "duckdb": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:30:39.199201+00:00",
+      "engine": "duckdb",
+      "settings": {
+        "engine": "duckdb",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-membership-regression-sf10.jsonl",
+        "oracle": null,
+        "database": "/home/hadi/projects/tpch-work/sf10/tpch.duckdb",
+        "runner": null,
+        "native": null,
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 1,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          16,
+          18,
+          22
+        ]
+      },
+      "source_revision": "8a4ef62cd33c46d82cba597beb8121e07b176182",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "version": "1.4.3",
+      "tables": [
+        [
+          "customer",
+          1500000
+        ],
+        [
+          "lineitem",
+          59986052
+        ],
+        [
+          "nation",
+          25
+        ],
+        [
+          "orders",
+          15000000
+        ],
+        [
+          "part",
+          2000000
+        ],
+        [
+          "partsupp",
+          8000000
+        ],
+        [
+          "region",
+          5
+        ],
+        [
+          "supplier",
+          100000
+        ]
+      ],
+      "open_ms": 91.42251400044188,
+      "loaded_rss": {
+        "VmRSS": 64802816,
+        "VmHWM": 64802816
+      }
+    },
+    "sha256": "4f8baf37e9c78a35fd547f206aeaf74cfc65b0e639080342d1c61bc252b67612",
+    "queries": [
+      {
+        "id": 16,
+        "correct": true,
+        "client_ms": 226.33701899030712
+      },
+      {
+        "id": 18,
+        "correct": true,
+        "client_ms": 576.2578110006871
+      },
+      {
+        "id": 22,
+        "correct": true,
+        "client_ms": 113.64784798934124
+      }
+    ]
+  },
+  "clickhouse": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T08:30:40.495795+00:00",
+      "engine": "clickhouse",
+      "settings": {
+        "engine": "clickhouse",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/clickhouse-membership-regression-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-membership-regression-sf10.jsonl",
+        "database": "tpch_sf10",
+        "runner": null,
+        "native": null,
+        "url": "http://127.0.0.1:8123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 1,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": "/home/hadi/projects/tpch-work/queries-clickhouse-double-1.4.3",
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          16,
+          18,
+          22
+        ],
+        "server_settings": {
+          "database": "tpch_sf10",
+          "max_threads": 8,
+          "join_use_nulls": 1,
+          "use_query_cache": 0,
+          "aggregate_functions_null_for_empty": 1,
+          "max_execution_time": 1800,
+          "max_memory_usage": 68719476736,
+          "wait_end_of_query": 1
+        }
+      },
+      "source_revision": "8a4ef62cd33c46d82cba597beb8121e07b176182",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "version": "26.8.2.7",
+      "tables": [
+        [
+          "customer",
+          "MergeTree",
+          1500000,
+          136011529
+        ],
+        [
+          "lineitem",
+          "MergeTree",
+          59986052,
+          3271877376
+        ],
+        [
+          "nation",
+          "MergeTree",
+          25,
+          3284
+        ],
+        [
+          "orders",
+          "MergeTree",
+          15000000,
+          709814297
+        ],
+        [
+          "part",
+          "MergeTree",
+          2000000,
+          112122531
+        ],
+        [
+          "partsupp",
+          "MergeTree",
+          8000000,
+          492878398
+        ],
+        [
+          "region",
+          "MergeTree",
+          5,
+          1385
+        ],
+        [
+          "supplier",
+          "MergeTree",
+          100000,
+          8311940
+        ]
+      ],
+      "open_ms": 35.32749800069723,
+      "loaded_rss": {}
+    },
+    "sha256": "4432976198127c5ded6d0804de6863a1d78c44ec0e58d4be0043e8853391c3a9",
+    "queries": [
+      {
+        "id": 16,
+        "correct": true,
+        "client_ms": 315.196499999729
+      },
+      {
+        "id": 18,
+        "correct": true,
+        "client_ms": 988.0749670119258
+      },
+      {
+        "id": 22,
+        "correct": true,
+        "client_ms": 216.1173259955831
+      }
+    ]
+  }
+}
