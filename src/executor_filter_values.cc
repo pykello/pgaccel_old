@@ -13,6 +13,7 @@ class ValuePredicate : public FilterNodeImpl {
   std::vector<std::string> sequence;
   bool substring = false, prefix = false, negate = false, avx;
   StringSignature required;
+  bool compactIntegers=false;int64_t compactFirst=0;uint64_t compactBits=0;
   std::unordered_set<Cell, Hash> members;
   bool matches(Cell value) const {
     // ASCII literals use byte searches with nonoverlapping ordered matches.
@@ -169,6 +170,37 @@ class ValuePredicate : public FilterNodeImpl {
       return dict->bytesPerValue() == 1 ? apply.template operator()<uint8_t>()
                                        : apply.template operator()<uint16_t>();
     }
+    if(compactIntegers) {
+      auto raw=static_cast<const RawColumnDataBase *>(data);
+      auto apply=[&]<class T>() {
+        auto values=reinterpret_cast<const T *>(raw->values);int row=0,count=0;
+        if(avx)for(;row+8<=rg.size;row+=8) {
+          uint8_t previous=intersect?bitmap[row/8]:UINT8_MAX;if(!previous)continue;
+          __m512i value;
+          if constexpr(sizeof(T)==1)value=_mm512_cvtepi8_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i *>(values+row)));
+          else if constexpr(sizeof(T)==2)value=_mm512_cvtepi16_epi64(_mm_loadu_si128(reinterpret_cast<const __m128i *>(values+row)));
+          else if constexpr(sizeof(T)==4)value=_mm512_cvtepi32_epi64(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(values+row)));
+          else value=_mm512_loadu_si512(values+row);
+          auto delta=_mm512_sub_epi64(value,_mm512_set1_epi64(compactFirst));
+          uint8_t found=_mm512_test_epi64_mask(_mm512_srlv_epi64(_mm512_set1_epi64(compactBits),delta),_mm512_set1_epi64(1));
+          uint8_t selected=previous & (negate?uint8_t(~found):found);
+          bitmap[row/8]=selected;count+=__builtin_popcount(selected);
+        }
+        if(!intersect && row<rg.size)std::memset(bitmap+row/8,0,(rg.size-row+7)/8);
+        for(;row<rg.size;++row) {
+          uint8_t bit=uint8_t(1)<<(row%8);bool previous=!intersect || (bitmap[row/8]&bit);
+          uint64_t delta=uint64_t(int64_t(values[row]))-uint64_t(compactFirst);
+          bool found=delta<64 && ((compactBits>>delta)&1),selected=previous && (negate?!found:found);
+          if(selected){bitmap[row/8]|=bit;++count;}else bitmap[row/8]&=~bit;
+        }
+        return count;
+      };
+      switch(raw->bytesPerValue) {
+      case 1:return apply.template operator()<int8_t>();case 2:return apply.template operator()<int16_t>();
+      case 4:return apply.template operator()<int32_t>();case 8:return apply.template operator()<int64_t>();
+      default:throw std::runtime_error("Invalid storage width");
+      }
+    }
     if (!intersect)
       memset(bitmap, 0, (rg.size + 7) / 8);
     int count = 0;
@@ -245,6 +277,16 @@ public:
         else
           value.number = ParseDecimal(Scale(f.columnRef.Type().get()), literal);
         members.insert(value);
+      }
+      auto type=f.columnRef.Type()->type_num();
+      if(type==INT32_TYPE || type==INT64_TYPE) {
+        Wide low=INT64_MAX,high=INT64_MIN;
+        for(const auto &value:members){low=std::min(low,value.number);high=std::max(high,value.number);}
+        if(members.empty())compactIntegers=true;
+        else if(low>=INT64_MIN && high<=INT64_MAX && high-low<64) {
+          compactIntegers=true;compactFirst=int64_t(low);
+          for(const auto &value:members)compactBits|=uint64_t(1)<<unsigned(value.number-low);
+        }
       }
     }
   }
