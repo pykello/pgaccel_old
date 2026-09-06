@@ -23,13 +23,13 @@ const RawColumnDataBase &IdentityRaw(const RowGroup &rg,const ColumnRef &column)
 struct IdentityPayload {
     int64_t first=0,last=0;
     uint64_t selected=0;
-    std::optional<CompactUnsignedArray> dense;
+    std::optional<CompactUnsignedArray> dense,sparse;
     std::pmr::vector<uint64_t> bits;
     std::unique_ptr<RankJoinIndex> rank;
     explicit IdentityPayload(Budget &budget):bits(&budget) {}
     uint32_t lookup(int64_t key) const {
         if(key<first || key>last) return 0;
-        if(rank) {auto id=rank->rank(key);return id?uint32_t(rank->row(*id)):0;}
+        if(rank) {auto id=rank->rank(key);return id?sparse->get(*id):0;}
         return dense->get(uint64_t(Wide(key)-first));
     }
     BitmapDomain domain() const {return {first,last,rank?rank->words():bits.data()};}
@@ -139,9 +139,14 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
                 return pairs;
             });
             if(payload->rank) {
-                payload->rank->finalize();payload->selected=payload->rank->size();
+                payload->rank->finalize(false);payload->selected=payload->rank->size();
+                payload->sparse.emplace(payload->selected,plan.keys[center]->sequence.size(),budget);
                 RunTasks(workers,[&](int worker) {
-                    for(const auto &pair:parts[worker])payload->rank->setRow(pair.key,pair.value);
+                    for(const auto &pair:parts[worker]) {
+                        auto index=payload->rank->rank(pair.key);
+                        if(!index)throw std::logic_error("Missing identity payload key");
+                        payload->sparse->set(*index,pair.value);
+                    }
                     return true;
                 });
             } else if(std::any_of(plan.outgoing[fact].begin(),plan.outgoing[fact].end(),
