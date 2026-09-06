@@ -159,32 +159,6 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
         auto value=[&](uint32_t group,size_t output)->uint64_t {
             int component=outputComponents[output];return component<0?counts[group]:groups.ordinal(group,component);
         };
-        struct OrderPart {int component;unsigned bits;bool descending;};
-        std::vector<OrderPart> parts;std::array<bool,5> seen{};
-        uint64_t maximum=0;for(auto group:ordered)maximum=std::max(maximum,counts[group]);
-        unsigned groupBits=std::bit_width(groups.slots()-1),totalBits=groupBits;
-        auto appendOrder=[&](size_t output,bool descending) {
-            int component=outputComponents[output],slot=component+1;if(seen[slot])return;seen[slot]=true;
-            unsigned bits=component<0?std::bit_width(maximum):groups.componentBits(component);
-            totalBits+=bits;parts.push_back({component,bits,descending});
-        };
-        for(const auto &o:q.orderBy)appendOrder(o.output,o.descending);
-        for(size_t i=0;i<q.aggregateClauses.size();++i)appendOrder(i,false);
-        if(totalBits<=64) {
-            std::pmr::vector<uint64_t> keys(&budget);keys.reserve(ordered.size());
-            for(auto group:ordered) {
-                uint64_t key=0;
-                for(const auto &part:parts) {
-                    uint64_t ordinal=part.component<0?counts[group]:groups.ordinal(group,part.component);
-                    if(!part.bits)continue;
-                    if(part.descending)ordinal^=part.bits==64?UINT64_MAX:(uint64_t(1)<<part.bits)-1;
-                    key=part.bits==64?ordinal:(key<<part.bits)|ordinal;
-                }
-                keys.push_back((key<<groupBits)|group);
-            }
-            std::sort(keys.begin(),keys.end());
-            for(size_t i=0;i<keys.size();++i)ordered[i]=keys[i]&(groups.slots()-1);
-        } else {
         std::sort(ordered.begin(),ordered.end(),[&](uint32_t a,uint32_t b) {
             for(const auto &o:q.orderBy) {
                 auto x=value(a,o.output),y=value(b,o.output);
@@ -195,7 +169,6 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
             }
             return false;
         });
-        }
         QueryOutput output;output.spillBytes=spillBytes;
         size_t visible=q.outputColumnCount.value_or(q.aggregateClauses.size());
         for(size_t i=0;i<visible;++i)output.fieldNames.push_back(q.aggregateClauses[i].ToString());

@@ -101,7 +101,6 @@ public:
         }
     }
     uint32_t slots() const {return uint32_t(1)<<width;}
-    unsigned componentBits(size_t column) const {return components[column].bits;}
     uint32_t ordinal(uint32_t word,size_t column) const {
         const auto &component=components[column];
         return (word>>component.shift)&((uint32_t(1)<<component.bits)-1);
