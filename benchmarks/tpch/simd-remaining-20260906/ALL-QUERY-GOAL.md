@@ -35,7 +35,7 @@ for new arithmetic and threshold logic.
 | Q12 | Both scales pass at checkpoint `7c92573` |
 | Q13 | Optimization pending |
 | Q14 | Both scales pass at checkpoint `7c92573` |
-| Q15 | Optimization pending |
+| Q15 | Both scales pass at checkpoint `918e691`; [results](Q15.md) |
 | Q16 | Optimization pending; recent SF10 answer check passes |
 | Q17 | Both scales pass at checkpoint `fdda059`; [results](Q17.md) |
 | Q18 | Both scales pass at checkpoint `537c8aa`; [results](Q18.md) |

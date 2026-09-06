@@ -1,7 +1,7 @@
 # Q15 shared grouped totals
 
-Status: implementation and native validation. Performance is not yet
-confirmed; Q15 does not increase the twelve-query confirmed count.
+Status: [fresh SF10 and SF100 confirmation](Q15.md) passes on frozen
+`918e691`, raising the individual confirmed count to thirteen queries.
 
 Q15 groups filtered lineitem revenue by supplier, finds the largest total,
 and joins its supplier attributes. The general materialized execution
