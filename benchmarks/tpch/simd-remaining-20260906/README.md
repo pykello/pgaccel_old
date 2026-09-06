@@ -22,3 +22,5 @@ win is claimed from the queries completed so far.
 frozen binaries. New changes are small commits on
 `feature/tpch-coverage-20260905`; reports and compact trial evidence are
 mirrored in the repository under `benchmarks/tpch/`.
+
+Next: [Q20/Q17/Q2 correlated-query plan](CORRELATED-PLAN.md).
