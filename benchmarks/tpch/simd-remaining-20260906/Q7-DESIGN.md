@@ -1,7 +1,8 @@
 # Q7: two dimension identities and a date group
 
-Status: the first executor passes ten focused native checks. Full native and
-sanitizer checks are in progress; no optimized timing is claimed yet.
+Status: the first executor passes all22 SF1 answers, 231 native tests, and
+ten focused sanitizer checks. Its SF10 iteration median is 52.6 ms; fresh
+confirmation remains pending. SIMD payload propagation is the next experiment.
 
 The fresh nine-trial SF10 baseline is 10,190.2 ms for native PGAccel, 177.4 ms
 for DuckDB, and 580.4 ms for ClickHouse. Warm medians exclude only trial one.
@@ -75,3 +76,17 @@ key proofs, pair predicates, and group values are checked afresh for each query.
 This is original code reusing this project's permissive implementations. The
 CPU join and parallel aggregation references in [Q5-DESIGN.md](Q5-DESIGN.md)
 remain relevant; no third-party join code or new dependency is introduced.
+
+## Narrow payload gathers
+
+The first profile puts about 27 ms in order payload propagation and 15 ms
+in fact scanning. The next experiment widens 16 raw foreign keys, masks
+out-of-domain lanes, gathers compact child identities, and compresses
+qualifying rows before publishing parent payloads. Scalar tails and wide
+key domains retain the previous path.
+
+A 32-bit gather reads a whole word even for an 8/16-bit identity. Compact
+arrays therefore reserve initialized tail bytes, and protected-page tests
+check the final element and invalid masked indices. The gather operation
+follows [Intel’s compiler reference](https://www.intel.com/content/dam/develop/external/us/en/documents/cpp_compiler_classic.pdf);
+the implementation and bounds proof are original.
