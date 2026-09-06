@@ -11,6 +11,8 @@ retain the complete trial sequence to expose noise.
 | ClickHouse | [1173.422, 732.821, 746.265, 747.896, 746.491] | 732.821 |
 | PGAccel before | [3116.63, 3313.484, 3270.18, 3229.998, 3312.502] | 3229.998 |
 | PGAccel dense v1 | [183.473, 166.921, 168.048, 164.808, 170.404] | 164.808 |
+| PGAccel dense v2 | [189.78, 181.191, 182.078, 186.425, 184.494] | 181.191 |
+| PGAccel dense v3 | [183.634, 170.783, 168.395, 172.678, 168.569] | 168.395 |
 
 The 4× gate is **54.94 ms** (one quarter of the faster competitor).
 The first dense arithmetic kernel does not yet meet that gate. No SF100
@@ -23,3 +25,8 @@ service with statistics. Do not conflate these phase configurations.
 
 Raw JSONL evidence is in `/home/hadi/projects/docs/tpch/simd-20260906/`.
 The frozen first kernel is `tpch-work/checkpoints/q1-dense-v1-query-runner`.
+
+Rejected experiments: v2 reused masks but loaded and stored accumulator
+lanes inside the root loop (181 ms). v3 cached masks while keeping a
+root accumulator in registers (168 ms). Neither improved on v1 (165 ms),
+so both changes were removed. Raw trials remain available.
