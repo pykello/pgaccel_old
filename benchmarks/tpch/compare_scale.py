@@ -54,6 +54,8 @@ def main():
     p.add_argument('--query-memory-gib', type=int, default=64)
     p.add_argument('--clickhouse-join-order-limit', type=int,
                    help='override global join reordering; 0 disables it')
+    p.add_argument('--clickhouse-no-reorder-queries', type=int, nargs='*', default=[],
+                   help='query IDs that disable reordering instead of the phase default')
     p.add_argument('--duckdb-memory-gib', type=int, default=176)
     p.add_argument('--temp-directory', type=Path)
     p.add_argument('--only', type=int, nargs='*')
@@ -63,6 +65,9 @@ def main():
     if args.clickhouse_join_order_limit is not None and (
             args.engine != 'clickhouse' or args.clickhouse_join_order_limit < 0):
         p.error('join-order limit requires ClickHouse and a nonnegative value')
+    if args.clickhouse_no_reorder_queries and (args.engine != 'clickhouse' or
+            any(i < 1 or i > 22 for i in args.clickhouse_no_reorder_queries)):
+        p.error('per-query reordering overrides require ClickHouse and query IDs 1-22')
     if args.engine != 'duckdb' and not args.oracle:
         p.error('non-DuckDB phases require saved --oracle answers')
     if args.engine == 'pgaccel' and (not args.runner or not args.native):
@@ -142,6 +147,12 @@ def main():
         with args.output.open('w') as out:
             out.write(json.dumps(metadata, default=str)+'\n'); out.flush()
             for number in args.only or range(1, 23):
+                if args.engine == 'clickhouse':
+                    ch_settings.pop('query_plan_optimize_join_order_limit', None)
+                    if number in args.clickhouse_no_reorder_queries:
+                        ch_settings['query_plan_optimize_join_order_limit'] = 0
+                    elif args.clickhouse_join_order_limit is not None:
+                        ch_settings['query_plan_optimize_join_order_limit'] = args.clickhouse_join_order_limit
                 sql = (args.queries/f'q{number:02}.sql').read_text()
                 digest = hashlib.sha256(sql.encode()).hexdigest()
                 expected = oracle.get(number)
@@ -149,6 +160,8 @@ def main():
                     raise RuntimeError(f'Q{number} oracle SQL hash mismatch')
                 valid_oracle = bool(expected and expected.get('correct'))
                 record = {'id': number, 'sql_sha256': digest, 'status': 'success', 'trials': []}
+                if args.engine == 'clickhouse':
+                    record['server_settings'] = ch_settings.copy()
                 if valid_oracle:
                     expected_rows, types = expected['oracle_rows'], expected['oracle_types']
                 else:
