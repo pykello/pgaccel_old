@@ -11,6 +11,11 @@ This work has not passed the fourfold target against both engines.
 | sum-v2 | 96.128 | 90.398 | 103.390 | 45.53 |
 | sum-v3 | 69.331 | 64.989 | 80.216 | 30.73 |
 | sum-v4 | 65.962 | 60.470 | 72.885 | 30.73 |
+| sum-v5 | 63.145 | 60.754 | 82.531 | 30.73 |
+
+Sum-v5 (`25aa392`) evaluates thresholds and compacts numeric projection
+ranges in parallel. Its median is 63.145 ms with nine correct answers.
+All 166 native tests and focused sanitizer checks pass.
 
 Sum-v4 (`1437c22`) merges independent slot ranges in parallel. Its
 nine-trial median is 65.962 ms, a modest improvement over sum-v3.
