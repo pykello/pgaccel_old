@@ -4,6 +4,7 @@
 #include "executor_membership.hpp"
 #include "executor_tasks.hpp"
 #include "executor_correlation_domain.hpp"
+#include "executor_small_join_domain.hpp"
 #include "nodes.h"
 #include <functional>
 #include <cmath>
@@ -296,6 +297,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx, bool pa
                 uint8_t bitmap[BITMAP_SIZE]; prepare(g, bitmap); consume(g, bitmap);
             }
         }
+        FilterSmallJoinDomains(q, rows, budget);
         size_t probe = 0;
         for (size_t t = 1; t < tables; ++t)
             if (!existence[t] && !left[t] && (existence[probe] || left[probe] || rows[t].size() > rows[probe].size())) probe = t;
