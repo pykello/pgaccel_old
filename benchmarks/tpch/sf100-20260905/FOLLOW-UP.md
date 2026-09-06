@@ -21,30 +21,14 @@ execution still clamps children to the remaining parent allowance. The
 corrected Q2 passes all three SF100 trials, with an 11.521 GiB allocation
 peak. Native and sanitizer suites pass 129 tests each.
 
-## Stage 1: reduce base residency without hiding load costs
+## Stage 1: restrict correlated aggregates to required keys
 
-The current runner loads all eight native tables and all their columns.
-The first SF100 attempt measured about 97.83 GiB resident immediately after
-loading, before query working memory. File size and residency are different:
-the native files occupy about 62.02 GiB. This is already a substantial
-fraction of the requested 192 GiB envelope.
-
-Use the optional field selection in `ColumnarTable::Load` as a starting
-point for metadata-first, projection-aware loading. Resolve referenced
-columns through joins, filters, grouping, ordering, CTEs, and subqueries.
-Load missing columns on demand with stable ownership, or adopt a bounded
-column cache if retaining every previously accessed column is too costly.
-For example, a revenue scan needs price, discount, and relevant predicate
-columns; it should not require the line-item comment payload.
-
-Do not hardcode a list of columns for TPC-H. Any first-use loading must be
-included in the corresponding cold query or reported as an explicit preload.
-Measure all-column and on-demand modes separately. Validate late column
-loads, aliases, repeated CTE references, and eviction lifetime safety.
-Keep this change only if it reduces peak process and service memory with
-correct results and acceptable cold and warm latency.
-
-## Stage 2: restrict correlated aggregates to required keys
+The complete 64 GiB SF100 PGAccel phase passes 21/22 queries. Q20 is the
+exception: its membership/scalar child reaches the query allocation limit
+while service memory remains below 192 GiB. A separate 80 GiB recheck is
+recorded outside the baseline. This failure makes reducing correlated
+aggregate state the first implementation priority. Q17 also takes about
+655 seconds warm with a 31.58 GiB allocation peak; Q2 takes about 110 seconds.
 
 `ExecuteRelational` currently executes scalar child plans and builds their
 result maps before applying the outer relation's local filtering. Parsing
@@ -78,6 +62,29 @@ inner rows admitted, aggregate groups, allocations, and wall time. Keep
 only general transformations that improve the measured target cases
 without an unacceptable regression on broad-domain queries.
 
+## Stage 2: reduce base residency without hiding load costs
+
+The current runner loads all eight native tables and all their columns.
+The first SF100 attempt measured about 97.83 GiB resident immediately after
+loading, before query working memory. File size and residency are different:
+the native files occupy about 62.02 GiB. This is already a substantial
+fraction of the requested 192 GiB envelope.
+
+Use the optional field selection in `ColumnarTable::Load` as a starting
+point for metadata-first, projection-aware loading. Resolve referenced
+columns through joins, filters, grouping, ordering, CTEs, and subqueries.
+Load missing columns on demand with stable ownership, or adopt a bounded
+column cache if retaining every previously accessed column is too costly.
+For example, a revenue scan needs price, discount, and relevant predicate
+columns; it should not require the line-item comment payload.
+
+Do not hardcode a list of columns for TPC-H. Any first-use loading must be
+included in the corresponding cold query or reported as an explicit preload.
+Measure all-column and on-demand modes separately. Validate late column
+loads, aliases, repeated CTE references, and eviction lifetime safety.
+Keep this change only if it reduces peak process and service memory with
+correct results and acceptable cold and warm latency.
+
 ## Stage 3: make grouping state proportional to useful information
 
 For low-cardinality keys, investigate dense aggregation arrays indexed by
@@ -93,6 +100,14 @@ Extend compact representations only where measured overhead warrants it.
 Maintain exact decimal accumulation and overflow checks. Benchmark both
 skewed and broad-cardinality inputs; choose a bounded fallback instead of
 allocating an array proportional to an unbounded key range.
+
+Q19 is a separate execution target: it uses only about 0.188 GiB of query
+allocations but takes about 321 seconds warm at SF100. Profile local
+predicate evaluation, repeated expression reads, and scalar per-row work.
+Evaluate applicable predicates in batches through existing vector kernels
+before relational probing, with a semantic fallback. Measure the general
+OR/AND and mixed-expression cases; do not add a hardcoded Q19 answer path.
+Memory reduction alone does not address this latency.
 
 ## Stage 4: bound joins and introduce parallel execution carefully
 
