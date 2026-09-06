@@ -1,0 +1,746 @@
+[
+  {
+    "version": "sum-v14",
+    "command": [
+      "/home/hadi/projects/tpch-work/checkpoints/q20-sum-v14-query-runner",
+      "native",
+      "/home/hadi/projects/tpch-work/native-sf10/supplier.pgaccel",
+      "supplier",
+      "-",
+      "1",
+      "1",
+      "1"
+    ],
+    "binary_sha256": "3bc0d368d0fe588ef49fd2686b21fb066e61c186be2c04bdd272efe8fac3dc32",
+    "load": {
+      "status": "loaded",
+      "rows": 100000,
+      "columns": 7,
+      "table_count": 1,
+      "base_load_ms": 85.132621,
+      "index_build_ms": 0,
+      "index_bytes": 0,
+      "index_peak_allocation_bytes": 0,
+      "process_peak_rss_bytes": 64880640,
+      "load_ms": 85.169065,
+      "indexed_columns": []
+    },
+    "sql": "SELECT s_name,s_address FROM supplier WHERE s_suppkey<1805 ORDER BY s_name",
+    "rows": 1804,
+    "trials": [
+      {
+        "client_ms": 4.379698992124759,
+        "execution_ms": 2.685007,
+        "correct": true
+      },
+      {
+        "client_ms": 2.873228004318662,
+        "execution_ms": 1.194403,
+        "correct": true
+      },
+      {
+        "client_ms": 2.63585799257271,
+        "execution_ms": 1.16256,
+        "correct": true
+      },
+      {
+        "client_ms": 2.6657190028345212,
+        "execution_ms": 1.187536,
+        "correct": true
+      },
+      {
+        "client_ms": 2.705873004742898,
+        "execution_ms": 1.206964,
+        "correct": true
+      },
+      {
+        "client_ms": 3.7884170014876872,
+        "execution_ms": 1.208102,
+        "correct": true
+      },
+      {
+        "client_ms": 4.010516990092583,
+        "execution_ms": 1.282068,
+        "correct": true
+      },
+      {
+        "client_ms": 4.1378250025445595,
+        "execution_ms": 1.332818,
+        "correct": true
+      },
+      {
+        "client_ms": 4.136425006436184,
+        "execution_ms": 1.365587,
+        "correct": true
+      },
+      {
+        "client_ms": 4.886284994427115,
+        "execution_ms": 1.598036,
+        "correct": true
+      },
+      {
+        "client_ms": 4.370456008473411,
+        "execution_ms": 1.465782,
+        "correct": true
+      },
+      {
+        "client_ms": 4.26751900522504,
+        "execution_ms": 1.45762,
+        "correct": true
+      },
+      {
+        "client_ms": 4.2555069958325475,
+        "execution_ms": 1.491549,
+        "correct": true
+      },
+      {
+        "client_ms": 4.33969400182832,
+        "execution_ms": 1.495206,
+        "correct": true
+      },
+      {
+        "client_ms": 4.275134007912129,
+        "execution_ms": 1.4938,
+        "correct": true
+      },
+      {
+        "client_ms": 4.457920993445441,
+        "execution_ms": 1.561668,
+        "correct": true
+      },
+      {
+        "client_ms": 4.499431001022458,
+        "execution_ms": 1.593905,
+        "correct": true
+      },
+      {
+        "client_ms": 4.492359003052115,
+        "execution_ms": 1.542254,
+        "correct": true
+      },
+      {
+        "client_ms": 4.637809004634619,
+        "execution_ms": 1.690747,
+        "correct": true
+      },
+      {
+        "client_ms": 4.58940799580887,
+        "execution_ms": 1.624263,
+        "correct": true
+      },
+      {
+        "client_ms": 4.607901006238535,
+        "execution_ms": 1.658022,
+        "correct": true
+      },
+      {
+        "client_ms": 4.878339997958392,
+        "execution_ms": 1.649528,
+        "correct": true
+      },
+      {
+        "client_ms": 4.625923989806324,
+        "execution_ms": 1.65211,
+        "correct": true
+      },
+      {
+        "client_ms": 4.973567993147299,
+        "execution_ms": 1.894183,
+        "correct": true
+      },
+      {
+        "client_ms": 4.933496005833149,
+        "execution_ms": 1.837303,
+        "correct": true
+      },
+      {
+        "client_ms": 4.7338549920823425,
+        "execution_ms": 1.723912,
+        "correct": true
+      },
+      {
+        "client_ms": 4.745449012261815,
+        "execution_ms": 1.746935,
+        "correct": true
+      },
+      {
+        "client_ms": 4.766028010635637,
+        "execution_ms": 1.713192,
+        "correct": true
+      },
+      {
+        "client_ms": 5.123002003529109,
+        "execution_ms": 1.970882,
+        "correct": true
+      },
+      {
+        "client_ms": 4.927696994855069,
+        "execution_ms": 1.819325,
+        "correct": true
+      },
+      {
+        "client_ms": 4.912846998195164,
+        "execution_ms": 1.824427,
+        "correct": true
+      }
+    ]
+  },
+  {
+    "version": "sum-v15",
+    "command": [
+      "/home/hadi/projects/tpch-work/checkpoints/q20-sum-v15-query-runner",
+      "native",
+      "/home/hadi/projects/tpch-work/native-sf10/supplier.pgaccel",
+      "supplier",
+      "-",
+      "1",
+      "1",
+      "1"
+    ],
+    "binary_sha256": "5ad3d5b6ce8498cdbee66f4c72d7afca203dbcce81b5f2f5514da7f72bd1e4e3",
+    "load": {
+      "status": "loaded",
+      "rows": 100000,
+      "columns": 7,
+      "table_count": 1,
+      "base_load_ms": 59.892793,
+      "index_build_ms": 0,
+      "index_bytes": 0,
+      "index_peak_allocation_bytes": 0,
+      "process_peak_rss_bytes": 67522560,
+      "load_ms": 59.92517,
+      "indexed_columns": []
+    },
+    "sql": "SELECT s_name,s_address FROM supplier WHERE s_suppkey<1805 ORDER BY s_name",
+    "rows": 1804,
+    "trials": [
+      {
+        "client_ms": 5.437126994365826,
+        "execution_ms": 2.809857,
+        "correct": true
+      },
+      {
+        "client_ms": 3.8128849992062896,
+        "execution_ms": 1.297864,
+        "correct": true
+      },
+      {
+        "client_ms": 4.000739005277865,
+        "execution_ms": 1.253158,
+        "correct": true
+      },
+      {
+        "client_ms": 3.5356269945623353,
+        "execution_ms": 1.17429,
+        "correct": true
+      },
+      {
+        "client_ms": 3.684659008285962,
+        "execution_ms": 1.256464,
+        "correct": true
+      },
+      {
+        "client_ms": 3.614399000070989,
+        "execution_ms": 1.191226,
+        "correct": true
+      },
+      {
+        "client_ms": 3.640081995399669,
+        "execution_ms": 1.189877,
+        "correct": true
+      },
+      {
+        "client_ms": 3.742454995517619,
+        "execution_ms": 1.255756,
+        "correct": true
+      },
+      {
+        "client_ms": 3.7376189866336063,
+        "execution_ms": 1.229615,
+        "correct": true
+      },
+      {
+        "client_ms": 3.6918750120094046,
+        "execution_ms": 1.229232,
+        "correct": true
+      },
+      {
+        "client_ms": 3.822778002358973,
+        "execution_ms": 1.269259,
+        "correct": true
+      },
+      {
+        "client_ms": 4.759157003718428,
+        "execution_ms": 1.205451,
+        "correct": true
+      },
+      {
+        "client_ms": 3.8052470044931397,
+        "execution_ms": 1.255416,
+        "correct": true
+      },
+      {
+        "client_ms": 3.818793993559666,
+        "execution_ms": 1.31354,
+        "correct": true
+      },
+      {
+        "client_ms": 3.9761969965184107,
+        "execution_ms": 1.225729,
+        "correct": true
+      },
+      {
+        "client_ms": 3.7731440097559243,
+        "execution_ms": 1.259965,
+        "correct": true
+      },
+      {
+        "client_ms": 3.8689610082656145,
+        "execution_ms": 1.326528,
+        "correct": true
+      },
+      {
+        "client_ms": 3.853571994113736,
+        "execution_ms": 1.318266,
+        "correct": true
+      },
+      {
+        "client_ms": 3.9174330013338476,
+        "execution_ms": 1.357983,
+        "correct": true
+      },
+      {
+        "client_ms": 3.8341269973898306,
+        "execution_ms": 1.338922,
+        "correct": true
+      },
+      {
+        "client_ms": 3.908686005161144,
+        "execution_ms": 1.3762,
+        "correct": true
+      },
+      {
+        "client_ms": 4.0607389964861795,
+        "execution_ms": 1.453479,
+        "correct": true
+      },
+      {
+        "client_ms": 4.047524998895824,
+        "execution_ms": 1.428605,
+        "correct": true
+      },
+      {
+        "client_ms": 4.323048007790931,
+        "execution_ms": 1.631743,
+        "correct": true
+      },
+      {
+        "client_ms": 4.110843001399189,
+        "execution_ms": 1.479188,
+        "correct": true
+      },
+      {
+        "client_ms": 4.0462360047968104,
+        "execution_ms": 1.493265,
+        "correct": true
+      },
+      {
+        "client_ms": 4.4036190083716065,
+        "execution_ms": 1.528105,
+        "correct": true
+      },
+      {
+        "client_ms": 4.205941004329361,
+        "execution_ms": 1.536954,
+        "correct": true
+      },
+      {
+        "client_ms": 4.228261997923255,
+        "execution_ms": 1.544633,
+        "correct": true
+      },
+      {
+        "client_ms": 4.258956992998719,
+        "execution_ms": 1.578595,
+        "correct": true
+      },
+      {
+        "client_ms": 4.3797590042231604,
+        "execution_ms": 1.648155,
+        "correct": true
+      }
+    ]
+  },
+  {
+    "version": "sum-v15",
+    "command": [
+      "/home/hadi/projects/tpch-work/checkpoints/q20-sum-v15-query-runner",
+      "native",
+      "/home/hadi/projects/tpch-work/native-sf10/supplier.pgaccel",
+      "supplier",
+      "-",
+      "1",
+      "1",
+      "1"
+    ],
+    "binary_sha256": "5ad3d5b6ce8498cdbee66f4c72d7afca203dbcce81b5f2f5514da7f72bd1e4e3",
+    "load": {
+      "status": "loaded",
+      "rows": 100000,
+      "columns": 7,
+      "table_count": 1,
+      "base_load_ms": 87.114624,
+      "index_build_ms": 0,
+      "index_bytes": 0,
+      "index_peak_allocation_bytes": 0,
+      "process_peak_rss_bytes": 67522560,
+      "load_ms": 87.155584,
+      "indexed_columns": []
+    },
+    "sql": "SELECT s_name,s_address FROM supplier WHERE s_suppkey<1805 ORDER BY s_name",
+    "rows": 1804,
+    "trials": [
+      {
+        "client_ms": 6.0215060075279325,
+        "execution_ms": 3.197521,
+        "correct": true
+      },
+      {
+        "client_ms": 4.230104008456692,
+        "execution_ms": 1.580128,
+        "correct": true
+      },
+      {
+        "client_ms": 4.114388997550122,
+        "execution_ms": 1.486335,
+        "correct": true
+      },
+      {
+        "client_ms": 4.053094002301805,
+        "execution_ms": 1.468529,
+        "correct": true
+      },
+      {
+        "client_ms": 3.2562580017838627,
+        "execution_ms": 1.534324,
+        "correct": true
+      },
+      {
+        "client_ms": 3.281620010966435,
+        "execution_ms": 1.468763,
+        "correct": true
+      },
+      {
+        "client_ms": 3.2878190104383975,
+        "execution_ms": 1.43777,
+        "correct": true
+      },
+      {
+        "client_ms": 3.4623749961610883,
+        "execution_ms": 1.506908,
+        "correct": true
+      },
+      {
+        "client_ms": 3.2325689971912652,
+        "execution_ms": 1.437212,
+        "correct": true
+      },
+      {
+        "client_ms": 3.3700119965942577,
+        "execution_ms": 1.532577,
+        "correct": true
+      },
+      {
+        "client_ms": 3.4615259937709197,
+        "execution_ms": 1.506194,
+        "correct": true
+      },
+      {
+        "client_ms": 3.603195000323467,
+        "execution_ms": 1.618188,
+        "correct": true
+      },
+      {
+        "client_ms": 3.6734559980686754,
+        "execution_ms": 1.596683,
+        "correct": true
+      },
+      {
+        "client_ms": 3.7204649997875094,
+        "execution_ms": 1.611291,
+        "correct": true
+      },
+      {
+        "client_ms": 3.7157369952183217,
+        "execution_ms": 1.599478,
+        "correct": true
+      },
+      {
+        "client_ms": 3.749049996258691,
+        "execution_ms": 1.633045,
+        "correct": true
+      },
+      {
+        "client_ms": 3.802799998084083,
+        "execution_ms": 1.595728,
+        "correct": true
+      },
+      {
+        "client_ms": 3.8260989967966452,
+        "execution_ms": 1.610698,
+        "correct": true
+      },
+      {
+        "client_ms": 3.809707995969802,
+        "execution_ms": 1.615216,
+        "correct": true
+      },
+      {
+        "client_ms": 4.009248994407244,
+        "execution_ms": 1.608473,
+        "correct": true
+      },
+      {
+        "client_ms": 3.9439829997718334,
+        "execution_ms": 1.625999,
+        "correct": true
+      },
+      {
+        "client_ms": 3.915674999007024,
+        "execution_ms": 1.601761,
+        "correct": true
+      },
+      {
+        "client_ms": 4.0857139974832535,
+        "execution_ms": 1.620538,
+        "correct": true
+      },
+      {
+        "client_ms": 4.169856998487376,
+        "execution_ms": 1.707735,
+        "correct": true
+      },
+      {
+        "client_ms": 4.483891010750085,
+        "execution_ms": 1.692331,
+        "correct": true
+      },
+      {
+        "client_ms": 4.592456010868773,
+        "execution_ms": 1.725138,
+        "correct": true
+      },
+      {
+        "client_ms": 4.567257012240589,
+        "execution_ms": 1.731643,
+        "correct": true
+      },
+      {
+        "client_ms": 4.556740997941233,
+        "execution_ms": 1.73577,
+        "correct": true
+      },
+      {
+        "client_ms": 4.580272987368517,
+        "execution_ms": 1.738731,
+        "correct": true
+      },
+      {
+        "client_ms": 4.589168995153159,
+        "execution_ms": 1.749118,
+        "correct": true
+      },
+      {
+        "client_ms": 4.893189005088061,
+        "execution_ms": 1.901517,
+        "correct": true
+      }
+    ]
+  },
+  {
+    "version": "sum-v14",
+    "command": [
+      "/home/hadi/projects/tpch-work/checkpoints/q20-sum-v14-query-runner",
+      "native",
+      "/home/hadi/projects/tpch-work/native-sf10/supplier.pgaccel",
+      "supplier",
+      "-",
+      "1",
+      "1",
+      "1"
+    ],
+    "binary_sha256": "3bc0d368d0fe588ef49fd2686b21fb066e61c186be2c04bdd272efe8fac3dc32",
+    "load": {
+      "status": "loaded",
+      "rows": 100000,
+      "columns": 7,
+      "table_count": 1,
+      "base_load_ms": 70.239462,
+      "index_build_ms": 0,
+      "index_bytes": 0,
+      "index_peak_allocation_bytes": 0,
+      "process_peak_rss_bytes": 67522560,
+      "load_ms": 70.276096,
+      "indexed_columns": []
+    },
+    "sql": "SELECT s_name,s_address FROM supplier WHERE s_suppkey<1805 ORDER BY s_name",
+    "rows": 1804,
+    "trials": [
+      {
+        "client_ms": 5.896197006222792,
+        "execution_ms": 2.82008,
+        "correct": true
+      },
+      {
+        "client_ms": 12.400213003274985,
+        "execution_ms": 1.31373,
+        "correct": true
+      },
+      {
+        "client_ms": 4.049544004374184,
+        "execution_ms": 1.353355,
+        "correct": true
+      },
+      {
+        "client_ms": 3.961162001360208,
+        "execution_ms": 1.360039,
+        "correct": true
+      },
+      {
+        "client_ms": 4.076948011061177,
+        "execution_ms": 1.348253,
+        "correct": true
+      },
+      {
+        "client_ms": 3.9507729961769655,
+        "execution_ms": 1.3281,
+        "correct": true
+      },
+      {
+        "client_ms": 3.659362002508715,
+        "execution_ms": 1.31897,
+        "correct": true
+      },
+      {
+        "client_ms": 3.558383003110066,
+        "execution_ms": 1.382604,
+        "correct": true
+      },
+      {
+        "client_ms": 3.1287309975596145,
+        "execution_ms": 1.34502,
+        "correct": true
+      },
+      {
+        "client_ms": 3.0565899942303076,
+        "execution_ms": 1.344564,
+        "correct": true
+      },
+      {
+        "client_ms": 3.148080999380909,
+        "execution_ms": 1.38494,
+        "correct": true
+      },
+      {
+        "client_ms": 3.1521710043307394,
+        "execution_ms": 1.403177,
+        "correct": true
+      },
+      {
+        "client_ms": 3.1546520040137693,
+        "execution_ms": 1.411146,
+        "correct": true
+      },
+      {
+        "client_ms": 3.297349001513794,
+        "execution_ms": 1.401995,
+        "correct": true
+      },
+      {
+        "client_ms": 3.1510449916822836,
+        "execution_ms": 1.397352,
+        "correct": true
+      },
+      {
+        "client_ms": 3.9380039961542934,
+        "execution_ms": 1.405691,
+        "correct": true
+      },
+      {
+        "client_ms": 4.150770007981919,
+        "execution_ms": 1.402546,
+        "correct": true
+      },
+      {
+        "client_ms": 4.256379004800692,
+        "execution_ms": 1.423638,
+        "correct": true
+      },
+      {
+        "client_ms": 4.224646996590309,
+        "execution_ms": 1.415847,
+        "correct": true
+      },
+      {
+        "client_ms": 4.328971990616992,
+        "execution_ms": 1.488107,
+        "correct": true
+      },
+      {
+        "client_ms": 4.32300400279928,
+        "execution_ms": 1.480388,
+        "correct": true
+      },
+      {
+        "client_ms": 4.342714004451409,
+        "execution_ms": 1.491998,
+        "correct": true
+      },
+      {
+        "client_ms": 4.543677001493052,
+        "execution_ms": 1.635148,
+        "correct": true
+      },
+      {
+        "client_ms": 4.669554997235537,
+        "execution_ms": 1.71233,
+        "correct": true
+      },
+      {
+        "client_ms": 4.444058999069966,
+        "execution_ms": 1.557002,
+        "correct": true
+      },
+      {
+        "client_ms": 4.7857519966783,
+        "execution_ms": 1.5684,
+        "correct": true
+      },
+      {
+        "client_ms": 4.738229006761685,
+        "execution_ms": 1.754694,
+        "correct": true
+      },
+      {
+        "client_ms": 4.581241009873338,
+        "execution_ms": 1.646041,
+        "correct": true
+      },
+      {
+        "client_ms": 4.571999990730546,
+        "execution_ms": 1.623551,
+        "correct": true
+      },
+      {
+        "client_ms": 4.639356993720867,
+        "execution_ms": 1.618225,
+        "correct": true
+      },
+      {
+        "client_ms": 4.8115410027094185,
+        "execution_ms": 1.807908,
+        "correct": true
+      }
+    ]
+  }
+]

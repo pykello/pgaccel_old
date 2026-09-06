@@ -21,6 +21,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v12 | 36.952 | 33.842 | 40.945 | 17.41 |
 | sum-v13 | 41.629 | 39.858 | 44.820 | 17.41 |
 | sum-v14 | 34.974 | 31.622 | 38.053 | 17.41 |
+| sum-v15 | 40.503 | 33.957 | 47.720 | 17.41 |
+
+Sum-v15 (`8185921`) changes only runner stream buffering. A controlled
+[interactive comparison](RUNNER-BUFFER.md) shows lower client overhead in
+both ABBA positions, but its full Q20 median was 40.503 ms. Preserve this
+run without claiming an end-to-end gain; all nine answers match.
 
 Sum-v14 (`d6c1726`) matches ASCII literal prefixes directly while keeping
 RE2 for non-ASCII values. Its median is 34.974 ms with nine correct
