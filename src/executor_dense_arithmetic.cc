@@ -143,6 +143,12 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                     if(dicts[k]->dictSize()>16/product) throw NotDense{};
                     product*=dicts[k]->dictSize();
                 }
+                const int width0=dicts[0]->bytesPerValue();
+                const int width1=dicts[1]?dicts[1]->bytesPerValue():0;
+                const int radix=dicts[1]?dicts[1]->dictSize():1;
+                auto codeAt=[](const DictColumnDataBase *dict,int width,int row) {
+                    return width==1?dict->values[row]:reinterpret_cast<const uint16_t *>(dict->values)[row];
+                };
                 Program program;
                 std::vector<int> roots(outputs,-1);
                 for(size_t i=0;i<outputs;++i) {
@@ -163,8 +169,8 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                     int n=std::min(Block,rg.size-begin);
                     for(int r=0;r<n;++r) {
                         int row=begin+r;
-                        int code=Code(dicts[0],row);
-                        if(dicts[1]) code=code*dicts[1]->dictSize()+Code(dicts[1],row);
+                        int code=codeAt(dicts[0],width0,row);
+                        if(dicts[1]) code=code*radix+codeAt(dicts[1],width1,row);
                         codes[r]=count==rg.size || IsBitSet(bitmap,row)?code:-1;
                         if(codes[r]>=0) {++counts[code]; representatives[code]=row;}
                     }
