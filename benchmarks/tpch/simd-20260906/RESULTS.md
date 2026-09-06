@@ -18,10 +18,13 @@ retain the complete trial sequence to expose noise.
 | PGAccel dense v6 | [97.571, 89.13, 90.628, 105.384, 90.174] | 89.130 |
 | PGAccel dense v7 | [116.123, 103.14, 98.314, 96.999, 99.167] | 96.999 |
 | PGAccel dense v8 | [92.676, 81.103, 79.095, 79.357, 81.188] | 79.095 |
+| PGAccel dense v9 | [67.453, 61.361, 61.089, 61.781, 57.663] | 57.663 |
+| PGAccel dense v10 | [72.403, 63.545, 60.292, 60.151, 59.904, 61.179, 62.775, 73.77, 61.491] | 59.904 |
+| PGAccel dense v11 | [51.224, 69.607, 70.256, 49.061, 42.867, 42.297, 42.182, 43.129, 43.19] | 42.182 |
 
 The 4× gate is **54.94 ms** (one quarter of the faster competitor).
-The current retained kernel (v8, 79.095 ms) does not yet meet that gate. No SF100
-claim is made for this new kernel.
+The final SF10 kernel passes that gate in a fresh-process confirmation.
+SF100 validation is the next phase; no SF100 speed claim is made yet.
 
 ClickHouse uses the existing `tpch_sf10` MergeTree database on port 8123;
 DuckDB uses a persistent SF10 database imported from the same Parquet
@@ -42,3 +45,16 @@ code decoding and counts masks (79 ms). The explicit signed multiply
 experiment v7 regressed to 97 ms and was removed; its numerical boundary
 regression test remains. These are general expression/layout decisions,
 not SQL-text recognition.
+
+The loop-index experiment v10 did not improve on v9 and was removed.
+Unrolling four independent reduction accumulators (v11) reached 42 ms
+in steady warm trials, with two early 70 ms outliers retained above.
+A fresh-process 15-trial confirmation validates every answer: warm
+minimum 41.501 ms, median 42.639 ms, maximum 46.606 ms. The median is
+5.15× faster than DuckDB's warm minimum and 17.19× faster than
+ClickHouse's warm minimum. This passes the SF10 gate even using the
+slowest warm confirmation trial.
+
+Raw confirmation: `pgaccel-q1-confirm-sf10.jsonl`. All row reads, filtering,
+expression compilation, temporary grouping, and output construction are
+in query time. There is no retained aggregate or answer cache.
