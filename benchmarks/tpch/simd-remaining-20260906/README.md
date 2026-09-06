@@ -35,3 +35,5 @@ its latency target remains unmet.
 [Phase measurements and next steps](PROFILE-NEXT.md).
 
 [Active fourfold goal for all 22 queries](ALL-QUERY-GOAL.md).
+
+[Q20 typed-sum iterations](Q20-SUM.md) continue toward its latency gate.

@@ -1,0 +1,30 @@
+# Q20 typed correlated-sum iterations
+
+Client elapsed milliseconds, eight workers, warm medians excluding only
+trial 1. All values and rows validate against the saved DuckDB oracle.
+This work has not passed the fourfold target against both engines.
+
+| Version | Warm median ms | Warm min ms | Warm max ms | Peak query MiB |
+|---|---:|---:|---:|---:|
+| domain-v5 | 529.833 | 525.367 | 533.957 | 94.72 |
+| sum-v1 | 106.690 | 102.113 | 112.584 | 45.53 |
+
+Retain sum-v1 (`03b409f`). A fixed pair of integer keys replaces vector
+hash keys. Selected outer tuples define compact aggregate slots. Parallel
+fact probes update typed per-slot SUM/count arrays; each outer row then
+evaluates its threshold separately. Duplicate outer rows retain their
+multiplicity and values. Missing groups remain distinct from zero sums.
+
+The path directly constructs the required membership domain from a
+simple filtered source projection. It preserves native date bounds and
+uses general execution for unsupported shapes or stricter child caps.
+All 165 native and sanitizer tests pass. No external implementation or
+new dependency is introduced.
+
+The prior fresh SF10 competitor baseline is DuckDB 145.186 ms and
+ClickHouse 437.550 ms. A new comparison against both engines is required
+before promotion; the current DuckDB target remains unmet. Q17 also
+validated in the same sum-v1 run and remains below its SF10 target.
+
+[Full objective](ALL-QUERY-GOAL.md) · [Q17 scale results](Q17.md) ·
+[Earlier correlated iterations](CORRELATED.md)
