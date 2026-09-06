@@ -86,3 +86,22 @@ TEST(MembershipBitmap, ParallelBatchesPreserveRowsAndAntisAcrossStripeTails) {
         EXPECT_EQ(result->values, Rows({{std::to_string(anti ? antiExpected : expected)}}));
     }
 }
+
+TEST(MembershipBitmap, DirectNumericConstructionNormalizesAndFallsBack) {
+    Budget budget(1 << 20); ScopedValueResource resource(budget);
+    MembershipSet set(budget, 2);
+    std::vector<Wide> keys{-2, -2, 0, 3};
+    set.assignNumbers(keys, 0, budget);
+    EXPECT_FALSE(set.bits.empty()); EXPECT_TRUE(set.values.empty());
+    EXPECT_TRUE(set.contains(Cell{-200})); EXPECT_TRUE(set.contains(Cell{300}));
+    EXPECT_FALSE(set.contains(Cell{3})); EXPECT_FALSE(set.contains(Cell{100}));
+    keys = {INT64_MIN, INT64_MAX, Wide(INT64_MAX) + 1};
+    set.assignNumbers(keys, 2, budget);
+    EXPECT_TRUE(set.bits.empty()); EXPECT_EQ(set.values.size(), 3);
+    EXPECT_TRUE(set.contains(Cell{Wide(INT64_MAX) + 1}));
+    EXPECT_FALSE(set.contains(Cell{0}));
+    keys.clear(); set.assignNumbers(keys, 2, budget);
+    EXPECT_FALSE(set.contains(Cell{INT64_MIN}));
+    Budget tiny(1); MembershipSet limited(tiny, 0);
+    keys = {1, 2}; EXPECT_THROW(limited.assignNumbers(keys, 0, tiny), std::runtime_error);
+}

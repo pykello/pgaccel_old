@@ -78,12 +78,14 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
         Budget budget(q.memoryBudgetBytes); ScopedValueResource memory(budget);
         MembershipSet members(budget, 0);
         auto sourceFilter = source.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(source.filterClauses, avx);
+        std::pmr::vector<Wide> sourceKeys(&budget);
         for (int g = 0; g < source.tables[0]->RowGroupCount(); ++g) {
             const auto &rg = source.tables[0]->GetRowGroup(g); uint8_t bitmap[BITMAP_SIZE];
             if (sourceFilter && !sourceFilter->ExecuteSet(rg, bitmap)) continue;
-            Selected(rg, sourceFilter ? bitmap : nullptr, [&](int row) { members.values.insert(Read(rg, sourceKey, row)); });
+            Selected(rg, sourceFilter ? bitmap : nullptr, [&](int row) { sourceKeys.push_back(Read(rg, sourceKey, row).number); });
         }
-        members.compact(budget);
+        members.assignNumbers(sourceKeys, 0, budget);
+        sourceKeys.clear(); sourceKeys.shrink_to_fit();
         FlatMap<SumKey, uint8_t, SumKeyHash, std::equal_to<SumKey>> index(budget);
         std::pmr::vector<SumOuterRow> outerRows(&budget);
         auto outerFilter = q.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(q.filterClauses, avx);

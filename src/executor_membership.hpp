@@ -1,6 +1,7 @@
 #pragma once
 #include "executor_state.hpp"
 #include <immintrin.h>
+#include <span>
 
 namespace pgaccel {
 namespace {
@@ -13,6 +14,31 @@ struct MembershipSet {
     int64_t first = 0, last = -1;
     explicit MembershipSet(Budget &budget, int s)
         : values(&budget), bits(&budget), scale(s) {}
+    // Construct directly from a numeric child output, without hash nodes.
+    void assignNumbers(std::span<const Wide> numbers, int sourceScale, Budget &budget) {
+        values.clear(); bits.clear(); first = 0; last = -1;
+        if (numbers.empty()) return;
+        Wide factor = Power(scale - sourceScale);
+        Wide lo = Multiply(numbers.front(), factor), hi = lo;
+        for (Wide number : numbers) {
+            Wide value = Multiply(number, factor);
+            lo = std::min(lo, value); hi = std::max(hi, value);
+        }
+        if (lo >= INT64_MIN && hi <= INT64_MAX) {
+            Wide width = hi - lo + 1;
+            uint64_t words = (uint64_t(width) + 63) / 64;
+            if (width <= (Wide(1) << 29) && width <= Wide(numbers.size()) * 2048 &&
+                words * sizeof(uint64_t) <= (budget.limit - budget.used.load()) / 2) {
+                bits.assign(words, 0); first = int64_t(lo); last = int64_t(hi);
+                for (Wide number : numbers) {
+                    uint64_t offset = uint64_t(Multiply(number, factor) - lo);
+                    bits[offset / 64] |= uint64_t(1) << (offset % 64);
+                }
+                return;
+            }
+        }
+        for (Wide number : numbers) values.insert(Cell{Multiply(number, factor)});
+    }
     void compact(Budget &budget) {
         if (values.empty()) return;
         Wide lo = INT64_MAX, hi = INT64_MIN;
