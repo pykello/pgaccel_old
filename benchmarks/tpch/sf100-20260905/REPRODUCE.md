@@ -67,8 +67,8 @@ systemd-run --user --unit=pgaccel-tpch-sf100-pgaccel \
 
 ## Prepare and run the isolated ClickHouse phase
 
-Configuration may be prepared earlier, but load the full Memory tables
-only for this phase. Ports 18123 and 19000 must be free. A separate root
+Configuration may be prepared earlier; load MergeTree tables and collect
+column statistics before this phase. Ports 18123 and 19000 must be free. A separate root
 and unit preserve the existing server on 8123/9000.
 
 ```bash
@@ -84,12 +84,20 @@ systemd-run --user --unit=pgaccel-tpch-sf100-clickhouse \
 curl -fsS http://127.0.0.1:18123/ping
 
 "$TPCH_PYTHON" benchmarks/tpch/load_clickhouse.py \
-  --data "$TPCH_WORK/data" --database tpch_sf100_final --engine Memory \
+  --data "$TPCH_WORK/data" --database tpch_sf100_mergetree --engine MergeTree --statistics \
   --port 19000 --report "$TPCH_RESULTS/clickhouse-load.json"
 
+"$TPCH_PYTHON" benchmarks/tpch/adapt_clickhouse_queries.py \
+  --source "$TPCH_QUERIES" \
+  --output "$TPCH_WORK/clickhouse-query-overrides"
+
+"$TPCH_PYTHON" benchmarks/tpch/prepare_clickhouse.py \
+  --database tpch_sf100_mergetree --queries "$TPCH_QUERIES" \
+  --report "$TPCH_RESULTS/clickhouse-mergetree-layout.json"
+
 "$TPCH_PYTHON" benchmarks/tpch/compare_scale.py --engine clickhouse \
-  --database tpch_sf100_final --queries "$TPCH_QUERIES" \
-  --clickhouse-no-reorder-queries 5 \
+  --database tpch_sf100_mergetree --queries "$TPCH_QUERIES" \
+  --clickhouse-query-overrides "$TPCH_WORK/clickhouse-query-overrides" \
   --server-pid-file "$TPCH_WORK/clickhouse/server.pid" \
   --oracle "$TPCH_RESULTS/duckdb.jsonl" \
   --output "$TPCH_RESULTS/clickhouse.jsonl"
@@ -97,14 +105,14 @@ curl -fsS http://127.0.0.1:18123/ping
 
 The server's systemd unit enforces the cap; the small HTTP driver need not
 run in that unit. Archive the load report, server configuration, and
-results before releasing this dedicated Memory dataset:
+results before stopping the dedicated instance:
 
 ```bash
 systemctl --user stop pgaccel-tpch-sf100-clickhouse.service
 ```
 
-Memory-table rows disappear when their server stops. Parquet, DuckDB, and
-PGAccel source snapshots remain available for another load.
+The MergeTree files persist when the server stops. Parquet, DuckDB, and
+PGAccel native snapshots also remain available.
 
 ## Render the complete report
 

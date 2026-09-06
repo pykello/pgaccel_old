@@ -1,151 +1,137 @@
 # SF100 three-engine comparison
 
-The user requested a roughly 100 GB TPC-H dataset, then asked to optimize
-memory before comparing PGAccel, ClickHouse, and DuckDB. SF100 is the chosen
-scale; its actual physical storage and resident sizes will be measured.
+The user requested a roughly 100 GB TPC-H comparison, then asked to optimize
+PGAccel memory first. SF100 is the selected logical scale. Actual file,
+resident, query-allocation, and service sizes are reported separately.
 
-## Completed prerequisites
+## Retained memory work and correctness gate
 
-- All 22 unmodified DuckDB 1.4.3 TPC-H queries pass against the complete SF1
-  Parquet oracle, three trials each, after compact join keys (`294c36b`).
-- Q13 and Q15 each pass three complete SF10 trials. A full SF10 corpus gate
-  is still distinct from these focused checks.
-- SF10 Q21 query allocation peak fell from 12.81 to 4.18 GiB, with identical
-  answers; Q3 fell 52.2% and Q13 fell 40.6%. See the coverage checkpoint.
-- Native and ASan/UBSan suites both pass 129/129 tests. UBSan exposed a
-  temporary descriptor's uninitialized layout enum; `ffc3b3c` initializes
-  it before moving the descriptor, without changing stored layouts.
-- The three-engine driver passes all 22 queries across three trials on
-  the same small SF0.001 fixture in all three engines. This rehearsal is
-  for correctness, not performance: preparation work ran concurrently.
+Compact physical join keys (`294c36b`) reduced SF10 Q21's query-allocation
+peak from 12.809 to 4.177 GiB, and process peak RSS from 23.953 to 14.265 GiB.
+Q3 and Q13 allocation peaks fell 52.2% and 40.6%. All 22 unmodified DuckDB
+1.4.3 TPC-H queries then passed three complete SF1 oracle comparisons.
+Q13 and Q15 also passed three SF10 trials. Native and ASan/UBSan suites pass
+129/129 tests after the descriptor initialization and nested-limit fixes.
 
-Frozen PGAccel binary:
+Frozen PGAccel runner:
 `/home/hadi/projects/tpch-work/checkpoints/sf100-query-runner`
 
 SHA-256:
 `be6fd84981b9300c255ef6b2b60f5fb31299fc8dc311b22ae15d8522d442ab3b`
 
-The first PGAccel attempt exposed a runner configuration bug: the root
-received 64 GiB, but nested plans retained their default 8 GiB limit. Q2
-stopped at that child cap while total process RSS was about 106 GiB.
-`5eb5fc4` applies statement limits throughout the parsed plan; runtime
-remaining-parent accounting still bounds combined allocations. The full
-PGAccel phase is restarted from Q1 with this corrected binary. The partial
-attempt is archived as `inherited-child-limit-pgaccel.jsonl` and its log.
-The completed DuckDB phase remains valid and supplies the saved oracle.
+The first SF100 PGAccel attempt exposed a runner configuration bug: the root
+received 64 GiB while nested plans retained their default 8 GiB. Q2 stopped
+at that child cap, not a host OOM. `5eb5fc4` propagates explicit statement
+limits through the plan; execution still clamps children to the remaining
+parent budget. That attempt is archived as `inherited-child-limit-*`.
+The corrected complete phase restarts from Q1 and passes 21/22 queries.
+Q20 reaches the 64 GiB query allowance. Its separate 80 GiB recheck retains
+the same 192 GiB service cap and is excluded from baseline totals.
 
-## Host and resource contract
+## Resource and storage contract
 
-The host reports 251.35 GiB RAM, one Xeon Gold 6152 socket, 22 physical cores
-and 44 logical CPUs. The user requested a 192 GiB budget, so benchmark
-engine services use `MemoryMax=192G` and `MemorySwapMax=0` through the user
-systemd manager. Generation uses a smaller 128 GiB service cap and a
-64 GiB DuckDB buffer limit.
+The host reports 251.35 GiB RAM, one Xeon Gold 6152 socket, 22 physical cores,
+and 44 logical CPUs. Benchmark services use `MemoryMax=192G` and
+`MemorySwapMax=0`. The existing ClickHouse service on ports 8123/9000 remains
+untouched; its roughly 15 GiB background host memory is outside these caps.
+Only one benchmark engine executes timed queries at a time.
 
-Only one SF100 engine runs its query phase at a time. DuckDB writes saved
-oracle answers first and exits; PGAccel and ClickHouse read those answers
-without running DuckDB. The existing ClickHouse installation remains
-untouched. Its older small-scale tables are outside the benchmark process
-cap and will be reported as background host memory.
-
-| Engine | Source representation | Query settings |
+| Engine | Native representation | Query configuration |
 |---|---|---|
-| PGAccel | All eight native tables loaded; auxiliary indexes disabled | 64 GiB query allocations plus resident inputs; fast paths enable eight workers, relational joins remain serial; 512 GiB spill quota where supported |
-| DuckDB 1.4.3 | Generated persistent native tables, normal buffer manager | Eight threads, 176 GiB memory limit, 512 GiB temporary spill limit |
-| ClickHouse 26.8.2.7 | Memory tables loaded from matching Parquet | Eight threads, 64 GiB query limit, query cache off, `join_use_nulls=1`, `aggregate_functions_null_for_empty=1`, global join reordering disabled only for Q5 |
+| PGAccel | All eight native tables preloaded, auxiliary indexes disabled | 64 GiB query allocations plus resident inputs; eight-worker fast paths enabled, relational joins serial; 512 GiB spill quota where supported |
+| DuckDB 1.4.3 | Persistent generated database, normal buffer manager | Eight threads; 176 GiB engine memory limit; 512 GiB temporary-file limit |
+| ClickHouse 26.8.2.7 | MergeTree, ORDER BY tuple(), automatic column statistics | Eight threads; 64 GiB query limit; default greedy join ordering and statistics optimization; query cache off |
 
-ClickHouse uses a dedicated instance on HTTP 18123/native 19000. Its server
-memory threshold is 184 GiB inside the 192 GiB service cap. Insertion is
-allowed 160 GiB because Memory tables may retain allocations throughout
-an INSERT; measured queries override that setting with 64 GiB. The full
-ClickHouse Memory dataset is loaded only for its phase and is released
-when that isolated service stops. Its source Parquet remains available.
+The isolated ClickHouse instance uses HTTP 18123/native 19000 and a 184 GiB
+server threshold within the 192 GiB service cap. Inserts may use 160 GiB;
+timed requests explicitly use 64 GiB. Tables in `tpch_sf100_mergetree` use
+`auto_statistics_types='minmax,uniq,countmin'`. Statistics materialization
+on insert is enabled without the default table-size cutoff. Active parts
+and statistics files are archived before timing. Benchmark-table merges
+are stopped, and already-active merges finish before queries begin.
 
-The initial ClickHouse attempt was stopped during Q5 after more than nine
-minutes without a completed trial. Its greedy plan joined customers and
-suppliers by nation before orders and lineitem, creating an enormous
-intermediate. The first four completed queries, partial load evidence,
-and EXPLAIN plans are archived under `greedy-attempt-*` and
-`clickhouse-q05-*-plan.txt`. This is an interrupted diagnostic, not a
-recorded Q5 timeout or a completed default-setting comparison.
+These are native-format engineering comparisons. PGAccel preloads every
+column; DuckDB and ClickHouse load required native blocks through their
+normal read paths. First-use reads are included in query timing. File size,
+database-open time, full preload, and warm query time are distinct. This is
+not a raw-data scan comparison or an exhaustive search for the best layout.
 
-A partial diagnostic with global join reordering disabled is retained under
-`global-noreorder-*`. It avoids Q5's intermediate explosion, but Q3 takes
-61–78 seconds per trial versus about two seconds in the first attempt.
-Q1–Q7 completed; Q8 was interrupted after 243 seconds. This demonstrates
-why the final configuration does not disable the planner for every query.
+## SQL semantics and correctness
 
-The final ClickHouse phase restarts from Q1 after another server restart
-and full reload into `tpch_sf100_final`. It uses the default planner except
-for Q5, which sets `query_plan_optimize_join_order_limit=0`. The same
-unmodified SQL is used throughout. Each query record saves its effective
-server settings. This is a documented query-specific tuning choice, not an
-out-of-the-box default comparison. No times are selected from the earlier
-attempts for the final ClickHouse table.
+The shared source corpus is the unmodified DuckDB 1.4.3 TPC-H query set.
+PGAccel executes it directly. ClickHouse uses explicit DOUBLE casts on
+the ratio operands in Q8, Q14, and Q17, generated by
+`adapt_clickhouse_queries.py`; the remaining SQL is unchanged.
 
-Changing to `dpsub,greedy` alone retained Q5's problematic join in EXPLAIN,
-so that alternative was not timed. Memory tables have no explicitly
-collected column statistics here. ClickHouse describes the role of
-statistics in [global join reordering](https://clickhouse.com/blog/clickhouse-release-25-09).
-This controlled setting is not an exhaustive ClickHouse tuning exercise;
-a statistics-equipped MergeTree configuration is a useful future baseline.
+This adaptation preserves the oracle's floating result type. Without it,
+Q8 returned 0.0395 and 0.0389 instead of approximately 0.039535108776 and
+0.038974244925 because ClickHouse decimal division retained a decimal scale.
+The strict comparison exposed the difference. No answer tolerance was
+relaxed. Source SQL hashes identify the oracle query; executed SQL hashes
+and override paths separately identify the actual ClickHouse statement.
+The external adaptation manifest records both hashes.
 
-The NULL settings align semantics: the small rehearsal found empty SUMs
-in Q17 and Q19 that ClickHouse otherwise returned as zero. SQL statements
-are unchanged. No materialized answers or workload-specific indexes are
-introduced.
-
-## Timing and correctness
-
-Run Q1–Q22 in order, three consecutive trials per query, with a 1,800-second
-limit per trial. Report all trials, first-trial time, and warm minimum over
-trials 2–3. Report failures, timeouts, and unavailable oracles explicitly.
-Do not compute an overall winning total by silently dropping failures.
-
-The primary comparison is client-observed SQL execution plus fetching and
-answer conversion. PGAccel execution-only and ClickHouse server timing
-are separate diagnostics. DuckDB's first query may read native disk blocks;
-its open time is not an all-table preload time. PGAccel and ClickHouse load
-costs and physical/resident sizes must be reported separately. Warm data
-and this resident ClickHouse layout are not a cold-storage comparison or
-an exhaustive search for each engine's best configuration.
+ClickHouse also sets `join_use_nulls=1` and
+`aggregate_functions_null_for_empty=1`. The small rehearsal found that its
+unadjusted empty SUM otherwise returned zero for Q17 and Q19. COUNT retains
+its normal zero behavior. No cached answers or workload-specific data
+indexes are introduced.
 
 Check every returned row: exact integers/decimals and strings/dates;
-floating tolerance max(1e-6 absolute, 1e-12 relative). DuckDB trials must
-agree with each other; other engines are checked against the saved typed
-DuckDB answers. Record the exact SQL hash and frozen runner hash. A missing
-oracle leaves validation unavailable rather than inventing a pass.
+floats use max(1e-6 absolute, 1e-12 relative). DuckDB trials must agree with
+each other; other engines use its saved typed answers after DuckDB exits.
+A missing oracle is explicitly unvalidated rather than silently accepted.
 
-`VmRSS` and `VmHWM` refer to the engine process; HWM is cumulative since
-process start, including loading, not a per-query delta. PGAccel also
-reports budgeted query allocation peaks. Service memory includes charged
-file cache, so its cap is not interchangeable with RSS or the engine's
-allocator counter.
+## Timing and reporting
 
-## Staged execution
+Run Q1–Q22 in order, three consecutive trials per query, with a 1,800-second
+limit per trial. Keep all trials and first-trial times; the main table uses
+the minimum of trials 2–3. Client timing includes execution, fetch, and
+answer conversion. PGAccel execution-only and ClickHouse server times are
+separate diagnostics. Do not silently drop failures from an overall total.
 
-1. Generate the persistent DuckDB database and eight nonnullable Parquet
-   tables with `benchmarks/tpch/generate.py`. Preserve counts, types, sizes,
-   versions, and hashes in the data manifest.
-2. Import native snapshots one table at a time with `prepare_native.py`,
-   verifying every source row count before publishing completed snapshots.
-3. Finish all builds and setup before timed queries. Run `compare_scale.py
-   --engine duckdb` inside a 192 GiB service, saving the typed answers.
-4. Run `compare_scale.py --engine pgaccel` in a separate 192 GiB service
-   with the frozen binary and saved DuckDB oracle; release the process.
-5. Load ClickHouse Memory tables with `load_clickhouse.py`, verify counts,
-   then run `compare_scale.py --engine clickhouse` with the saved oracle.
-   Archive the configuration, load report, and results before stopping the
-   isolated instance.
-6. Write a per-query comparison and measured memory report in this folder,
-   including any failures and specific optimization work suggested by the
-   measurements. Do not claim earlier ClickBench wins for this binary
-   without repeating that workload.
+Process VmRSS/VmHWM and budgeted query allocations are different counters.
+VmHWM includes loading and all preceding queries. Service memory also
+includes charged file cache and service children. Its hard limit must not
+be added to RSS as though they were disjoint allocations. Resource sampling
+for the final ClickHouse phase excludes the earlier Memory-table attempts.
 
-Work files are under `/home/hadi/projects/tpch-work/sf100/`. Raw results and
-reports belong in `/home/hadi/projects/docs/tpch/sf100-20260905/`, with a
-versioned compact report under `benchmarks/tpch/sf100-20260905/`.
+Data and work files are under `/home/hadi/projects/tpch-work/sf100/`.
+Raw evidence and reports are under
+`/home/hadi/projects/docs/tpch/sf100-20260905/`, with compact versioned mirrors
+under `benchmarks/tpch/sf100-20260905/`. Stopping the isolated ClickHouse
+service releases its working memory; its MergeTree files persist.
 
+## Why the earlier Memory-table attempts are diagnostic only
+
+Memory tables without explicitly collected column statistics produced
+poor join estimates. The initial default-planner attempt completed Q1–Q4,
+then Q5 ran for more than nine minutes without completing a trial. EXPLAIN
+shows customers joined to suppliers by nation before orders and lineitem,
+creating an enormous intermediate. It was interrupted, not recorded as a
+timeout. Evidence is under `greedy-attempt-*` and the Q5 plan files.
+
+A global-no-reordering diagnostic completed Q1–Q7. Q5 improved to about
+42 seconds warm, but Q3 regressed from about two seconds to 61–78 seconds.
+Q8 was interrupted after 243 seconds. Evidence is under `global-noreorder-*`.
+A fresh targeted Memory attempt then used only the Q5 override. It completed
+Q1–Q8, exposing the Q8 decimal mismatch, and was interrupted during Q9 after
+427 seconds. Its Q9 plan builds a large lineitem intermediate before the
+selective part filter. Evidence is under `memory-targeted-*` and the Q9 plan.
+
+No times from these partial attempts are selected into the primary
+ClickHouse results. MergeTree statistics address the missing estimates
+without query-specific join-order overrides. The primary ClickHouse phase
+runs the full corpus afresh with the ratio adaptations described above.
+
+ClickHouse's primary references explain
+[statistics and global join ordering](https://clickhouse.com/blog/clickhouse-release-25-09)
+and [automatic MergeTree column statistics](https://clickhouse.com/blog/clickhouse-release-25-10).
+The observed bad plans are evidence from this host, not claims that all
+Memory-table plans or all ClickHouse configurations behave the same way.
+
+See REPRODUCE.md for commands and FOLLOW-UP.md for staged PGAccel work.
 These are engineering measurements, not audited TPC Benchmark Results.
-The generated data and TPC query corpus remain external. All new PGAccel
-algorithms are original implementations with no added engine dependency.
+All new PGAccel algorithms are original implementations; no engine
+dependency with a restrictive license has been introduced. Generated data
+and the TPC query corpus remain external to the source tree.
