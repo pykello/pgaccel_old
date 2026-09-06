@@ -88,8 +88,13 @@ int StarSelectRange32(const BitmapDomain &domain,const int32_t *values,int begin
         if(!selected)continue;
         auto key=_mm512_loadu_si512(values+begin+row),delta=_mm512_sub_epi32(key,first);
         auto valid=selected & _mm512_cmpge_epi32_mask(key,first) & _mm512_cmple_epi32_mask(key,last);
-        auto bits=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),valid,
-            _mm512_srli_epi32(delta,5),domain.bits,4);
+        if(!valid)continue;
+        auto positions=_mm512_srli_epi32(delta,5);
+        uint32_t firstWord=uint32_t(_mm_cvtsi128_si32(_mm512_castsi512_si128(positions)));
+        __m512i bits;
+        if((_mm512_cmpeq_epi32_mask(positions,_mm512_set1_epi32(firstWord)) & valid)==valid)
+            bits=_mm512_set1_epi32(reinterpret_cast<const uint32_t *>(domain.bits)[firstWord]);
+        else bits=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),valid,positions,domain.bits,4);
         auto mask=valid & _mm512_test_epi32_mask(_mm512_srlv_epi32(bits,
             _mm512_and_si512(delta,_mm512_set1_epi32(31))),_mm512_set1_epi32(1));
         _mm512_mask_compressstoreu_epi32(output+count,mask,_mm512_add_epi32(lanes,_mm512_set1_epi32(begin+row)));

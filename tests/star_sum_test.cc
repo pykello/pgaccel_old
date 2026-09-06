@@ -64,6 +64,9 @@ TEST(StarSum, SixteenLaneProbesMaskOutsideDomainAndPartialBlocks) {
     for(int64_t key:{int64_t(INT32_MIN),int64_t(INT32_MAX),int64_t(99),int64_t(357)}) {
         factKeys.push_back(key);amounts.push_back(1);
     }
+    for(int i=0;i<16;++i) {factKeys.push_back(INT32_MAX);amounts.push_back(1);}
+    std::rotate(factKeys.begin(),factKeys.end()-20,factKeys.end());
+    std::rotate(amounts.begin(),amounts.end()-20,amounts.end());
     auto registry=test::Table({{test::Raw(factKeys,4),test::Raw(amounts,4)},
         {test::Raw(factKeys,4),test::Raw(amounts,4)},
         {test::Raw(factKeys,4),test::Raw(amounts,4)}},
