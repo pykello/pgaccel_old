@@ -15,6 +15,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v6 | 62.231 | 53.149 | 71.507 | 30.73 |
 | sum-v7 | 62.867 | 50.667 | 69.530 | 29.70 |
 | sum-v8 | 52.954 | 43.791 | 57.649 | 29.19 |
+| sum-v9 | 49.631 | 39.883 | 54.417 | 17.41 |
+
+Sum-v9 (`a8e46d6`) narrows worker sums only after a subset-range proof.
+Its median is 49.631 ms and peak query allocations fall to 17.41 MiB.
+All nine answers, 168 native tests and focused sanitizer checks pass.
+Wide partial sums and cancellation retain checked 128-bit accumulation.
 
 Sum-v8 (`a8e4a99`) filters outer stripes in parallel before directory
 construction. Its median is 52.954 ms with nine correct answers. All
