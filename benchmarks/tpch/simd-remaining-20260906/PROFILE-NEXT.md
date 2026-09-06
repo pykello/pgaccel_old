@@ -45,3 +45,7 @@ No diagnostic timing is mixed into the performance comparison.
 The earlier [correlated-query plan](CORRELATED-PLAN.md) links the primary
 research reference. These next steps follow the local phase measurements;
 no external algorithm implementation or new dependency is copied.
+
+Step 1 is now retained: exact prefix-range pruning reduces Q20's SF10
+median to 529.833 ms across nine correct trials. All 161 native and
+sanitizer tests pass. Steps 2–5 remain outstanding.

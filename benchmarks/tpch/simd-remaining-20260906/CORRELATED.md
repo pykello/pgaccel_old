@@ -33,6 +33,7 @@ or sharing is not assumed. All 155 native and sanitizer tests pass.
 | pgaccel-domain-v4-sf10 | Q17 | 122.720 | 121.438 | 123.378 | 3.62 |
 | pgaccel-domain-v4-sf10 | Q2 | 182.752 | 180.945 | 184.545 | 6.45 |
 | pgaccel-domain-v4-sf10 | Q20 | 867.227 | 852.793 | 889.320 | 94.72 |
+| pgaccel-domain-v5-sf10 | Q20 | 529.833 | 525.367 | 533.957 | 94.72 |
 | pgaccel-domain-capacity-sf100 | Q20 | 10853.663 | 10799.385 | 10907.941 | 952.78 |
 
 Retain v1 for the measured capacity and latency improvement. It is still
@@ -72,9 +73,16 @@ its 64 GiB query allocation limit; this capacity failure is resolved.
 Competitors were not rerun at SF100 in this capacity-only experiment.
 This is not a fresh full 22-query comparison or a latency-gate pass.
 
+## Retained prefix pruning
+
+V5 narrows literal-prefix LIKE to a sorted dictionary label range before
+running exact regex checks. Nine SF10 Q20 trials validate; warm median is
+529.833 ms versus v4's 867.227 ms. Peak query memory remains bounded. All
+161 native and sanitizer tests pass. The fourfold target remains unmet.
+Q20 SF100 numbers above belong to v3, not this newer binary.
+
 ## Shared-executor regression checks
 
 Q16, Q18 and Q22 each pass a fresh SF10 answer check against DuckDB and
-ClickHouse using the v4 binary (`6cba692`). These are single-trial
-correctness checks, not warm performance comparisons. Evidence and raw
-hashes are in [MEMBERSHIP-REGRESSION.json](MEMBERSHIP-REGRESSION.json).
+ClickHouse using v4 (`6cba692`). These are single-trial correctness checks,
+not warm performance comparisons. See [MEMBERSHIP-REGRESSION.json](MEMBERSHIP-REGRESSION.json).
