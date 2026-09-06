@@ -37,3 +37,17 @@ TEST(RankJoin, ConcurrentBitsDetectDuplicatesAndScatterUniqueRows) {
     for(auto &thread:threads)thread.join();
     for(int key=0;key<4096;++key)EXPECT_EQ(index.row(*index.rank(key)),uint64_t(key)*7);
 }
+
+TEST(RankJoin, DirectoryOnlyOmitsRowStorageButKeepsExactRanks) {
+    Budget fullBudget(1<<20),directoryBudget(1<<20);
+    RankJoinIndex full(-100,1000,fullBudget),directory(-100,1000,directoryBudget);
+    for(int key=-100;key<=1000;key+=3){full.insert(key);directory.insert(key);}
+    full.finalize();directory.finalize(false);
+    EXPECT_EQ(full.size(),directory.size());
+    EXPECT_EQ(fullBudget.used.load()-directoryBudget.used.load(),full.size()*sizeof(uint64_t));
+    for(int key=-101;key<=1001;++key)EXPECT_EQ(full.rank(key),directory.rank(key));
+    EXPECT_THROW(directory.setRow(-100,1),std::logic_error);
+    EXPECT_THROW(directory.row(0),std::logic_error);
+    full.finalize(false);EXPECT_THROW(full.row(0),std::logic_error);
+    directory.finalize();directory.setRow(-100,77);EXPECT_EQ(directory.row(0),77);
+}

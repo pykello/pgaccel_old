@@ -26,14 +26,16 @@ public:
         if constexpr(Concurrent) return !(std::atomic_ref<uint64_t>(word).fetch_or(mask,std::memory_order_relaxed)&mask);
         else {if(word&mask)return false;word|=mask;return true;}
     }
-    void finalize() {
+    void finalize(bool retainRows=true) {
         prefix.resize(bits.size());uint64_t offset=0;
         for(size_t i=0;i<bits.size();++i) {
             if(offset>UINT32_MAX)throw std::invalid_argument("Rank index cardinality exceeds 32 bits");
             prefix[i]=uint32_t(offset);offset+=__builtin_popcountll(bits[i]);
         }
         if(offset>UINT32_MAX)throw std::invalid_argument("Rank index cardinality exceeds 32 bits");
-        cardinality=offset;rows.emplace(cardinality,*bits.get_allocator().resource());
+        cardinality=offset;
+        rows.reset();
+        if(retainRows)rows.emplace(cardinality,*bits.get_allocator().resource());
     }
     std::optional<uint32_t> rank(int64_t key) const {
         if(prefix.empty())throw std::logic_error("Rank index is not finalized");
@@ -43,9 +45,13 @@ public:
         return prefix[offset/64]+__builtin_popcountll(word&(mask-1));
     }
     void setRow(int64_t key,uint64_t row) {
+        if(!rows)throw std::logic_error("Rank index has no row storage");
         auto index=rank(key);if(!index)throw std::invalid_argument("Missing rank index key");(*rows)[*index]=row;
     }
-    uint64_t row(uint32_t rank) const {return (*rows)[rank];}
+    uint64_t row(uint32_t rank) const {
+        if(!rows)throw std::logic_error("Rank index has no row storage");
+        return (*rows)[rank];
+    }
     uint64_t size() const {return cardinality;}
     int64_t minimum() const {return first;}
     int64_t maximum() const {return last;}
