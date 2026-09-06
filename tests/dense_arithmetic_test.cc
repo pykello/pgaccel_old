@@ -54,3 +54,23 @@ TEST(DenseArithmetic, SparseBlocksAndDifferentLocalDictionaryIds) {
         EXPECT_EQ(result->values,(Rows{{"a","39","3","13"},{"m","1536","3","512"},{"z","39","3","13"}}));
     }
 }
+TEST(DenseArithmetic, SignedMultiplyWidthBoundary) {
+    std::vector<std::vector<ColumnDataP>> groups;
+    for(bool wide:{false,true}) {
+        std::vector<std::string> k; std::vector<int64_t> x,y;
+        for(int i=0;i<8;++i) {
+            k.insert(k.end(),{"a","b"});
+            x.insert(x.end(),{wide?2147483648LL:INT32_MIN,wide?4294967296LL:INT32_MAX});
+            y.insert(y.end(),{wide?3:-1,wide?-2:2});
+        }
+        groups.push_back({test::Dict<StringType>(k),test::Raw(x),test::Raw(y)});
+    }
+    auto registry=test::Table(std::move(groups),
+        {{"k",std::make_shared<StringType>()},{"x",std::make_shared<Int64Type>()},{"y",std::make_shared<Int64Type>()}});
+    auto q=ParseSelect("SELECT k,sum(x*y) FROM t GROUP BY k ORDER BY k",registry);
+    ASSERT_TRUE(q.ok());
+    for(bool avx:{false,true}) for(bool parallel:{false,true}) {
+        auto result=ExecuteQuery(*q,avx,parallel);ASSERT_TRUE(result.ok());
+        EXPECT_EQ(result->values,(Rows{{"a","68719476736"},{"b","-34359738384"}}));
+    }
+}
