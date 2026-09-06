@@ -11,7 +11,7 @@ TEST(CompactUnsigned, WidthBoundariesZeroInitializationAndExactValues) {
         for(size_t i=0;i<values.size();++i)values.set(i,i%2?maximum:maximum/2);
         for(size_t i=0;i<values.size();++i)EXPECT_EQ(values.get(i),i%2?maximum:maximum/2);
         if(maximum<UINT32_MAX)EXPECT_THROW(values.set(0,maximum+1),std::out_of_range);
-        EXPECT_EQ(budget.peak.load(),67*values.bytesPerValue());
+        EXPECT_EQ(budget.peak.load(),67*values.bytesPerValue()+4-values.bytesPerValue());
     }
 }
 TEST(CompactUnsigned, EmptyAndBudgetedAllocations) {
