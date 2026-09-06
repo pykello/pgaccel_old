@@ -3,6 +3,7 @@
 #include "query_resources.hpp"
 #include "executor.h"
 #include "util.h"
+#include "json_rows.hpp"
 #include <chrono>
 #include <fstream>
 #include <filesystem>
@@ -93,8 +94,8 @@ int main(int argc,char **argv) {
                  <<",\"spill_bytes_written\":"<<output.spillBytes;
         if(!error.empty())std::cout<<",\"error\":"<<Json(error);
         std::cout<<",\"ms\":[";for(size_t i=0;i<times.size();++i){if(i)std::cout<<',';std::cout<<times[i];}
-        std::cout<<"],\"rows\":[";
-        for(size_t r=0;r<output.values.size();++r){if(r)std::cout<<',';std::cout<<'[';for(size_t c=0;c<output.values[r].size();++c){if(c)std::cout<<',';std::cout<<Json(output.values[r][c]);}std::cout<<']';}
-        std::cout<<"]}"<<std::endl;
+        auto rows=benchmark::JsonRows(output.values);
+        std::cout<<"],\"rows\":";
+        std::cout.write(rows.data(),rows.size());std::cout<<"}"<<std::endl;
     }
 }
