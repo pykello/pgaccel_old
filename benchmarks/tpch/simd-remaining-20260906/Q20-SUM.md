@@ -16,6 +16,11 @@ This work has not passed the fourfold target against both engines.
 | sum-v7 | 62.867 | 50.667 | 69.530 | 29.70 |
 | sum-v8 | 52.954 | 43.791 | 57.649 | 29.19 |
 | sum-v9 | 49.631 | 39.883 | 54.417 | 17.41 |
+| sum-v10 | 54.245 | 39.566 | 59.336 | 17.41 |
+
+Reject sum-v10 (`d712eb2`, reverted by `58c4008`). Its SIMD prefix
+interval experiment measured 54.245 ms and did not show consistent gains
+in a separate [ABBA component comparison](PREFIX-EXPERIMENT.md).
 
 Sum-v9 (`a8e46d6`) narrows worker sums only after a subset-range proof.
 Its median is 49.631 ms and peak query allocations fall to 17.41 MiB.
