@@ -2,6 +2,7 @@
 #include "executor_result_number.hpp"
 #include "executor_sequence_join.hpp"
 #include "executor_membership.hpp"
+#include "executor_correlation_domain.hpp"
 #include "nodes.h"
 #include <functional>
 #include <cmath>
@@ -103,8 +104,10 @@ std::shared_ptr<Expression> LocalPredicate(const std::shared_ptr<Expression> &e,
 // Hash inner joins stream row identities into typed aggregation. The largest
 // filtered relation is probed; other relations retain every duplicate key.
 // Strings remain borrowed from immutable source stripes throughout execution.
-Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
+Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx) {
     try {
+        auto restricted = CorrelationDomains(source, avx);
+        const QueryDesc &q = restricted ? *restricted : source;
         if (q.tables.empty() || q.tables.size() > 63)
             return Status::Invalid("Relational execution requires 1 to 63 tables");
         Budget budget(q.memoryBudgetBytes);
