@@ -1,6 +1,7 @@
 #include "executor_result.hpp"
 #include "executor_result_number.hpp"
 #include "executor_sequence_join.hpp"
+#include "executor_membership.hpp"
 #include "nodes.h"
 #include <functional>
 #include <cmath>
@@ -162,12 +163,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                     return Status::Invalid("Scalar correlation produced duplicate result keys");
             }
         }
-        struct Membership {
-            std::pmr::unordered_set<Cell, Hash> values;
-            int scale;
-            explicit Membership(Budget &budget, int s) : values(&budget), scale(s) {}
-        };
-        std::vector<Membership> memberships; memberships.reserve(q.membershipQueries.size());
+        std::vector<MembershipSet> memberships; memberships.reserve(q.membershipQueries.size());
         for (const auto &membership : q.membershipQueries) {
             int sourceScale = Scale(membership.resultType.get());
             int scale = std::max(sourceScale, Scale(membership.column.Type().get()));
@@ -181,6 +177,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 Cell key = ResultKey(row[0], membership.resultType.get(), scale, budget);
                 memberships.back().values.insert(std::move(key));
             }
+            memberships.back().compact(budget);
         }
         std::pmr::vector<RowId> bound(tables, 0, &budget);
         struct MissingScalar {};
@@ -244,15 +241,16 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &q, bool avx) {
                 const auto &rg = q.tables[table]->GetRowGroup(g);
                 uint8_t bitmap[BITMAP_SIZE];
                 if (filter && !filter->ExecuteSet(rg, bitmap)) continue;
-                Selected(rg, filter ? bitmap : nullptr, [&](int row) {
+                bool selected = bool(filter);
+                for (size_t i = 0; i < q.membershipQueries.size(); ++i) {
+                    const auto &query = q.membershipQueries[i];
+                    if (query.column.tableIdx != int(table)) continue;
+                    if (!selected) memset(bitmap, 0xff, (rg.size + 7) / 8);
+                    memberships[i].intersect(rg, query.column, query.anti, avx, bitmap);
+                    selected = true;
+                }
+                Selected(rg, selected ? bitmap : nullptr, [&](int row) {
                     bound[table] = (uint64_t(g) << 32) | uint32_t(row);
-                    for (size_t i = 0; i < q.membershipQueries.size(); ++i) {
-                        const auto &query = q.membershipQueries[i];
-                        if (query.column.tableIdx != int(table)) continue;
-                        auto key = read(query.column);
-                        if (!key.string) key.number = Multiply(key.number, Power(memberships[i].scale - Scale(query.column.Type().get())));
-                        if (memberships[i].values.contains(key) == query.anti) return;
-                    }
                     for (const auto &predicate : local)
                         if (!keep(*predicate)) return;
                     rows.back().push_back(bound[table]);
