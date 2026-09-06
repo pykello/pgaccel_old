@@ -1,7 +1,8 @@
 # Q5: converging dimension identities
 
-Status: initial executor passes focused regression tests; performance has not
-been measured yet. The SF10 baseline native call is 11,467.3 ms, versus 183.9 ms
+Status: the first executor passes all22 SF1 answers and reduces the native
+SF10 median to 57.4 ms. Removing an unused intermediate bitmap measures
+46.8 ms in the next iteration; fresh confirmation gates remain pending. The SF10 baseline native call is 11,467.3 ms, versus 183.9 ms
 DuckDB and 590.5 ms ClickHouse (nine trials, first excluded from medians).
 
 Q5 needs matching customer and supplier nations, selected region and order
@@ -34,7 +35,8 @@ flowchart LR
    Earlier convergence, cycles, additional constraints, unsupported key types,
    duplicate target keys, and arbitrary many-to-many joins keep the fallback.
 4. Build filtered dimension payloads from the smallest dependencies outward.
-   Consecutive keys use 32-bit dense payload arrays. Sparse sorted keys use an
+   Consecutive keys initially use 32-bit dense payload arrays. A subsequent
+   experiment chooses one, two, or four bytes from the proved center domain. Sparse sorted keys use an
    exact membership bitmap and rank directory, retaining payloads only for
    selected keys. A zero payload means no qualifying dimension row.
 5. Carry the grouped dimension's **row identity**, not its display label.
