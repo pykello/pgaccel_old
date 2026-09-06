@@ -3,6 +3,7 @@
 #include "executor_bitmap_probe.hpp"
 #include "executor_small_group_key.hpp"
 #include "executor_result.hpp"
+#include "executor_compact_unsigned.hpp"
 
 namespace pgaccel {
 namespace {
@@ -23,14 +24,14 @@ const RawColumnDataBase &ConvergentRaw(const RowGroup &rg,const ColumnRef &colum
 struct ConvergentPayload {
     int64_t first=0,last=0;
     uint64_t selected=0;
-    std::pmr::vector<uint32_t> dense;
+    std::optional<CompactUnsignedArray> dense;
     std::pmr::vector<uint64_t> bits;
     std::unique_ptr<RankJoinIndex> rank;
-    explicit ConvergentPayload(Budget &budget):dense(&budget),bits(&budget) {}
+    explicit ConvergentPayload(Budget &budget):bits(&budget) {}
     uint32_t lookup(int64_t key) const {
         if(key<first || key>last) return 0;
         if(rank) {auto id=rank->rank(key);return id?uint32_t(rank->row(*id)):0;}
-        return dense[uint64_t(Wide(key)-first)];
+        return dense->get(uint64_t(Wide(key)-first));
     }
     BitmapDomain domain() const {return {first,last,rank?rank->words():bits.data()};}
 };
@@ -81,7 +82,7 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
             std::pmr::vector<uint64_t> offsets(table.RowGroupCount(),0,&budget);
             if(key.sequence.active()) {
                 payload->first=key.sequence.minimum();payload->last=key.sequence.maximum();
-                payload->dense.resize(key.sequence.size(),0);
+                payload->dense.emplace(key.sequence.size(),plan.keys[center]->sequence.size(),budget);
                 key.sequence.forEachStripe([&](uint32_t g,uint64_t offset){offsets[g]=offset;});
             } else {
                 payload->first=INT64_MAX;payload->last=INT64_MIN;uint64_t size=0;
@@ -114,7 +115,7 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
                         if(primary) {
                             int64_t k=ConvergentRead(*primary,row);
                             payload->rank->insert<true>(k);pairs.push_back({k,value});
-                        } else payload->dense[offsets[g]+row]=value;
+                        } else payload->dense->set(offsets[g]+row,value);
                     });
                 }
                 return pairs;
@@ -129,8 +130,8 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
                                  [&](const auto &edge){return edge.target==t;})) {
                 // Intermediate dimensions are looked up through their payload
                 // only. Membership bits are consumed by the fact's two arms.
-                payload->bits.resize((payload->dense.size()+63)/64,0);
-                for(size_t i=0;i<payload->dense.size();++i)if(payload->dense[i]) {
+                payload->bits.resize((payload->dense->size()+63)/64,0);
+                for(size_t i=0;i<payload->dense->size();++i)if(payload->dense->get(i)) {
                     payload->bits[i/64]|=uint64_t(1)<<(i%64);++payload->selected;
                 }
             }
