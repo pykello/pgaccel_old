@@ -52,7 +52,7 @@ cap and will be reported as background host memory.
 |---|---|---|
 | PGAccel | All eight native tables loaded; auxiliary indexes disabled | 64 GiB query allocations plus resident inputs; fast paths enable eight workers, relational joins remain serial; 512 GiB spill quota where supported |
 | DuckDB 1.4.3 | Generated persistent native tables, normal buffer manager | Eight threads, 176 GiB memory limit, 512 GiB temporary spill limit |
-| ClickHouse 26.8.2.7 | Memory tables loaded from matching Parquet | Eight threads, 64 GiB query limit, query cache off, `join_use_nulls=1`, `aggregate_functions_null_for_empty=1`, global join reordering disabled |
+| ClickHouse 26.8.2.7 | Memory tables loaded from matching Parquet | Eight threads, 64 GiB query limit, query cache off, `join_use_nulls=1`, `aggregate_functions_null_for_empty=1`, global join reordering disabled only for Q5 |
 
 ClickHouse uses a dedicated instance on HTTP 18123/native 19000. Its server
 memory threshold is 184 GiB inside the 192 GiB service cap. Insertion is
@@ -69,15 +69,26 @@ and EXPLAIN plans are archived under `greedy-attempt-*` and
 `clickhouse-q05-*-plan.txt`. This is an interrupted diagnostic, not a
 recorded Q5 timeout or a completed default-setting comparison.
 
-The final ClickHouse phase restarts from Q1 after a server restart and full
-reload into `tpch_sf100_noreorder`. Every query uses
-`query_plan_optimize_join_order_limit=0`. Plan inspection shows that this
-avoids the problematic Q5 nation-key join before the fact-table joins.
-Changing to `dpsub,greedy` alone retained that join in the plan, so it was
-not benchmarked. Memory tables have no explicitly collected column
-statistics here. ClickHouse describes the role of statistics in
-[global join reordering](https://clickhouse.com/blog/clickhouse-release-25-09).
-This controlled setting is not an exhaustive ClickHouse tuning exercise.
+A full diagnostic with global join reordering disabled is retained under
+`global-noreorder-*`. It avoids Q5's intermediate explosion, but Q3 takes
+61–78 seconds per trial versus about two seconds in the first attempt.
+This demonstrates why the final configuration does not disable the planner
+for every query.
+
+The final ClickHouse phase restarts from Q1 after another server restart
+and full reload into `tpch_sf100_final`. It uses the default planner except
+for Q5, which sets `query_plan_optimize_join_order_limit=0`. The same
+unmodified SQL is used throughout. Each query record saves its effective
+server settings. This is a documented query-specific tuning choice, not an
+out-of-the-box default comparison. No times are selected from the earlier
+attempts for the final ClickHouse table.
+
+Changing to `dpsub,greedy` alone retained Q5's problematic join in EXPLAIN,
+so that alternative was not timed. Memory tables have no explicitly
+collected column statistics here. ClickHouse describes the role of
+statistics in [global join reordering](https://clickhouse.com/blog/clickhouse-release-25-09).
+This controlled setting is not an exhaustive ClickHouse tuning exercise;
+a statistics-equipped MergeTree configuration is a useful future baseline.
 
 The NULL settings align semantics: the small rehearsal found empty SUMs
 in Q17 and Q19 that ClickHouse otherwise returned as zero. SQL statements

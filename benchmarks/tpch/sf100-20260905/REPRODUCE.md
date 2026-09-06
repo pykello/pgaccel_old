@@ -84,12 +84,12 @@ systemd-run --user --unit=pgaccel-tpch-sf100-clickhouse \
 curl -fsS http://127.0.0.1:18123/ping
 
 "$TPCH_PYTHON" benchmarks/tpch/load_clickhouse.py \
-  --data "$TPCH_WORK/data" --database tpch_sf100_noreorder --engine Memory \
+  --data "$TPCH_WORK/data" --database tpch_sf100_final --engine Memory \
   --port 19000 --report "$TPCH_RESULTS/clickhouse-load.json"
 
 "$TPCH_PYTHON" benchmarks/tpch/compare_scale.py --engine clickhouse \
-  --database tpch_sf100_noreorder --queries "$TPCH_QUERIES" \
-  --clickhouse-join-order-limit 0 \
+  --database tpch_sf100_final --queries "$TPCH_QUERIES" \
+  --clickhouse-no-reorder-queries 5 \
   --server-pid-file "$TPCH_WORK/clickhouse/server.pid" \
   --oracle "$TPCH_RESULTS/duckdb.jsonl" \
   --output "$TPCH_RESULTS/clickhouse.jsonl"
