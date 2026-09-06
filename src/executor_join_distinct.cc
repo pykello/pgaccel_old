@@ -123,13 +123,45 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
             }return pairs;
         });
         auto counts=CountPackedDistinct(inputs,groups.slots(),budget,parallel);
-        QueryResults result(q,budget);
-        for(size_t group=0;group<counts.size();++group)if(counts[group])result.addLazy([&](size_t output) {
-            if(output==size_t(countOutput))return FinalCell{Cell{Wide(counts[group])},nullptr};
-            auto row=representatives[group];const auto &column=*q.aggregateClauses[output].columnRef;
-            return FinalCell{Read(dim.GetRowGroup(row>>32),column,uint32_t(row)),column.Type().get()};
+        std::vector<int> outputComponents;
+        for(const auto &a:q.aggregateClauses)outputComponents.push_back(a.columnRef && a.type==AggregateClause::AGGREGATE_PROJECT?
+            std::find(columns.begin(),columns.end(),*a.columnRef)-columns.begin():-1);
+        std::pmr::vector<uint32_t> ordered(&budget);
+        for(size_t group=0;group<counts.size();++group)if(counts[group])ordered.push_back(group);
+        auto value=[&](uint32_t group,size_t output)->uint64_t {
+            int component=outputComponents[output];return component<0?counts[group]:groups.ordinal(group,component);
+        };
+        std::sort(ordered.begin(),ordered.end(),[&](uint32_t a,uint32_t b) {
+            for(const auto &o:q.orderBy) {
+                auto x=value(a,o.output),y=value(b,o.output);
+                if(x!=y)return o.descending?x>y:x<y;
+            }
+            for(size_t i=0;i<q.aggregateClauses.size();++i) {
+                auto x=value(a,i),y=value(b,i);if(x!=y)return x<y;
+            }
+            return false;
         });
-        auto output=result.finish();output.spillBytes=spillBytes;return output;
+        QueryOutput output;output.spillBytes=spillBytes;
+        size_t visible=q.outputColumnCount.value_or(q.aggregateClauses.size());
+        for(size_t i=0;i<visible;++i)output.fieldNames.push_back(q.aggregateClauses[i].ToString());
+        size_t begin=std::min<uint64_t>(q.offset,ordered.size()),end=ordered.size();
+        if(q.limit)end=begin+std::min<uint64_t>(*q.limit,end-begin);
+        budget.charge((end-begin)*(sizeof(Row)+visible*sizeof(std::string))+64);
+        output.values.reserve(end-begin);
+        for(size_t index=begin;index<end;++index) {
+            uint32_t group=ordered[index];auto row=representatives[group];Row values;values.reserve(visible);
+            for(size_t i=0;i<visible;++i) {
+                if(i==size_t(countOutput)){budget.charge(128);values.push_back(Number(Wide(counts[group]),0));}
+                else {
+                    const auto &column=*q.aggregateClauses[i].columnRef;
+                    auto cell=Read(dim.GetRowGroup(row>>32),column,uint32_t(row));
+                    budget.charge(cell.string?cell.text.size()+32:128);
+                    values.push_back(Format(FinalCell{std::move(cell),column.Type().get()}));
+                }
+            }
+            output.values.push_back(std::move(values));
+        }
+        output.peakMemoryBytes=budget.peak.load();return output;
     } catch(const NotDense &){return {};}
     catch(const std::exception &e){return Status::Invalid(e.what());}
 }

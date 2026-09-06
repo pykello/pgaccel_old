@@ -18,9 +18,10 @@ TEST(JoinDistinct, ExactGroupsMembershipDuplicatesAndSlices) {
         for(const std::string filter:{"", " AND t.brand NOT LIKE '%b%'", " AND (t.size=1 OR t.size=2)", " AND t.size<0"})
         for(const std::string membership:{"", " AND f.s NOT IN (SELECT s FROM x)", " AND f.s IN (SELECT s FROM x)",
                 " AND f.s NOT IN (SELECT s FROM x WHERE s<0)"})
+        for(const std::string order:{" ORDER BY n DESC,t.brand,t.size", " ORDER BY t.brand DESC,t.size DESC,n", ""})
         for(const std::string slice:{"", " LIMIT 1 OFFSET 1"}) {
             auto q=ParseSelect("SELECT t.brand,t.size,count(DISTINCT f.s) AS n FROM t,f WHERE t.k=f.k"+filter+membership+
-                " GROUP BY t.brand,t.size ORDER BY n DESC,t.brand,t.size"+slice,registry);
+                " GROUP BY t.brand,t.size"+order+slice,registry);
             ASSERT_TRUE(q.ok())<<q.status().Message();auto reference=ExecuteRelational(*q,false,false);ASSERT_TRUE(reference.ok())<<reference.status().Message();
             for(bool avx:{false,true})for(bool parallel:{false,true}) {
                 auto direct=ExecuteJoinDistinct(*q,avx,parallel);ASSERT_EQ(direct.has_value(),!duplicate);
