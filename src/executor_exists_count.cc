@@ -94,8 +94,11 @@ std::optional<Result<QueryOutput>> ExecuteExistsCount(const QueryDesc &q,bool av
             return true;
         });
         // EXISTS keeps each outer row once, including duplicate outer keys.
+        workers=parallel?std::min(8,std::max(1,outside.RowGroupCount())):1;
+        auto partials=RunTasks(workers,[&](int worker) {
+        ScopedValueResource memory(budget);Scratch scratch(budget,16384);
         std::pmr::unordered_map<Cell,uint64_t,Hash> totals(&budget);uint8_t bitmap[RowGroupSize/8];
-        for(int g=0;g<outside.RowGroupCount();++g) {
+        for(int g=worker;g<outside.RowGroupCount();g+=workers) {
             const auto &rg=outside.GetRowGroup(g);int count=filters[outer]?filters[outer]->ExecuteSet(rg,bitmap):rg.size;if(!count)continue;
             auto data=rg.columns[group.columnIdx].get();if(data->type!=ColumnDataBase::DICT_COLUMN_DATA)throw NotDense{};
             auto dict=static_cast<const DictColumnDataBase *>(data);if(dict->dictSize()>256)throw NotDense{};
@@ -107,6 +110,10 @@ std::optional<Result<QueryOutput>> ExecuteExistsCount(const QueryDesc &q,bool av
             });
             for(size_t code=0;code<dict->dictSize();++code)if(counts[code])totals[Label(dict,code,group.Type()->type_num())]+=counts[code];
         }
+        return totals;
+        });
+        std::pmr::unordered_map<Cell,uint64_t,Hash> totals(&budget);
+        for(const auto &part:partials)for(const auto &[label,count]:part)totals[label]+=count;
         for(const auto &[label,count]:totals)results.addLazy([&](size_t i) {
             FinalCell cell;const auto &a=q.aggregateClauses[i];
             if(a.type==AggregateClause::AGGREGATE_COUNT)cell.value.number=count;
