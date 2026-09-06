@@ -42,8 +42,7 @@ class ValuePredicate : public FilterNodeImpl {
     if (dict) {
       // At most 65,536 local labels: the complete membership map fits in 8 KiB.
       std::array<uint32_t, RowGroupSize / 32> labels{};
-      auto signatures = ((substring && needle.size() >= 3) ||
-          (!sequence.empty() && (required.words[0] || required.words[1])))
+      auto signatures = substring && needle.size() >= 3
           ? data->localStringSignatures : std::span<const StringSignature>{};
       int selectedRows = rg.size;
       if (intersect) {
@@ -227,13 +226,6 @@ public:
         needle = f.value.substr(1, f.value.size() - 2);
         substring = needle.find_first_of("%_\\") == std::string::npos;
         if (substring) required = StringSignature::Build(needle);
-      }
-      // Wildcards separate literals: only within-literal trigrams are
-      // necessary. Surviving signatures still need exact ordered matching.
-      for (const auto &literal : sequence) {
-        auto signature = StringSignature::Build(literal);
-        required.words[0] |= signature.words[0];
-        required.words[1] |= signature.words[1];
       }
     } else {
       for (const auto &literal : f.values) {
