@@ -38,3 +38,19 @@ TEST(DenseArithmetic, WideFallbackAndBudget) {
     QueryDesc limited=*q; limited.memoryBudgetBytes=1; limited.allowSpill=false;
     EXPECT_FALSE(ExecuteQuery(limited,true,true).ok());
 }
+TEST(DenseArithmetic, SparseBlocksAndDifferentLocalDictionaryIds) {
+    std::vector<std::vector<ColumnDataP>> groups;
+    for(const std::string other:{"z","a"}) {
+        std::vector<std::string> keys(269,"m");
+        std::fill(keys.begin()+256,keys.end(),other);
+        groups.push_back({test::Dict<StringType>(keys),test::Raw(std::vector<int64_t>(269,3),1)});
+    }
+    auto registry=test::Table(std::move(groups),{{"k",std::make_shared<StringType>()},
+        {"v",std::make_shared<Int64Type>()}});
+    auto q=ParseSelect("SELECT k,sum(v),avg(v),count(*) FROM t GROUP BY k ORDER BY k",registry);
+    ASSERT_TRUE(q.ok());
+    for(bool avx:{false,true}) for(bool parallel:{false,true}) {
+        auto result=ExecuteQuery(*q,avx,parallel); ASSERT_TRUE(result.ok());
+        EXPECT_EQ(result->values,(Rows{{"a","39","3","13"},{"m","1536","3","512"},{"z","39","3","13"}}));
+    }
+}

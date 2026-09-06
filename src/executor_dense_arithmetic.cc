@@ -167,15 +167,17 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                 std::vector<int64_t> sums(product*program.ops.size(),0);
                 for(int begin=0;begin<rg.size;begin+=Block) {
                     int n=std::min(Block,rg.size-begin);
+                    uint32_t active=0;
                     for(int r=0;r<n;++r) {
                         int row=begin+r;
                         int code=codeAt(dicts[0],width0,row);
                         if(dicts[1]) code=code*radix+codeAt(dicts[1],width1,row);
                         codes[r]=count==rg.size || IsBitSet(bitmap,row)?code:-1;
-                        if(codes[r]>=0) {++counts[code]; representatives[code]=row;}
+                        if(codes[r]>=0) {active |= uint32_t(1)<<code; ++counts[code]; representatives[code]=row;}
                     }
                     program.evaluate(begin,n,buffers);
-                    for(int code=0;code<product;++code) {
+                    while(active) {
+                        int code=__builtin_ctz(active); active &= active-1;
                         // Group masks avoid conflicting scatter updates when many
                         // SIMD lanes have the same key. Sum each unique root once.
                         bool seen[32]{};
