@@ -46,3 +46,20 @@ TEST(BooleanBitmap, DeepConstantExpressionsKeepGeneralFallback) {
     Budget budget(1<<20);BooleanBitmapProgram program(budget,true);
     EXPECT_THROW(program.compile(*predicate,0),NotDense);
 }
+TEST(BooleanBitmap, CompactEqualityDisjunctionUsesOneExactBitmap) {
+    std::vector<int64_t> values;for(int i=0;i<259;++i)values.push_back(-50+i%100);
+    auto registry=test::Table({{test::Raw(values,1)}},{{"v",std::make_shared<Int64Type>()}});
+    auto q=ParseSelect("SELECT count(*) FROM t WHERE v=-17 OR v=-3 OR v=0 OR v=3 OR v=17 OR v=3",registry);ASSERT_TRUE(q.ok());
+    for(bool avx:{false,true}) {
+        Budget budget(1<<20);BooleanBitmapProgram program(budget,avx);int root=program.compile(*q->predicates[0],0);
+        EXPECT_EQ(program.bytes(),RowGroupSize/8);
+        OverwriteBuffer<uint64_t> scratch((program.bytes()+7)/8,budget);std::array<int,64> counts;
+        auto bytes=reinterpret_cast<uint8_t *>(scratch.data());program.evaluate(registry.at("t")->GetRowGroup(0),bytes,counts);
+        auto bits=program.bitmap(bytes,root);int expected=0;
+        for(size_t i=0;i<values.size();++i) {
+            bool keep=values[i]==-17 || values[i]==-3 || values[i]==0 || values[i]==3 || values[i]==17;
+            EXPECT_EQ(bool(bits[i/8]>>(i%8)&1),keep);expected+=keep;
+        }
+        EXPECT_EQ(counts[root],expected);
+    }
+}

@@ -48,6 +48,24 @@ public:
     }
     int compile(const Expression &e,int table) {
         if(++attempts>128)throw NotDense{};
+        if(e.kind==Expression::OR) {
+            FilterClause set;set.op=FilterClause::FILTER_IN;bool first=true;int visited=0;
+            int64_t low=INT64_MAX,high=INT64_MIN;
+            auto collect=[&](auto &&self,const Expression &node,int depth)->bool {
+                if(++visited>127 || depth>64)return false;
+                if(node.kind==Expression::OR)return self(self,*node.left,depth+1) && self(self,*node.right,depth+1);
+                if(node.kind!=Expression::EQ || !node.left || !node.right)return false;
+                auto column=node.left,value=node.right;if(!column->column)std::swap(column,value);
+                if(!column->column || column->column->tableIdx!=table || value->type->type_num()!=INT64_TYPE ||
+                    !constant(*value) || (column->type->type_num()!=INT32_TYPE && column->type->type_num()!=INT64_TYPE))return false;
+                Cell bound;try {bound=Evaluate(*value,RowGroup{},0);}catch(const std::exception &){return false;}
+                if(bound.string || bound.number<INT64_MIN || bound.number>INT64_MAX)return false;
+                if(first){set.columnRef=*column->column;first=false;}else if(set.columnRef!=*column->column)return false;
+                low=std::min(low,int64_t(bound.number));high=std::max(high,int64_t(bound.number));
+                if(Wide(high)-low>=64)return false;set.values.push_back(Number(bound.number,0));return true;
+            };
+            if(collect(collect,e,0))return leaf(set);
+        }
         if(e.kind==Expression::AND || e.kind==Expression::OR) {
             int a=compile(*e.left,table),b=compile(*e.right,table);return combine(e.kind==Expression::AND,a,b);
         }
