@@ -13,7 +13,7 @@ class SmallGroupKey {
         Frame(const ColumnDataBase *source,Budget &budget):data(source),labels(&budget) {}
     };
     struct Component {
-        TypeNum type;unsigned shift=0,bits=0;int64_t minimum=0;
+        TypeNum type;unsigned shift=0,bits=0;int64_t minimum=0;uint32_t identityLabels=0;
         std::pmr::vector<Frame> frames;
         Component(TypeNum t,Budget &budget):type(t),frames(&budget) {}
     };
@@ -48,6 +48,20 @@ public:
             components.emplace_back(column.Type()->type_num(),budget);auto &component=components.back();component.shift=width;
             if(component.type!=STRING_TYPE && component.type!=INT32_TYPE && component.type!=INT64_TYPE && component.type!=DATE_TYPE)throw NotDense{};
             component.frames.reserve(table.RowGroupCount());
+            if(component.type==STRING_TYPE) {
+                const DictColumnData<StringType> *first=nullptr;bool identical=true;
+                for(int g=0;g<table.RowGroupCount();++g) {
+                    const auto &rg=table.GetRowGroup(g);if(!rg.size)continue;
+                    auto data=rg.columns[column.columnIdx].get();if(data->type!=ColumnDataBase::DICT_COLUMN_DATA)throw NotDense{};
+                    auto dictionary=static_cast<const DictColumnData<StringType> *>(data);
+                    if(!first)first=dictionary;else if(first->dict!=dictionary->dict){identical=false;break;}
+                }
+                if(identical && first) {
+                    if(first->dict.empty() || first->dict.size()>65536 || !std::is_sorted(first->dict.begin(),first->dict.end()) ||
+                        std::adjacent_find(first->dict.begin(),first->dict.end())!=first->dict.end())throw NotDense{};
+                    component.identityLabels=first->dict.size();
+                }
+            }
             std::pmr::unordered_map<std::string_view,uint32_t> strings(&budget);
             int64_t minimum=INT64_MAX,maximum=INT64_MIN;
             for(int g=0;g<table.RowGroupCount();++g) {
@@ -57,6 +71,7 @@ public:
                 if(component.type==STRING_TYPE) {
                     if(data->type!=ColumnDataBase::DICT_COLUMN_DATA)throw NotDense{};
                     const auto &dictionary=static_cast<const DictColumnData<StringType> *>(data)->dict;
+                    if(component.identityLabels)continue;
                     frame.labels.reserve(dictionary.size());
                     for(const auto &label:dictionary) {
                         auto [it,added]=strings.emplace(std::string_view(label),uint32_t(strings.size()));
@@ -83,7 +98,8 @@ public:
                     minimum=std::min(minimum,low);maximum=std::max(maximum,high);
                 }
             }
-            if(component.type==STRING_TYPE) {
+            if(component.identityLabels)component.bits=std::bit_width(component.identityLabels-1);
+            else if(component.type==STRING_TYPE) {
                 component.bits=std::bit_width(strings.empty()?size_t(0):strings.size()-1);
                 std::pmr::vector<std::pair<std::string_view,uint32_t>> labels(&budget);
                 labels.reserve(strings.size());for(const auto &entry:strings)labels.push_back(entry);
@@ -112,7 +128,8 @@ public:
             const auto &frame=component.frames[group];uint64_t value;
             if(component.type==STRING_TYPE) {
                 auto id=code(*static_cast<const DictColumnDataBase *>(frame.data),row);
-                if(id>=frame.labels.size())throw NotDense{};value=frame.labels[id];
+                if(component.identityLabels) {if(id>=component.identityLabels)throw NotDense{};value=id;}
+                else {if(id>=frame.labels.size())throw NotDense{};value=frame.labels[id];}
             } else value=uint64_t(number(component,frame,row))-uint64_t(component.minimum);
             if(value>=(uint64_t(1)<<component.bits))throw NotDense{};
             result|=uint32_t(value)<<component.shift;

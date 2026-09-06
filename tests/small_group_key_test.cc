@@ -42,3 +42,15 @@ TEST(SmallGroupKey, NumericDictionaryWidthsExtremesAndDomainFallback) {
     auto q=ParseSelect("SELECT n FROM t",registry);ASSERT_TRUE(q.ok());Budget budget(1<<20);
     EXPECT_THROW(SmallGroupKey(*q->tables[0],{*q->aggregateClauses[0].columnRef},budget),NotDense);
 }
+TEST(SmallGroupKey, VerifiedIdenticalDictionariesKeepWideLocalCodesOrdered) {
+    std::vector<std::string> labels;for(int i=0;i<259;++i)labels.push_back("label"+std::to_string(i));
+    auto reversed=labels;std::reverse(reversed.begin(),reversed.end());
+    auto registry=test::Table({{test::Dict<StringType>(labels)},{test::Dict<StringType>(reversed)}},{{"g",std::make_shared<StringType>()}});
+    auto q=ParseSelect("SELECT g FROM t",registry);ASSERT_TRUE(q.ok());Budget budget(1<<20);
+    SmallGroupKey keys(*q->tables[0],{*q->aggregateClauses[0].columnRef},budget);
+    auto sorted=labels;std::sort(sorted.begin(),sorted.end());
+    for(size_t i=0;i<labels.size();++i) {
+        EXPECT_EQ(keys.word(0,i),keys.word(1,labels.size()-i-1));
+        EXPECT_EQ(keys.ordinal(keys.word(0,i),0),std::lower_bound(sorted.begin(),sorted.end(),labels[i])-sorted.begin());
+    }
+}
