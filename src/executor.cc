@@ -36,6 +36,7 @@ std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &, bool,
 std::optional<Result<QueryOutput>> ExecuteCorrelatedMin(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &, bool, bool);
+std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteJoinCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteExistsCount(const QueryDesc &, bool, bool);
 std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &, bool, bool);
@@ -63,6 +64,7 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
         if(auto summed=ExecuteCorrelatedSum(query,useAvx,useParallelism)) return std::move(*summed);
         if(auto correlated=ExecuteCorrelatedAvg(query,useAvx,useParallelism)) return std::move(*correlated);
         if(auto exists=ExecuteExistsCount(query,useAvx,useParallelism)) return std::move(*exists);
+        if(auto distinct=ExecuteJoinDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
         if(auto counts=ExecuteJoinCount(query,useAvx,useParallelism)) return std::move(*counts);
         if(auto star=ExecuteStarSum(query,useAvx,useParallelism)) return std::move(*star);
         if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) return std::move(*joined);
