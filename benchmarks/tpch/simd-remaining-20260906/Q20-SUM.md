@@ -24,8 +24,14 @@ This work has not passed the fourfold target against both engines.
 | sum-v15 | 40.503 | 33.957 | 47.720 | 17.41 |
 | sum-v16 | 33.654 | 28.426 | 37.714 | 17.41 |
 | sum-v17 | 36.378 | 28.462 | 41.981 | 17.41 |
+| sum-v18 | 32.915 | 28.005 | 36.714 | 17.41 |
 
-The [latest 15-trial confirmation](Q20-CONFIRM1.md) measured 37.346 ms
+Sum-v18 (`ec6f893`) skips identity scaling in membership operations.
+Its nine-trial median is 32.915 ms, but the fresh confirmation measured
+34.400 ms against a 32.494 ms target; [confirmation 2](Q20-CONFIRM2.md)
+therefore fails and no SF100 run was started.
+
+The [previous 15-trial confirmation](Q20-CONFIRM1.md) measured 37.346 ms
 against DuckDB 136.716 ms and ClickHouse 457.847 ms. The current target
 is 34.179 ms; SF100 was not started because this gate failed.
 
