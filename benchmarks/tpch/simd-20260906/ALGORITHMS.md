@@ -146,5 +146,24 @@ cases fall back. Final ordering and LIMIT still run through QueryResults.
 Every bitmap, rank payload, and aggregate allocation is budgeted, and no
 query result or prepared join directory survives the statement.
 
+The payload array uses overwrite storage: unique rank owners write every
+slot before any reader can access it. Aggregate sums instead require
+zero initialization, distributed over disjoint worker ranges before
+atomic additions begin. This avoids serial first-touch passes over large
+temporary arrays without leaving any live aggregate uninitialized.
+
+For native 32-bit keys in a nonnegative signed-32-bit domain, sixteen
+lanes probe 32-bit bitmap words. Wider domains retain the eight-lane
+path. The fact scan combines contiguous key loads with the date bitmap,
+so only joined rows need selected arithmetic. If all active lanes access
+the same bitmap word, one load is broadcast; otherwise a masked gather
+handles the individual words. Bounds masks are applied before every
+lookup, including negative and extreme signed keys.
+
+Bounded final results use worker-local candidate heaps and the existing
+comparator for their final merge. Each local heap retains LIMIT plus
+OFFSET rows, preserving the global answer and deterministic tie-breaking.
+No claim of a sorted fact column is needed by these optimizations.
+
 The research references and license policy are in [PLAN.md](PLAN.md).
 These are original implementations, with no imported research code.

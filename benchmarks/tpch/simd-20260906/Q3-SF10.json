@@ -759,5 +759,143 @@
     ],
     "correct": true,
     "peak_query_bytes": 56687436
+  },
+  {
+    "version": 12,
+    "change": "Fused contiguous 32-bit fact scan",
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T05:53:23.978552+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-20260906/pgaccel-star-v12-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-20260906/duckdb-sf10.jsonl",
+        "database": null,
+        "runner": "build/query_runner",
+        "native": "/home/hadi/projects/tpch-work/native-sf10",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 9,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          3
+        ]
+      },
+      "source_revision": "0dda164f90a7cb43edec7cf809d4519f150f7ef4",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 59986052,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 17736.403402,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 10277675008,
+        "load_ms": 17736.442431,
+        "indexed_columns": [],
+        "client_load_ms": 17749.62942500133
+      },
+      "runner_sha256": "d2474ce5d723cabe4f54047e139c17aad57cf64a32cdd093bb9b02b1a33612fb",
+      "open_ms": 17761.71629600867,
+      "loaded_rss": {
+        "VmRSS": 10277675008,
+        "VmHWM": 10277675008
+      }
+    },
+    "execution_ms": [
+      55.410332,
+      44.860907,
+      37.851181,
+      36.989164,
+      34.897975,
+      33.634797,
+      33.339872,
+      32.642326,
+      31.70654
+    ],
+    "correct": true,
+    "peak_query_bytes": 56687436
+  },
+  {
+    "version": 13,
+    "change": "Broadcast shared bitmap words",
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T05:54:20.898813+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-20260906/pgaccel-star-v13-sf10.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-20260906/duckdb-sf10.jsonl",
+        "database": null,
+        "runner": "build/query_runner",
+        "native": "/home/hadi/projects/tpch-work/native-sf10",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 9,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": [
+          3
+        ]
+      },
+      "source_revision": "8a677dd42015a51a3328acb847fa76616fa82178",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 59986052,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 17727.995772,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 10277675008,
+        "load_ms": 17728.034238,
+        "indexed_columns": [],
+        "client_load_ms": 17743.306592004956
+      },
+      "runner_sha256": "1625450a2bd4b514ee34b08a1b08a1b06ed0c5ece3b709d16deb2b70b183a5c2",
+      "open_ms": 17760.03210399358,
+      "loaded_rss": {
+        "VmRSS": 10277675008,
+        "VmHWM": 10277675008
+      }
+    },
+    "execution_ms": [
+      52.832553,
+      41.213879,
+      32.746275,
+      31.785903,
+      31.071266,
+      30.498377,
+      30.605102,
+      30.471792,
+      30.083842
+    ],
+    "correct": true,
+    "peak_query_bytes": 56687436
   }
 ]
