@@ -1,3 +1,4 @@
+#include <cstring>
 #include "../benchmarks/json_rows.hpp"
 #include <gtest/gtest.h>
 using namespace pgaccel;
@@ -13,4 +14,19 @@ TEST(JsonRows, EscapesControlsQuotesBackslashesAndPreservesUtf8) {
     expected+="\\u0018\\u0019\\u001a\\u001b\\u001c\\u001d\\u001e\\u001f\"";
     std::string actual;benchmark::AppendJsonString(actual,bytes);EXPECT_EQ(actual,expected);
     std::string plain(100000,'x');EXPECT_EQ(benchmark::JsonRows({{plain}}),"[[\""+plain+"\"]]");
+}
+#include <sys/mman.h>
+#include <unistd.h>
+TEST(JsonRows, VectorEscapeProbesStopAtProtectedPageBoundaries) {
+    size_t page=sysconf(_SC_PAGESIZE);auto memory=static_cast<char *>(mmap(nullptr,page*2,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0));
+    ASSERT_NE(memory,MAP_FAILED);ASSERT_EQ(mprotect(memory+page,page,PROT_NONE),0);
+    for(size_t n=1;n<=96;++n)for(char special:{char(0),char(31),'"','\\',char(0xc3)}) {
+        auto begin=memory+page-n;std::memset(begin,'a',n);begin[n-1]=special;
+        std::string actual;benchmark::AppendJsonString(actual,std::string_view(begin,n));
+        std::string expected="\""+std::string(n-1,'a');
+        if(special==0)expected+="\\u0000";else if(special==31)expected+="\\u001f";
+        else if(special=='"')expected+="\\\"";else if(special=='\\')expected+="\\\\";else expected+=special;
+        expected+='"';EXPECT_EQ(actual,expected);
+    }
+    EXPECT_EQ(munmap(memory,page*2),0);
 }
