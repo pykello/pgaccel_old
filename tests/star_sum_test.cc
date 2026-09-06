@@ -150,3 +150,13 @@ TEST(StarSum, SparseMembershipFindsGappedOrdersAndPreservesMultiplicity) {
         }
     }
 }
+
+TEST(StarSum, HavingRetainsGeneralEvaluation) {
+    auto registry=StarTables();
+    auto q=ParseSelect("SELECT b.k,sum(f.x) AS total FROM t f,b,c WHERE f.k=b.k AND b.c=c.k "
+        "GROUP BY b.k HAVING sum(f.x)>0.00 ORDER BY b.k",registry);
+    ASSERT_TRUE(q.ok());EXPECT_FALSE(ExecuteStarSum(*q,true,true));
+    QueryDesc reference=*q;reference.predicates.push_back(reference.predicates.front());
+    auto expected=ExecuteQuery(reference,false,false);ASSERT_TRUE(expected.ok());
+    auto actual=ExecuteQuery(*q,true,true);ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,expected->values);
+}

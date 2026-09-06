@@ -77,7 +77,7 @@ int StarSelectRows(const BitmapDomain &domain,const RowGroup &rg,const ColumnRef
 std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bool parallel) {
     if(q.tables.size()!=3 || q.predicates.size()!=2 || !q.grouped || q.groupExpressions.empty() ||
         !q.existenceJoins.empty() || !q.leftJoins.empty() || q.membershipQueries.size()>1 ||
-        !q.scalarQueries.empty() || q.aggregateClauses.size()>8) return {};
+        !q.scalarQueries.empty() || !q.having.empty() || q.aggregateClauses.size()>8) return {};
     struct Edge {ColumnRef a,b;};std::vector<Edge> edges;int degree[3]{};
     for(const auto &p:q.predicates) {
         if(p->kind!=Expression::EQ || !p->left->column || !p->right->column)return {};
