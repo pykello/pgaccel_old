@@ -78,6 +78,27 @@ int StarSelectRows(const BitmapDomain &domain,const RowGroup &rg,const ColumnRef
     return StarSelect(domain,scratch,input,n,output,avx);
 }
 
+int StarSelectRange32(const BitmapDomain &domain,const int32_t *values,int begin,int n,
+                      const uint8_t *bitmap,uint32_t *output) {
+    auto first=_mm512_set1_epi32(domain.first),last=_mm512_set1_epi32(domain.last);
+    const auto lanes=_mm512_setr_epi32(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
+    int row=0,count=0;
+    for(;row+16<=n;row+=16) {
+        uint16_t selected=0xffff;if(bitmap)std::memcpy(&selected,bitmap+(begin+row)/8,2);
+        if(!selected)continue;
+        auto key=_mm512_loadu_si512(values+begin+row),delta=_mm512_sub_epi32(key,first);
+        auto valid=selected & _mm512_cmpge_epi32_mask(key,first) & _mm512_cmple_epi32_mask(key,last);
+        auto bits=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),valid,
+            _mm512_srli_epi32(delta,5),domain.bits,4);
+        auto mask=valid & _mm512_test_epi32_mask(_mm512_srlv_epi32(bits,
+            _mm512_and_si512(delta,_mm512_set1_epi32(31))),_mm512_set1_epi32(1));
+        _mm512_mask_compressstoreu_epi32(output+count,mask,_mm512_add_epi32(lanes,_mm512_set1_epi32(begin+row)));
+        count+=__builtin_popcount(mask);
+    }
+    for(;row<n;++row)if((!bitmap || (bitmap[(begin+row)/8] >> ((begin+row)%8) & 1)) && domain.contains(values[begin+row]))output[count++]=begin+row;
+    return count;
+}
+
 }
 std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bool parallel) {
     if(q.tables.size()!=3 || q.predicates.size()!=2 || !q.grouped || q.groupExpressions.empty() ||
@@ -203,8 +224,7 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
                     if(p.low*sizes[fact]<INT64_MIN || p.high*sizes[fact]>INT64_MAX)throw NotDense{};
                 }
                 int n=0;
-                auto consume=[&] {
-                    int accepted=StarSelectRows(domain,rg,factKey,selected,n,matched,keys,avx);
+                auto consume=[&](int accepted) {
                     if(accepted) {
                         StarDecode(rg,factKey,accepted,keys,matched,avx);
                         program.evaluate<true>(0,accepted,buffers,avx,matched);
@@ -220,7 +240,16 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
                     }
                     n=0;
                 };
-                Selected(rg,count==rg.size?nullptr:bitmap,[&](int row){selected[n++]=row;if(n==Block)consume();});if(n)consume();
+                auto data=rg.columns[factKey.columnIdx].get();
+                auto raw=data->type==ColumnDataBase::RAW_COLUMN_DATA?static_cast<const RawColumnDataBase *>(data):nullptr;
+                if(avx && raw && raw->bytesPerValue==4 && domain.first>=0 && domain.last<=INT32_MAX) {
+                    for(int begin=0;begin<rg.size;begin+=Block)
+                        consume(StarSelectRange32(domain,reinterpret_cast<const int32_t *>(raw->values),begin,
+                            std::min(Block,rg.size-begin),count==rg.size?nullptr:bitmap,matched));
+                } else {
+                    auto selectedBlock=[&]{consume(StarSelectRows(domain,rg,factKey,selected,n,matched,keys,avx));};
+                    Selected(rg,count==rg.size?nullptr:bitmap,[&](int row){selected[n++]=row;if(n==Block)selectedBlock();});if(n)selectedBlock();
+                }
             }
             return true;
         };
