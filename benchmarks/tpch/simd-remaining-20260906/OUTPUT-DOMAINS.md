@@ -43,3 +43,7 @@ This is an original implementation using existing project primitives, with
 no new dependencies. The general motivation is consistent with DuckDB's
 [discussion of filter pushdown and join filter pushdown](https://duckdb.org/2024/11/14/optimizers).
 No external source code was incorporated.
+
+A fresh [all-22 SF1 answer sweep](OUTPUT-DOMAINS-SF1.json) passes against
+DuckDB on the frozen `409c4ca` runner. This is a correctness sweep with
+one trial per query, not an additional performance claim.

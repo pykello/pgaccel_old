@@ -1,0 +1,308 @@
+{
+  "duckdb": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T11:39:31.547597+00:00",
+      "engine": "duckdb",
+      "settings": {
+        "engine": "duckdb",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-output-domain-sf1.jsonl",
+        "oracle": null,
+        "database": "/home/hadi/projects/tpch-work/sf1/tpch.duckdb",
+        "runner": null,
+        "native": null,
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 1,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": null
+      },
+      "source_revision": "34a368a063d42fb0fba944ac005be779353465f5",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "version": "1.4.3",
+      "tables": [
+        [
+          "customer",
+          150000
+        ],
+        [
+          "lineitem",
+          6001215
+        ],
+        [
+          "nation",
+          25
+        ],
+        [
+          "orders",
+          1500000
+        ],
+        [
+          "part",
+          200000
+        ],
+        [
+          "partsupp",
+          800000
+        ],
+        [
+          "region",
+          5
+        ],
+        [
+          "supplier",
+          10000
+        ]
+      ],
+      "open_ms": 89.08291198895313,
+      "loaded_rss": {
+        "VmRSS": 63713280,
+        "VmHWM": 63713280
+      }
+    },
+    "sha256": "c223d37bd8bd727334089b788ed38c17f175f8a64c17907fad755cace4bc9ed5",
+    "queries": [
+      {
+        "id": 1,
+        "correct": true
+      },
+      {
+        "id": 2,
+        "correct": true
+      },
+      {
+        "id": 3,
+        "correct": true
+      },
+      {
+        "id": 4,
+        "correct": true
+      },
+      {
+        "id": 5,
+        "correct": true
+      },
+      {
+        "id": 6,
+        "correct": true
+      },
+      {
+        "id": 7,
+        "correct": true
+      },
+      {
+        "id": 8,
+        "correct": true
+      },
+      {
+        "id": 9,
+        "correct": true
+      },
+      {
+        "id": 10,
+        "correct": true
+      },
+      {
+        "id": 11,
+        "correct": true
+      },
+      {
+        "id": 12,
+        "correct": true
+      },
+      {
+        "id": 13,
+        "correct": true
+      },
+      {
+        "id": 14,
+        "correct": true
+      },
+      {
+        "id": 15,
+        "correct": true
+      },
+      {
+        "id": 16,
+        "correct": true
+      },
+      {
+        "id": 17,
+        "correct": true
+      },
+      {
+        "id": 18,
+        "correct": true
+      },
+      {
+        "id": 19,
+        "correct": true
+      },
+      {
+        "id": 20,
+        "correct": true
+      },
+      {
+        "id": 21,
+        "correct": true
+      },
+      {
+        "id": 22,
+        "correct": true
+      }
+    ]
+  },
+  "pgaccel": {
+    "metadata": {
+      "status": "loaded",
+      "started_at_utc": "2026-09-06T11:39:32.993886+00:00",
+      "engine": "pgaccel",
+      "settings": {
+        "engine": "pgaccel",
+        "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+        "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-output-domain-sf1.jsonl",
+        "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-output-domain-sf1.jsonl",
+        "database": null,
+        "runner": "/home/hadi/projects/tpch-work/checkpoints/q20-sum-v19-query-runner",
+        "native": "/home/hadi/projects/tpch-work/native-sf1",
+        "url": "http://127.0.0.1:18123",
+        "server_pid_file": null,
+        "threads": 8,
+        "repeats": 1,
+        "timeout": 1800,
+        "query_memory_gib": 64,
+        "clickhouse_join_order_limit": null,
+        "clickhouse_no_reorder_queries": [],
+        "clickhouse_query_overrides": null,
+        "duckdb_memory_gib": 176,
+        "temp_directory": null,
+        "only": null
+      },
+      "source_revision": "34a368a063d42fb0fba944ac005be779353465f5",
+      "source_dirty": true,
+      "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+      "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+      "load": {
+        "status": "loaded",
+        "rows": 6001215,
+        "columns": 16,
+        "table_count": 8,
+        "base_load_ms": 1779.408311,
+        "index_build_ms": 0,
+        "index_bytes": 0,
+        "index_peak_allocation_bytes": 0,
+        "process_peak_rss_bytes": 1029140480,
+        "load_ms": 1779.440279,
+        "indexed_columns": [],
+        "client_load_ms": 1792.545488991891
+      },
+      "runner_sha256": "a2d72af1c1cc353fd29166bedaeb82550a0a8d290935042abfad7351924651e9",
+      "open_ms": 1804.9467879900476,
+      "loaded_rss": {
+        "VmRSS": 1029140480,
+        "VmHWM": 1029140480
+      }
+    },
+    "sha256": "d98263c01bcdab46e121d3e45c151096ab3f79f73b90a628331c9d06a9b76019",
+    "queries": [
+      {
+        "id": 1,
+        "correct": true
+      },
+      {
+        "id": 2,
+        "correct": true
+      },
+      {
+        "id": 3,
+        "correct": true
+      },
+      {
+        "id": 4,
+        "correct": true
+      },
+      {
+        "id": 5,
+        "correct": true
+      },
+      {
+        "id": 6,
+        "correct": true
+      },
+      {
+        "id": 7,
+        "correct": true
+      },
+      {
+        "id": 8,
+        "correct": true
+      },
+      {
+        "id": 9,
+        "correct": true
+      },
+      {
+        "id": 10,
+        "correct": true
+      },
+      {
+        "id": 11,
+        "correct": true
+      },
+      {
+        "id": 12,
+        "correct": true
+      },
+      {
+        "id": 13,
+        "correct": true
+      },
+      {
+        "id": 14,
+        "correct": true
+      },
+      {
+        "id": 15,
+        "correct": true
+      },
+      {
+        "id": 16,
+        "correct": true
+      },
+      {
+        "id": 17,
+        "correct": true
+      },
+      {
+        "id": 18,
+        "correct": true
+      },
+      {
+        "id": 19,
+        "correct": true
+      },
+      {
+        "id": 20,
+        "correct": true
+      },
+      {
+        "id": 21,
+        "correct": true
+      },
+      {
+        "id": 22,
+        "correct": true
+      }
+    ]
+  }
+}
