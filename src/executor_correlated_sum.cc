@@ -127,11 +127,20 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
             return states;
         });
         std::pmr::vector<SumState> states(index.size(), &budget);
-        for (size_t slot = 0; slot < index.size(); ++slot) {
-            for (const auto &p : partials) { states[slot].sum = Add(states[slot].sum, p[slot].sum); states[slot].count += p[slot].count; }
-            if (states[slot].count && sum != 0)
-                states[slot].sum = EvaluateWith(*child.aggregateClauses[0].expression, [&](const ColumnRef &) { return Cell{states[slot].sum}; }).number;
-        }
+        RunTasks(workers, [&](int worker) {
+            ScopedValueResource memory(budget);
+            for (size_t slot = index.size() * worker / workers;
+                 slot < index.size() * (worker + 1) / workers; ++slot) {
+                for (const auto &p : partials) {
+                    states[slot].sum = Add(states[slot].sum, p[slot].sum);
+                    states[slot].count += p[slot].count;
+                }
+                if (states[slot].count && sum != 0)
+                    states[slot].sum = EvaluateWith(*child.aggregateClauses[0].expression,
+                        [&](const ColumnRef &) { return Cell{states[slot].sum}; }).number;
+            }
+            return 0;
+        });
         bool numeric = q.numericMembershipOutput && q.aggregateClauses.size() == 1 &&
             q.aggregateClauses[0].columnRef->Type()->type_num() != STRING_TYPE &&
             q.orderBy.empty() && !q.limit && !q.offset;
