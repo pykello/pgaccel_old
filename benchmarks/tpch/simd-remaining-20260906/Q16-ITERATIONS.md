@@ -26,6 +26,7 @@ Every answer matches the DuckDB oracle. These are not promotion runs.
 | localcounts-v1 | 51.488 | 30.038 | 39056047 |
 | identical-v1 | 49.765 | 29.404 | 39034371 |
 | jsonsimd-v1 | 52.870 | 31.912 | 39034371 |
+| runs-v1 | 50.898 | 30.327 | 39026435 |
 
 The profile binary adds per-stage timers and is diagnostic only. Its
 First-profile warm phase medians: preparation 2.9 ms, dimension
