@@ -2,7 +2,7 @@
 
 Client elapsed milliseconds, eight workers, warm medians excluding only
 trial 1. All values and rows validate against the saved DuckDB oracle.
-This work has not passed the fourfold target against both engines.
+The final output-domain checkpoint passes at both scales; see Q20.md.
 
 | Version | Warm median ms | Warm min ms | Warm max ms | Peak query MiB |
 |---|---:|---:|---:|---:|
@@ -30,7 +30,8 @@ This work has not passed the fourfold target against both engines.
 Sum-v19 (`409c4ca`) pushes the parent output-key domain into correlated
 groups. Its SF10 iteration median is 25.244 ms, with all nine answers
 correct. The fresh SF10 confirmation passes at 31.368 ms versus DuckDB
-132.183 ms and ClickHouse 480.652 ms; SF100 confirmation is pending.
+132.183 ms and ClickHouse 480.652 ms. SF100 also passes at 245.358 ms
+versus DuckDB 1347.204 ms and ClickHouse 3162.969 ms: [results](Q20.md).
 See [algorithm and guards](OUTPUT-DOMAINS.md).
 
 Sum-v18 (`ec6f893`) skips identity scaling in membership operations.

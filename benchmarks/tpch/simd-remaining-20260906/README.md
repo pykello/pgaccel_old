@@ -14,9 +14,9 @@ against DuckDB and ClickHouse. The target is fourfold warm-median speed.
 | Q19 | SF10 and SF100 gates pass | [Six-query confirmation](SIX.md) |
 | Q17 | SF10 and SF100 gates pass | [Q17 results](Q17.md) |
 | Q2 | Large SF10 gains; latency target unmet | [Iterations](CORRELATED.md) |
-| Q20 | SF100 capacity fixed; latency target unmet | [Iterations](CORRELATED.md) |
+| Q20 | SF10 and SF100 gates pass | [Q20 results](Q20.md) |
 
-Q5–Q11, Q13, Q15–Q16, Q18, and Q21–Q22 remain queued. Q2 and Q20 are in progress. Q17 now passes both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
+Q5–Q11, Q13, Q15–Q16, Q18, and Q21–Q22 remain queued. Q2 remains in progress; Q6 is next. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
 remains historical evidence. Q20's allocation failure in that baseline is
 resolved by the new capacity check; no fresh full-workload win is claimed.
 
@@ -28,12 +28,11 @@ mirrored in the repository under `benchmarks/tpch/`.
 Next: [Q20/Q17/Q2 correlated-query plan](CORRELATED-PLAN.md).
 
 [Q20/Q17/Q2 iteration results](CORRELATED.md) record large reductions
-in execution time and temporary memory; Q2 and Q20 still miss the
-fourfold target; Q17 now passes both scales. Q20 now completes SF100 correctly with 953 MiB peak query allocation;
-its latency target remains unmet.
+in execution time and temporary memory. Q2 remains below the target.
+Later [Q17](Q17.md) and [Q20](Q20.md) confirmations pass both scales.
 
 [Phase measurements and next steps](PROFILE-NEXT.md).
 
 [Active fourfold goal for all 22 queries](ALL-QUERY-GOAL.md).
 
-[Q20 typed-sum iterations](Q20-SUM.md) continue toward its latency gate.
+[Q20 typed-sum iterations](Q20-SUM.md) document the path to its passed gate.

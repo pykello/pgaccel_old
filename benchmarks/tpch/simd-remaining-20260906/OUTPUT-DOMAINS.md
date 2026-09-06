@@ -3,7 +3,8 @@
 Implementation checkpoints: `5ac3023` (typed numeric projection output),
 `adfc6bc` (additional correlated-key memberships), `409c4ca` (parent domain
 rewrite). All 174 native tests and 12 focused sanitizer tests pass. Performance
-confirmation is pending.
+confirmation [passes at both scales](Q20.md): SF10 31.368 ms and SF100
+245.358 ms, respectively 4.21x and 5.49x faster than DuckDB.
 
 Q20 previously built correlated sums for forest parts across all suppliers,
 then discarded suppliers outside the requested country. The parent now
