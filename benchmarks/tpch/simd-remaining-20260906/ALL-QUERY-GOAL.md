@@ -40,7 +40,7 @@ for new arithmetic and threshold logic.
 | Q17 | Both scales pass at checkpoint `fdda059`; [results](Q17.md) |
 | Q18 | Optimization pending; recent SF10 answer check passes |
 | Q19 | Both scales pass at checkpoint `7c92573` |
-| Q20 | Fresh SF10 64 ms vs 33 ms target; [comparison](Q20-PEERS.md) |
+| Q20 | SF10 iteration 53 ms vs fresh 33 ms target; [comparison](Q20-PEERS.md) |
 | Q21 | Optimization pending |
 | Q22 | Optimization pending; recent SF10 answer check passes |
 

@@ -14,6 +14,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v5 | 63.145 | 60.754 | 82.531 | 30.73 |
 | sum-v6 | 62.231 | 53.149 | 71.507 | 30.73 |
 | sum-v7 | 62.867 | 50.667 | 69.530 | 29.70 |
+| sum-v8 | 52.954 | 43.791 | 57.649 | 29.19 |
+
+Sum-v8 (`a8e4a99`) filters outer stripes in parallel before directory
+construction. Its median is 52.954 ms with nine correct answers. All
+167 native tests and focused sanitizer checks pass, including duplicates
+across outer stripes. The fresh 32.720 ms target remains unmet.
 
 Sum-v7 (`2bbcf4a`) reserves the tuple directory. Its 62.867 ms median
 does not improve on sum-v6, though peak allocations fall by about 1 MiB.
