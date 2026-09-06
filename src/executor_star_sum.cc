@@ -18,14 +18,7 @@ struct BitmapDomain {
         if(key<first || key>last)return false;
         uint64_t offset=uint64_t(Wide(key)-first);return bits[offset/64]>>(offset%64)&1;
     }
-    __mmask8 mask(__m512i key) const {
-        auto delta=_mm512_sub_epi64(key,_mm512_set1_epi64(first));
-        auto valid=_mm512_cmpge_epi64_mask(key,_mm512_set1_epi64(first)) &
-                   _mm512_cmple_epi64_mask(key,_mm512_set1_epi64(last));
-        auto words=_mm512_mask_i64gather_epi64(_mm512_setzero_si512(),valid,_mm512_srli_epi64(delta,6),bits,8);
-        return valid & _mm512_test_epi64_mask(_mm512_srlv_epi64(words,
-            _mm512_and_si512(delta,_mm512_set1_epi64(63))),_mm512_set1_epi64(1));
-    }
+
 };
 void StarDecode(const RowGroup &rg,const ColumnRef &column,int n,int64_t *out,const uint32_t *selection,bool avx) {
     auto data=rg.columns[column.columnIdx].get();
@@ -41,8 +34,15 @@ void StarDecode(const RowGroup &rg,const ColumnRef &column,int n,int64_t *out,co
 }
 int StarSelect(const BitmapDomain &domain,const int64_t *keys,const uint32_t *input,int n,uint32_t *output,bool avx) {
     int row=0,count=0;
+    const auto first=_mm512_set1_epi64(domain.first),last=_mm512_set1_epi64(domain.last);
+    const auto words=domain.bits;
     if(avx)for(;row+8<=n;row+=8) {
-        auto mask=domain.mask(_mm512_load_si512(keys+row));
+        auto key=_mm512_load_si512(keys+row);
+        auto delta=_mm512_sub_epi64(key,first);
+        auto valid=_mm512_cmpge_epi64_mask(key,first) & _mm512_cmple_epi64_mask(key,last);
+        auto values=_mm512_mask_i64gather_epi64(_mm512_setzero_si512(),valid,_mm512_srli_epi64(delta,6),words,8);
+        auto mask=valid & _mm512_test_epi64_mask(_mm512_srlv_epi64(values,
+            _mm512_and_si512(delta,_mm512_set1_epi64(63))),_mm512_set1_epi64(1));
         _mm512_mask_compressstoreu_epi32(output+count,mask,
             _mm512_zextsi256_si512(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(input+row))));
         count+=__builtin_popcount(mask);
