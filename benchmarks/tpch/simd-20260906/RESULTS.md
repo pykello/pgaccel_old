@@ -1,3 +1,7 @@
+> **Current same-binary results:** [SF10 confirmation](SF10-CONFIRM.md)
+> and [SF100 comparison](Q3-SF100.md) cover Q1, Q14, and Q3.
+> The Q1 iteration history below remains tied to its earlier checkpoints.
+
 # SF10 Q1 iteration results
 
 Original Q1 SQL, eight workers, five consecutive trials, exact typed

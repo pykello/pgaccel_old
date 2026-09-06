@@ -68,7 +68,8 @@ Q1 and Q14 passed SF10 and SF100 at their frozen checkpoints. The final
 three-query SF10 confirmation also passes the fourfold warm-median gate;
 see [SF10-CONFIRM.md](SF10-CONFIRM.md). Q3 improved from seconds to tens
 of milliseconds, with all temporary index construction inside query time.
-The final three-query SF100 validation is in progress at this checkpoint.
+The final three-query SF100 validation also passes; see
+[Q3-SF100.md](Q3-SF100.md) for the complete same-binary comparison.
 
 The target is a measured warm-median speedup, not a bound on every trial.
 Preserve first trials and the complete warm range. Do not claim an entire
