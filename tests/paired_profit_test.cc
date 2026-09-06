@@ -44,7 +44,7 @@ std::string ProfitSQL(std::string extra="") {
 TEST(PairedProfit, RepeatedPairsPreserveMultiplicityFiltersAndDecimalScales) {
     for(bool duplicate:{false,true}) {
         auto tables=ProfitTables(duplicate);
-        for(const std::string extra:{"", " AND ps.keep=1", " AND n.k<0", " AND p.k<0", " AND t.x>0", " AND o.day>=CAST('1970-01-01' AS date)"})
+        for(const std::string extra:{"", " AND o.k>=100", " AND ps.keep=1", " AND n.k<0", " AND p.k<0", " AND t.x>0", " AND o.day>=CAST('1970-01-01' AS date)"})
         for(const std::string slice:{"", " LIMIT 2 OFFSET 1"}) {
             SCOPED_TRACE(extra+slice);auto q=ParseSelect(ProfitSQL(extra)+slice,tables);ASSERT_TRUE(q.ok())<<q.status().Message();
             auto expected=ExecuteRelational(*q,false,false);ASSERT_TRUE(expected.ok())<<expected.status().Message();

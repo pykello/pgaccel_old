@@ -77,6 +77,7 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
             const auto *projection=projections?&(*projections)[t]:nullptr;
             uint32_t maximum=projection?projection->maximum:plan.keys[center]->sequence.size();
             const auto &table=*q.tables[t];auto &key=*plan.keys[t];
+            bool directRanks=false;uint64_t directRows=0;
             auto payload=std::make_unique<IdentityPayload>(budget);
             std::pmr::vector<uint64_t> offsets(table.RowGroupCount(),0,&budget);
             if(key.sequence.active()) {
@@ -94,6 +95,18 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
                 Wide width=Wide(payload->last)-payload->first+1;
                 if(width<=0 || width>Wide(size)*8 || width>(Wide(1)<<32))throw NotDense{};
                 payload->rank=std::make_unique<RankJoinIndex>(payload->first,payload->last,budget);
+                directRanks=projection && (projection->kind==IdentityProjection::YEAR || projection->kind==IdentityProjection::ONE) &&
+                    !filters[t] && plan.outgoing[t].empty();
+                if(directRanks) {
+                    // Every proved unique key survives. Its bitmap rank is
+                    // therefore its row offset in sorted stripe order.
+                    std::pmr::vector<std::pair<int64_t,uint32_t>> frames(&budget);
+                    for(int g=0;g<table.RowGroupCount();++g)if(table.GetRowGroup(g).size)
+                        frames.emplace_back(IdentityRead(IdentityRaw(table.GetRowGroup(g),key.column),0),g);
+                    std::sort(frames.begin(),frames.end());
+                    for(const auto &[first,g]:frames){offsets[g]=directRows;directRows+=table.GetRowGroup(g).size;}
+                    payload->sparse.emplace(directRows,maximum,budget);
+                }
             }
             struct Pair {int64_t key;uint32_t value;};
             int workers=parallel?std::min(8,std::max(1,table.RowGroupCount())):1;
@@ -121,7 +134,9 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
                         }
                         if(primary) {
                             int64_t k=IdentityRead(*primary,row);
-                            payload->rank->insert<true>(k);pairs.push_back({k,value});
+                            payload->rank->insert<true>(k);
+                            if(directRanks)payload->sparse->set(offsets[g]+row,value);
+                            else pairs.push_back({k,value});
                         } else payload->dense->set(offsets[g]+row,value);
                     };
                     const auto *child=edge?payloads[edge->target].get():nullptr;
@@ -156,15 +171,19 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
             });
             if(payload->rank) {
                 payload->rank->finalize(false);payload->selected=payload->rank->size();
-                payload->sparse.emplace(payload->selected,maximum,budget);
-                RunTasks(workers,[&](int worker) {
-                    for(const auto &pair:parts[worker]) {
-                        auto index=payload->rank->rank(pair.key);
-                        if(!index)throw std::logic_error("Missing identity payload key");
-                        payload->sparse->set(*index,pair.value);
-                    }
-                    return true;
-                });
+                if(directRanks) {
+                    if(payload->selected!=directRows)throw std::logic_error("Direct rank cardinality changed");
+                } else {
+                    payload->sparse.emplace(payload->selected,maximum,budget);
+                    RunTasks(workers,[&](int worker) {
+                        for(const auto &pair:parts[worker]) {
+                            auto index=payload->rank->rank(pair.key);
+                            if(!index)throw std::logic_error("Missing identity payload key");
+                            payload->sparse->set(*index,pair.value);
+                        }
+                        return true;
+                    });
+                }
             } else if(std::any_of(plan.outgoing[fact].begin(),plan.outgoing[fact].end(),
                                  [&](const auto &edge){return edge.target==t;})) {
                 // Intermediate dimensions are looked up through their payload
