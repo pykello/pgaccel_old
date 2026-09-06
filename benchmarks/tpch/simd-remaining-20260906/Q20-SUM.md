@@ -20,6 +20,12 @@ This work has not passed the fourfold target against both engines.
 | sum-v11 | 37.682 | 34.459 | 41.136 | 17.41 |
 | sum-v12 | 36.952 | 33.842 | 40.945 | 17.41 |
 | sum-v13 | 41.629 | 39.858 | 44.820 | 17.41 |
+| sum-v14 | 34.974 | 31.622 | 38.053 | 17.41 |
+
+Sum-v14 (`d6c1726`) matches ASCII literal prefixes directly while keeping
+RE2 for non-ASCII values. Its median is 34.974 ms with nine correct
+answers. A [controlled component comparison](PREFIX-ASCII.md) shows a
+consistent gain; all 169 native tests and focused sanitizers pass.
 
 Reject sum-v13 (`8aff0be`, reverted by `d94bc17`). Its constant-factor
 shortcut measured 41.629 ms and showed no consistent improvement in
