@@ -116,7 +116,25 @@ class QueryResults
                           [&](const auto &a, const auto &b) { return compare(a, b); });
         }
         rows.resize(keep);
-        for (size_t index = std::min<uint64_t>(q.offset, rows.size()); index < rows.size(); ++index)
+        size_t begin = std::min<uint64_t>(q.offset, rows.size());
+        bool numeric = q.numericMembershipOutput && visible == 1 &&
+            q.aggregateClauses[0].type == AggregateClause::AGGREGATE_PROJECT &&
+            q.aggregateClauses[0].columnRef &&
+            q.aggregateClauses[0].columnRef->Type()->type_num() != STRING_TYPE;
+        for (size_t index = begin; numeric && index < rows.size(); ++index)
+            numeric = !rows[index][0].null && !rows[index][0].average && !rows[index][0].value.string;
+        if (numeric) {
+            // The returned buffer must outlive this query's memory resource.
+            // Charge its owned allocation before constructing it.
+            budget.charge((rows.size() - begin) * sizeof(Wide) + 64);
+            output.numericMembership.emplace();
+            output.numericMembership->reserve(rows.size() - begin);
+            for (size_t index = begin; index < rows.size(); ++index)
+                output.numericMembership->push_back(rows[index][0].value.number);
+            output.peakMemoryBytes = budget.peak.load();
+            return std::move(output);
+        }
+        for (size_t index = begin; index < rows.size(); ++index)
         {
             const auto &r = rows[index];
             Row row;

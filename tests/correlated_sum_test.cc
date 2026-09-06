@@ -60,7 +60,8 @@ TEST(CorrelatedSum, CompositeKeysOuterDuplicatesDatesAndMissingGroups) {
             auto typed=ExecuteCorrelatedSum(numericQuery,true,true);
             ASSERT_TRUE(typed); ASSERT_TRUE(typed->ok());
             ASSERT_TRUE((*typed)->numericMembership);
-            auto normal=ExecuteQuery(GenericSum(numericQuery),false,false);
+            auto normalQuery=GenericSum(numericQuery); normalQuery.numericMembershipOutput=false;
+            auto normal=ExecuteQuery(normalQuery,false,false);
             ASSERT_TRUE(normal.ok())<<normal.status().Message();
             std::vector<__int128_t> expectedKeys;
             for(const auto &row:normal->values) expectedKeys.push_back(std::stoll(row[0]));
