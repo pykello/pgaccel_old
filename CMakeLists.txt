@@ -41,6 +41,17 @@ add_library(pgaccel_static STATIC ${pgaccel_lib_SRC})
 target_link_libraries(pgaccel_static PRIVATE
                       Arrow::arrow_shared Parquet::parquet_shared tbb PkgConfig::RE2)
 
+option(PGACCEL_BUILD_PYTHON "Build the optional native Python interface" OFF)
+if(PGACCEL_BUILD_PYTHON)
+  set_property(TARGET pgaccel_static PROPERTY POSITION_INDEPENDENT_CODE ON)
+  set(PYBIND11_FINDPYTHON ON)
+  find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
+  find_package(pybind11 CONFIG REQUIRED)
+  pybind11_add_module(pgaccel_native NO_EXTRAS python/bindings.cc)
+  target_include_directories(pgaccel_native PRIVATE src)
+  target_link_libraries(pgaccel_native PRIVATE pgaccel_static)
+endif()
+
 add_executable(pgaccel "pgaccel.cc")
 target_include_directories(pgaccel PRIVATE "src")
 target_link_libraries(pgaccel PRIVATE
