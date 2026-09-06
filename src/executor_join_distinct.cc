@@ -68,7 +68,10 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
                 auto bitmap=filter.bitmap(reinterpret_cast<uint8_t *>(bits.data()),root);
                 Selected(rg,counts[root]==rg.size?nullptr:bitmap,[&](int row) {
                     auto id=groups.word(g,row);groupIds[offset+row]=id;++selected;
-                    std::atomic_ref<uint64_t>(representatives[id]).store((uint64_t(g)<<32)|uint32_t(row),std::memory_order_relaxed);
+                    auto representative=std::atomic_ref<uint64_t>(representatives[id]);
+                    uint64_t empty=UINT64_MAX;
+                    if(representative.load(std::memory_order_relaxed)==empty)
+                        representative.compare_exchange_strong(empty,(uint64_t(g)<<32)|uint32_t(row),std::memory_order_relaxed);
                 });
             });return selected;
         });
