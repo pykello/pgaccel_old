@@ -27,13 +27,23 @@ or sharing is not assumed. All 155 native and sanitizer tests pass.
 |---|---|---:|---:|---:|---:|
 | pgaccel-domain-v1-sf10 | Q20 | 2016.970 | 2005.738 | 2028.203 | 96.78 |
 | pgaccel-domain-v2-sf10 | Q20 | 932.892 | 896.343 | 952.205 | 94.72 |
+| pgaccel-domain-v3-sf10 | Q17 | 195.697 | 193.578 | 201.508 | 3.20 |
+| pgaccel-domain-v3-sf10 | Q2 | 187.239 | 186.044 | 188.367 | 6.45 |
+| pgaccel-domain-v3-sf10 | Q20 | 895.040 | 888.271 | 923.528 | 94.72 |
 
 Retain v1 for the measured capacity and latency improvement. It is still
-slower than both competitors at SF10. Retain v2 (`100285a`): nine correct trials reduce the warm median to
-932.892 ms, another 2.16× improvement. It replaces scalar membership
-hashing with exact bounded bitmaps and SIMD filtering. Broad or unsuitable
-domains retain the hash representation. All 158 native and sanitizer tests
-pass. The next step derives domains from filtered outer dimensions.
+slower than both competitors at SF10. Retain v2 (`100285a`): nine correct
+trials cut its warm median to 932.892 ms using exact bitmap membership.
+All 158 native and sanitizer tests pass for v2. Broad or unsuitable
+domains retain the hash representation.
+
+Retain v3 (`2f9a808`): independently filtered outer dimensions produce bounded key
+domains for correlated children and equality-connected outer inputs.
+At most one million selected rows and one eighth of the dimension may
+qualify. Broader or unsupported shapes keep the prior execution plan.
+Duplicate dimension rows retain join multiplicity. All 159 native and
+sanitizer tests pass. Q17 and Q2 improve substantially but still miss
+the fourfold target; their measured temporary states are now small.
 
 SF100 capacity checks, if listed above, are separate from the latency
 gate. They run under a 192 GiB service cap, zero swap, and a 64 GiB query

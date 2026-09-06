@@ -24,3 +24,7 @@ frozen binaries. New changes are small commits on
 mirrored in the repository under `benchmarks/tpch/`.
 
 Next: [Q20/Q17/Q2 correlated-query plan](CORRELATED-PLAN.md).
+
+[Q20/Q17/Q2 iteration results](CORRELATED.md) record large reductions
+in execution time and temporary memory; these three still miss the
+fourfold target. Q20 SF100 capacity validation is running.
