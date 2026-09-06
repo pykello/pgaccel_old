@@ -181,34 +181,55 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                 std::vector<int64_t> sums(product*program.ops.size(),0);
                 for(int begin=0;begin<rg.size;begin+=Block) {
                     int n=std::min(Block,rg.size-begin);
-                    uint32_t active=0;
-                    for(int r=0;r<n;++r) {
+                    int r=0;
+                    if(avx) {
+                        auto decode=[](const DictColumnDataBase *dict,int width,int row) {
+                            return width==1?_mm512_cvtepu8_epi64(_mm_loadl_epi64(
+                                reinterpret_cast<const __m128i *>(dict->values+row))):
+                                _mm512_cvtepu16_epi64(_mm_loadu_si128(
+                                reinterpret_cast<const __m128i *>(dict->values+2*row)));
+                        };
+                        for(;r+8<=n;r+=8) {
+                            int row=begin+r;
+                            auto code=decode(dicts[0],width0,row);
+                            if(dicts[1]) code=_mm512_add_epi64(
+                                _mm512_mul_epu32(code,_mm512_set1_epi64(radix)),decode(dicts[1],width1,row));
+                            if(count!=rg.size) code=_mm512_mask_mov_epi64(
+                                _mm512_set1_epi64(-1),bitmap[row/8],code);
+                            _mm512_store_si512(codes+r,code);
+                        }
+                    }
+                    for(;r<n;++r) {
                         int row=begin+r;
                         int code=codeAt(dicts[0],width0,row);
                         if(dicts[1]) code=code*radix+codeAt(dicts[1],width1,row);
                         codes[r]=count==rg.size || IsBitSet(bitmap,row)?code:-1;
-                        if(codes[r]>=0) {active |= uint32_t(1)<<code; ++counts[code]; representatives[code]=row;}
                     }
                     program.evaluate(begin,n,buffers);
-                    while(active) {
-                        int code=__builtin_ctz(active); active &= active-1;
-                        // Group masks avoid conflicting scatter updates when many
-                        // SIMD lanes have the same key. Sum each unique root once.
+                    for(int code=0;code<product;++code) {
+                        __mmask8 masks[Block/8];
+                        const int vectorEnd=avx?n/8*8:0;
+                        int matches=0, representative=-1;
+                        for(int j=0;j<vectorEnd;j+=8) {
+                            auto mask=_mm512_cmpeq_epi64_mask(_mm512_load_si512(codes+j),_mm512_set1_epi64(code));
+                            masks[j/8]=mask; matches+=__builtin_popcount(mask);
+                            if(mask) representative=j+__builtin_ctz(mask);
+                        }
+                        for(int j=vectorEnd;j<n;++j) if(codes[j]==code) {++matches;representative=j;}
+                        if(!matches) continue;
+                        counts[code]+=matches; representatives[code]=begin+representative;
                         bool seen[32]{};
                         for(int root:roots) if(root>=0 && !seen[root]) {
                             seen[root]=true;
                             auto values=buffers+root*Block;
-                            int r=0; int64_t sum=0;
+                            int j=0; int64_t sum=0;
                             if(avx) {
                                 __m512i total=_mm512_setzero_si512();
-                                auto key=_mm512_set1_epi64(code);
-                                for(;r+8<=n;r+=8) {
-                                    auto mask=_mm512_cmpeq_epi64_mask(_mm512_load_si512(codes+r),key);
-                                    total=_mm512_add_epi64(total,_mm512_maskz_loadu_epi64(mask,values+r));
-                                }
+                                for(;j<vectorEnd;j+=8)
+                                    total=_mm512_add_epi64(total,_mm512_maskz_loadu_epi64(masks[j/8],values+j));
                                 sum=_mm512_reduce_add_epi64(total);
                             }
-                            for(;r<n;++r) if(codes[r]==code) sum+=values[r];
+                            for(;j<n;++j) if(codes[j]==code) sum+=values[j];
                             sums[code*program.ops.size()+root]+=sum;
                         }
                     }
