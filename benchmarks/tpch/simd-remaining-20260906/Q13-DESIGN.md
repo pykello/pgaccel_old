@@ -1,7 +1,7 @@
 # Q13 left-join count histogram
 
-Status: implementation and synthetic validation. Fresh performance
-measurements are pending; thirteen queries remain individually confirmed.
+Status: [fresh SF10 and SF100 confirmation](Q13.md) passes on frozen
+`5190383`, raising the individual confirmed count to fourteen queries.
 
 Q13 counts qualifying orders for each customer, including customers with
 no qualifying orders, then reports the frequency of those counts.
@@ -56,7 +56,7 @@ describes the regular-expression operations used by the existing evaluator.
 The [iteration table](Q13-ITERATIONS.md) records the old path, histogram
 with RE2, ordered byte search, deferred encoding checks and bounded SIMD
 literal search. The final iteration is 91.527 ms, with all nine answers
-correct; fresh confirmation is still required.
+correct; the subsequent fresh confirmation passes both scales.
 
 The optional trigram extension was implemented in `d367cfd` and reverted
 in `34f00ff`. The comparison harness explicitly sets

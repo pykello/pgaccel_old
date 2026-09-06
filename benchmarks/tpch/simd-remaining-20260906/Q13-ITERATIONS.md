@@ -35,3 +35,8 @@ and every trial are preserved in [Q13-ITERATIONS.json](Q13-ITERATIONS.json).
 [Design, rejected experiment and validation](Q13-DESIGN.md). Fresh
 15-trial SF10 and same-binary nine-trial SF100 confirmation remain separate
 from these iterations.
+
+A preliminary 13-trial comparison was rejected by the automation because
+the protocol requires 15. Its complete evidence is retained separately;
+the subsequent 15-trial run is the confirmation. All 22 SF1 answers also
+match DuckDB on final frozen runner `5190383`.
