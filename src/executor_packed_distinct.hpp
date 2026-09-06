@@ -48,11 +48,16 @@ std::pmr::vector<uint64_t> CountPackedDistinct(std::vector<std::pmr::vector<uint
         OverwriteBuffer<uint64_t> temporary(maximum,budget);
         Scratch stack(budget,2048*sizeof(size_t));
         size_t histogram[2048];
+        OverwriteBuffer<uint64_t> localCounts((slots+partitions-1)/partitions,budget);
         auto bitmapSize=[](size_t n){return std::bit_ceil(std::min<size_t>(1<<14,std::max<size_t>(128,n))*64);};
         OverwriteBuffer<uint64_t> seenAndRepeated(maximum>=128?bitmapSize(maximum)/32:0,budget);
         for(size_t p=first;p<last;++p) {
             auto begin=ordered.data()+offsets[p],end=ordered.data()+offsets[p+1];
-            size_t size=end-begin;auto original=begin;
+            size_t size=end-begin;auto original=begin;if(!size)continue;
+            std::fill(localCounts.data(),localCounts.data()+localCounts.size(),0);
+            auto publish=[&] {
+                for(size_t i=0;i<localCounts.size();++i)if(localCounts[i])counts[i*partitions+p]=localCounts[i];
+            };
             if(size>=128) {
                 size_t bits=bitmapSize(size),words=bits/64;unsigned shift=64-std::countr_zero(bits);
                 auto seen=seenAndRepeated.data(),repeated=seen+words;
@@ -67,9 +72,9 @@ std::pmr::vector<uint64_t> CountPackedDistinct(std::vector<std::pmr::vector<uint
                 for(auto value=begin;value!=end;++value) {
                     uint64_t bucket=(*value*0x9e3779b97f4a7c15ULL)>>shift;
                     if(repeated[bucket/64]&(uint64_t(1)<<(bucket%64)))temporary[candidates++]=*value;
-                    else ++counts[*value>>32];
+                    else ++localCounts[(*value>>32)/partitions];
                 }
-                begin=temporary.data();end=begin+candidates;size=candidates;if(!size)continue;
+                begin=temporary.data();end=begin+candidates;size=candidates;if(!size){publish();continue;}
             }
             if(size<128)std::sort(begin,end);
             else {
@@ -89,8 +94,9 @@ std::pmr::vector<uint64_t> CountPackedDistinct(std::vector<std::pmr::vector<uint
             }
             bool seen=false;uint64_t previous=0;
             for(auto value=begin;value!=end;++value)if(!seen || *value!=previous) {
-                ++counts[*value>>32];previous=*value;seen=true;
+                ++localCounts[(*value>>32)/partitions];previous=*value;seen=true;
             }
+            publish();
         }
         return true;
     });
