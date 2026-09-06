@@ -1,6 +1,7 @@
 #include "executor_bitmap_probe.hpp"
 #include "executor_date_order.hpp"
 #include "executor_result.hpp"
+#include "executor_buffer.hpp"
 #include "util.h"
 
 namespace pgaccel {
@@ -50,8 +51,13 @@ std::optional<Result<QueryOutput>> ExecuteExistsCount(const QueryDesc &q,bool av
         if(width<=0 || width>Wide(outerRows)*8 || width>(Wide(1)<<34))return {};
         std::vector<FilterClause> clauses[2];for(const auto &f:q.filterClauses)clauses[f.columnRef.tableIdx].push_back(f);
         FilterNodeP filters[2];for(int i=0;i<2;++i)if(!clauses[i].empty())filters[i]=CreateFilterNode(clauses[i],avx);
-        std::pmr::vector<uint64_t> candidates(size_t((width+63)/64),0,&budget),hits(candidates.size(),0,&budget);
+        OverwriteBuffer<uint64_t> candidates(size_t((width+63)/64),budget),hits(candidates.size(),budget);
         int workers=parallel?std::min(8,std::max(1,outside.RowGroupCount())):1;
+        RunTasks(workers,[&](int worker) {
+            size_t begin=candidates.size()*worker/workers,end=candidates.size()*(worker+1)/workers;
+            std::fill(candidates.data()+begin,candidates.data()+end,0);
+            std::fill(hits.data()+begin,hits.data()+end,0);return true;
+        });
         auto selected=RunTasks(workers,[&](int worker) {
             ScopedValueResource memory(budget);Scratch scratch(budget,16384);uint8_t bitmap[RowGroupSize/8];uint64_t total=0;
             for(int g=worker;g<outside.RowGroupCount();g+=workers) {
