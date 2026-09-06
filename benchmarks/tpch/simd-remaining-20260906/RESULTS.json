@@ -1044,5 +1044,352 @@
       "correct": true,
       "query_peak_bytes": 15209932
     }
+  ],
+  "q12_iterations": [
+    {
+      "version": 1,
+      "change": "Exact conditional bitmaps and grouped counts",
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T07:07:59.844919+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-join-count-v1-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-before-sf10.jsonl",
+          "database": null,
+          "runner": "build/query_runner",
+          "native": "/home/hadi/projects/tpch-work/native-sf10",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            12
+          ]
+        },
+        "source_revision": "cbbb6a64095b6cdbe8083263bcbd55f8cba619d1",
+        "source_dirty": true,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 59986052,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 17959.240684,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 10277437440,
+          "load_ms": 17959.280713,
+          "indexed_columns": [],
+          "client_load_ms": 17971.8690180016
+        },
+        "runner_sha256": "1653b350099f6daaca8fed3c05c4dcd2997c75354dffeffa0cd8d7827a7170b3",
+        "open_ms": 17985.254920989973,
+        "loaded_rss": {
+          "VmRSS": 10277437440,
+          "VmHWM": 10277437440
+        }
+      },
+      "client_ms": [
+        51.528469994082116,
+        42.987531996914186,
+        36.25239999382757,
+        35.28760399785824,
+        37.11900400230661,
+        36.03724599815905,
+        35.13292298885062,
+        36.411764012882486,
+        35.24252399802208
+      ],
+      "correct": true,
+      "query_peak_bytes": 23187104
+    },
+    {
+      "version": 2,
+      "change": "Narrow key-offset arithmetic (rejected)",
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T07:12:26.916337+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-join-count-v2-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-before-sf10.jsonl",
+          "database": null,
+          "runner": "build/query_runner",
+          "native": "/home/hadi/projects/tpch-work/native-sf10",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            12
+          ]
+        },
+        "source_revision": "4016bc791aeed8e6ea9fd7d1989527867e960b1c",
+        "source_dirty": true,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 59986052,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 17876.254585,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 10277675008,
+          "load_ms": 17876.291416,
+          "indexed_columns": [],
+          "client_load_ms": 17891.604221003945
+        },
+        "runner_sha256": "0ba445e1a19da9c13ac2d896590dd6a2fd663216f6b5b9d34e34fe031949cc38",
+        "open_ms": 17908.821786011686,
+        "loaded_rss": {
+          "VmRSS": 10277675008,
+          "VmHWM": 10277675008
+        }
+      },
+      "client_ms": [
+        48.42107500007842,
+        43.819315993459895,
+        42.752449997351505,
+        39.64877300313674,
+        35.872197011485696,
+        34.998154995264485,
+        34.737289999611676,
+        35.943108014180325,
+        35.73725500609726
+      ],
+      "correct": true,
+      "query_peak_bytes": 23187104
+    },
+    {
+      "version": 3,
+      "change": "SIMD masks and group population counts",
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T07:14:54.988845+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-join-count-v3-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-before-sf10.jsonl",
+          "database": null,
+          "runner": "build/query_runner",
+          "native": "/home/hadi/projects/tpch-work/native-sf10",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            12
+          ]
+        },
+        "source_revision": "6d780ee36fe57196558e5d6d036bc6b7f58413bb",
+        "source_dirty": true,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 59986052,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 17860.983495,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 10277679104,
+          "load_ms": 17861.022141,
+          "indexed_columns": [],
+          "client_load_ms": 17876.573861998622
+        },
+        "runner_sha256": "32e911c14dfd3d8a92a1d7e35de39e53bdde0583eb1c07a797d0f13cf760099d",
+        "open_ms": 17889.65815199481,
+        "loaded_rss": {
+          "VmRSS": 10277679104,
+          "VmHWM": 10277679104
+        }
+      },
+      "client_ms": [
+        48.538359013036825,
+        35.12222699646372,
+        34.028633002890274,
+        34.952568996232,
+        34.31672300212085,
+        33.97189499810338,
+        34.28995299327653,
+        34.06499599805102,
+        33.592199004488066
+      ],
+      "correct": true,
+      "query_peak_bytes": 23187116
+    },
+    {
+      "version": 4,
+      "change": "Shared complements alone (rejected)",
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T07:18:08.121161+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-join-count-v4-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-before-sf10.jsonl",
+          "database": null,
+          "runner": "build/query_runner",
+          "native": "/home/hadi/projects/tpch-work/native-sf10",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            12
+          ]
+        },
+        "source_revision": "26d5e5560d2fef079a456a71be1ee49c2c6c742a",
+        "source_dirty": true,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 59986052,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 17557.137604,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 10277883904,
+          "load_ms": 17557.176914,
+          "indexed_columns": [],
+          "client_load_ms": 17572.502476003137
+        },
+        "runner_sha256": "6e5d66892caeaec2ad65d7510992917a525708ecfbf7f29b568f96ce63915cbc",
+        "open_ms": 17587.649740991765,
+        "loaded_rss": {
+          "VmRSS": 10277883904,
+          "VmHWM": 10277883904
+        }
+      },
+      "client_ms": [
+        59.89951599622145,
+        43.76336600398645,
+        51.27209499187302,
+        43.36510901339352,
+        43.36778599827085,
+        43.52228499192279,
+        45.74348499590997,
+        43.9261709980201,
+        43.348801002139226
+      ],
+      "correct": true,
+      "query_peak_bytes": 15687108
+    },
+    {
+      "version": 5,
+      "change": "Branch-free shared complements (rejected)",
+      "metadata": {
+        "status": "loaded",
+        "started_at_utc": "2026-09-06T07:20:25.038629+00:00",
+        "engine": "pgaccel",
+        "settings": {
+          "engine": "pgaccel",
+          "queries": "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3",
+          "output": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/pgaccel-join-count-v5-sf10.jsonl",
+          "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-before-sf10.jsonl",
+          "database": null,
+          "runner": "build/query_runner",
+          "native": "/home/hadi/projects/tpch-work/native-sf10",
+          "url": "http://127.0.0.1:18123",
+          "server_pid_file": null,
+          "threads": 8,
+          "repeats": 9,
+          "timeout": 1800,
+          "query_memory_gib": 64,
+          "clickhouse_join_order_limit": null,
+          "clickhouse_no_reorder_queries": [],
+          "clickhouse_query_overrides": null,
+          "duckdb_memory_gib": 176,
+          "temp_directory": null,
+          "only": [
+            12
+          ]
+        },
+        "source_revision": "26d5e5560d2fef079a456a71be1ee49c2c6c742a",
+        "source_dirty": true,
+        "timing": "client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase",
+        "validation": "Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)",
+        "load": {
+          "status": "loaded",
+          "rows": 59986052,
+          "columns": 16,
+          "table_count": 8,
+          "base_load_ms": 18409.817207,
+          "index_build_ms": 0,
+          "index_bytes": 0,
+          "index_peak_allocation_bytes": 0,
+          "process_peak_rss_bytes": 10277679104,
+          "load_ms": 18409.856274,
+          "indexed_columns": [],
+          "client_load_ms": 18423.167281012866
+        },
+        "runner_sha256": "421d440608bbccf674032fbe01204f9ea29c02abf0cdeba6321a7ac09993b143",
+        "open_ms": 18440.20754500525,
+        "loaded_rss": {
+          "VmRSS": 10277679104,
+          "VmHWM": 10277679104
+        }
+      },
+      "client_ms": [
+        46.52054701000452,
+        41.683530987938866,
+        41.454702004557475,
+        41.51531199750025,
+        35.868487000698224,
+        33.50579099787865,
+        33.36958200088702,
+        36.459928000112996,
+        36.95159900235012
+      ],
+      "correct": true,
+      "query_peak_bytes": 15687120
+    }
   ]
 }

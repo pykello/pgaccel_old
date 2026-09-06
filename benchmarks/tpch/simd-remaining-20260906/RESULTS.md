@@ -29,3 +29,22 @@ statement. The integer domain is bounded; unsupported shapes fall back.
 No new dependency or copied research implementation is introduced. See
 [PLAN.md](PLAN.md) for the primary reference and subsequent query stages.
 Raw JSONL, frozen binaries, and all trial ranges are retained.
+
+
+## Q12 grouped conditional counts
+
+| Version | Change | Warm min (ms) | Warm median (ms) | Warm max (ms) | Correct |
+|---|---|---:|---:|---:|---|
+| v1 | Exact conditional bitmaps and grouped counts | 35.133 | 36.145 | 42.988 | True |
+| v2 | Narrow key-offset arithmetic (rejected) | 34.737 | 35.908 | 43.819 | True |
+| v3 | SIMD masks and group population counts | 33.592 | 34.177 | 35.122 | True |
+| v4 | Shared complements alone (rejected) | 43.349 | 43.643 | 51.272 | True |
+| v5 | Branch-free shared complements (rejected) | 33.370 | 36.706 | 41.684 | True |
+
+The v1 phase diagnostic measured about 14 ms constructing build bitmaps
+and 19 ms filtering, probing, and grouping. Instrumented phase timings
+are diagnostic only and excluded from the latency table. The narrower
+key-offset arithmetic had no clear gain; signed-boundary tests remain.
+Complement sharing alone saved memory but regressed latency, motivating
+a branch-free construction experiment. It still did not beat v3, so both
+sharing experiments were rejected. The faster separate bitmaps remain.
