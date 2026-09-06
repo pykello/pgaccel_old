@@ -74,3 +74,21 @@ TEST(JoinDistinct, MaskedGatherBoundsTailsAndMembershipRepresentations) {
         }
     }
 }
+TEST(JoinDistinct, ParallelOutputWithHiddenOrderingAndLongLabels) {
+    std::vector<int64_t> keys,suppliers;std::vector<std::string> labels;
+    for(int i=0;i<2053;++i){keys.push_back(i+1);suppliers.push_back(i%11);labels.push_back(std::string(i%64,'x')+std::to_string(i));}
+    auto registry=test::Table({{test::Raw(keys),test::Dict<StringType>(labels)}},
+        {{"k",std::make_shared<Int64Type>()},{"g",std::make_shared<StringType>()}});
+    auto facts=test::Table({{test::Raw(keys),test::Raw(suppliers)}},
+        {{"k",std::make_shared<Int64Type>()},{"s",std::make_shared<Int64Type>()}});
+    registry.emplace("f",std::move(facts.at("t")));
+    for(const std::string projection:{"t.g,count(DISTINCT f.s)","count(DISTINCT f.s)"})
+    for(const std::string slice:{"", " LIMIT 1500 OFFSET 259"}) {
+        auto q=ParseSelect("SELECT "+projection+" FROM t,f WHERE t.k=f.k GROUP BY t.g ORDER BY t.g DESC"+slice,registry);ASSERT_TRUE(q.ok());
+        auto expected=ExecuteRelational(*q,false,false);ASSERT_TRUE(expected.ok());
+        for(bool parallel:{false,true}) {
+            auto actual=ExecuteJoinDistinct(*q,true,parallel);ASSERT_TRUE(actual);ASSERT_TRUE(actual->ok())<<actual->status().Message();
+            EXPECT_EQ((**actual).values,expected->values);
+        }
+    }
+}

@@ -218,21 +218,31 @@ std::optional<Result<QueryOutput>> ExecuteJoinDistinct(const QueryDesc &q,bool a
         for(size_t i=0;i<visible;++i)output.fieldNames.push_back(q.aggregateClauses[i].ToString());
         size_t begin=std::min<uint64_t>(q.offset,ordered.size()),end=ordered.size();
         if(q.limit)end=begin+std::min<uint64_t>(*q.limit,end-begin);
-        budget.charge((end-begin)*(sizeof(Row)+visible*sizeof(std::string))+64);
-        output.values.reserve(end-begin);
-        for(size_t index=begin;index<end;++index) {
-            uint32_t group=ordered[index];auto row=representatives[group];Row values;values.reserve(visible);
-            for(size_t i=0;i<visible;++i) {
-                if(i==size_t(countOutput)){budget.charge(128);values.push_back(Number(Wide(counts[group]),0));}
-                else {
-                    const auto &column=*q.aggregateClauses[i].columnRef;
-                    auto cell=Read(dim.GetRowGroup(row>>32),column,uint32_t(row));
-                    budget.charge(cell.string?cell.text.size()+32:128);
-                    values.push_back(Format(FinalCell{std::move(cell),column.Type().get()}));
+        uint64_t perRow=sizeof(Row)+visible*sizeof(std::string);
+        for(size_t i=0;i<visible;++i) {
+            if(i==size_t(countOutput) || q.aggregateClauses[i].columnRef->Type()->type_num()!=STRING_TYPE){perRow+=128;continue;}
+            size_t maximum=0;auto column=*q.aggregateClauses[i].columnRef;
+            for(int g=0;g<dim.RowGroupCount();++g) {
+                auto data=static_cast<const DictColumnData<StringType> *>(dim.GetRowGroup(g).columns[column.columnIdx].get());
+                for(const auto &label:data->dict)maximum=std::max(maximum,label.size());
+            }
+            perRow+=maximum+32;
+        }
+        budget.charge((end-begin)*perRow+64);output.values.resize(end-begin);
+        int outputWorkers=parallel?std::min<size_t>(8,std::max<size_t>(1,(end-begin+1023)/1024)):1;
+        RunTasks(outputWorkers,[&](int worker) {
+            for(size_t index=begin+(end-begin)*worker/outputWorkers;index<begin+(end-begin)*(worker+1)/outputWorkers;++index) {
+                uint32_t group=ordered[index];auto row=representatives[group];auto &values=output.values[index-begin];values.reserve(visible);
+                for(size_t i=0;i<visible;++i) {
+                    if(i==size_t(countOutput))values.push_back(Number(Wide(counts[group]),0));
+                    else {
+                        const auto &column=*q.aggregateClauses[i].columnRef;
+                        values.push_back(Format(FinalCell{Read(dim.GetRowGroup(row>>32),column,uint32_t(row)),column.Type().get()}));
+                    }
                 }
             }
-            output.values.push_back(std::move(values));
-        }
+            return true;
+        });
         output.peakMemoryBytes=budget.peak.load();return output;
     } catch(const NotDense &){return {};}
     catch(const std::exception &e){return Status::Invalid(e.what());}
