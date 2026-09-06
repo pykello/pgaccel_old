@@ -148,17 +148,41 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
         // whole capacity before allocation; the parent accounts retained bytes.
         Scratch numericMemory(budget, numeric ? outerRows.size() * sizeof(Wide) + 64 : 0);
         std::vector<Wide> numericValues;
-        if (numeric) numericValues.reserve(outerRows.size());
-        for (const auto &selected : outerRows) {
-            const auto &state = states[selected.slot]; if (!state.count) continue;
+        auto qualifies = [&](const SumOuterRow &selected) {
+            const auto &state = states[selected.slot];
+            if (!state.count) return false;
             const auto &rg = q.tables[0]->GetRowGroup(selected.stripe);
-            if (!EvaluateWith(comparison, [&](const ColumnRef &column) {
+            return EvaluateWith(comparison, [&](const ColumnRef &column) {
                 return column.tableIdx == -2 ? Cell{state.sum} : Read(rg, column, selected.row);
-            }).number) continue;
-            if (numeric) {
-                numericValues.push_back(Read(rg, *q.aggregateClauses[0].columnRef, selected.row).number);
-                continue;
+            }).number != 0;
+        };
+        if (numeric) {
+            numericValues.resize(outerRows.size());
+            auto counts = RunTasks(workers, [&](int worker) {
+                ScopedValueResource memory(budget);
+                size_t begin = outerRows.size() * worker / workers, count = 0;
+                size_t end = outerRows.size() * (worker + 1) / workers;
+                for (size_t i = begin; i < end; ++i) {
+                    const auto &selected = outerRows[i];
+                    if (!qualifies(selected)) continue;
+                    const auto &rg = q.tables[0]->GetRowGroup(selected.stripe);
+                    numericValues[begin + count++] =
+                        Read(rg, *q.aggregateClauses[0].columnRef, selected.row).number;
+                }
+                return count;
+            });
+            size_t count = 0;
+            for (int worker = 0; worker < workers; ++worker) {
+                size_t begin = outerRows.size() * worker / workers;
+                if (counts[worker] && count != begin)
+                    memmove(numericValues.data() + count, numericValues.data() + begin,
+                            counts[worker] * sizeof(Wide));
+                count += counts[worker];
             }
+            numericValues.resize(count);
+        } else for (const auto &selected : outerRows) {
+            if (!qualifies(selected)) continue;
+            const auto &rg = q.tables[0]->GetRowGroup(selected.stripe);
             results.addLazy([&](size_t i) {
                 const auto &column = *q.aggregateClauses[i].columnRef;
                 return FinalCell{Read(rg, column, selected.row), column.Type().get()};
