@@ -1,5 +1,6 @@
 #include "executor_rank_join.hpp"
 #include <gtest/gtest.h>
+#include <thread>
 using namespace pgaccel;
 TEST(RankJoin, SparseNegativeKeysWordBoundariesAndDuplicates) {
     Budget budget(4096);RankJoinIndex index(-65,130,budget);
@@ -19,4 +20,20 @@ TEST(RankJoin, EmptySignedBoundaryAndBudget) {
     EXPECT_TRUE(last.insert(INT64_MAX));last.finalize();EXPECT_EQ(last.rank(INT64_MAX),std::optional<uint32_t>(0));
     EXPECT_FALSE(last.rank(INT64_MIN));
     Budget tiny(1);EXPECT_THROW((RankJoinIndex(0,64,tiny)),std::runtime_error);
+}
+
+TEST(RankJoin, ConcurrentBitsDetectDuplicatesAndScatterUniqueRows) {
+    Budget budget(1<<20);RankJoinIndex index(0,4095,budget);
+    std::atomic<int> accepted{0};std::vector<std::thread> threads;
+    for(int worker=0;worker<8;++worker)threads.emplace_back([&,worker]{
+        for(int key=worker;key<4096;key+=8)accepted+=index.insert<true>(key);
+        accepted+=index.insert<true>(0);
+    });
+    for(auto &thread:threads)thread.join();threads.clear();index.finalize();
+    EXPECT_EQ(accepted.load(),4096);EXPECT_EQ(index.size(),4096);
+    for(int worker=0;worker<8;++worker)threads.emplace_back([&,worker]{
+        for(int key=worker;key<4096;key+=8)index.setRow(key,uint64_t(key)*7);
+    });
+    for(auto &thread:threads)thread.join();
+    for(int key=0;key<4096;++key)EXPECT_EQ(index.row(*index.rank(key)),uint64_t(key)*7);
 }

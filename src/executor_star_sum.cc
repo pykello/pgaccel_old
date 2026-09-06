@@ -139,9 +139,13 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
         Wide width=Wide(high)-low+1;
         if(width>Wide(sizes[bridge])*8 || width>(Wide(1)<<34))throw NotDense{};
         RankJoinIndex index(low,high,budget);
-        for(const auto &part:parts)for(const auto &p:part)if(!index.insert(p.key))throw NotDense{};
+        auto fillBits=[&](int worker) {
+            for(const auto &p:parts[worker])if(!index.insert<true>(p.key))return false;
+            return true;
+        };
+        for(bool unique:RunTasks(parts.size(),fillBits))if(!unique)throw NotDense{};
         index.finalize();
-        for(const auto &part:parts)for(const auto &p:part)index.setRow(p.key,p.row);
+        RunTasks(parts.size(),[&](int worker){for(const auto &p:parts[worker])index.setRow(p.key,p.row);return true;});
         parts.clear();parts.shrink_to_fit();
         const size_t outputs=q.aggregateClauses.size();
         std::array<int,8> stateIndex;stateIndex.fill(-1);size_t stateCount=0;
