@@ -52,3 +52,22 @@ TEST(FlatMap, AllocationFailureLeavesExistingEntriesReadable)
     values.release();
     EXPECT_EQ(budget.used.load(), 0);
 }
+
+TEST(FlatMap, ConstLookupPreservesCollisionChainsWithoutAllocating)
+{
+    Budget budget(1 << 20);
+    FlatMap<uint64_t, uint64_t, CollidingHash, std::equal_to<uint64_t>> values(budget);
+    const auto &read = values;
+    EXPECT_EQ(read.find(0), decltype(values)::missing);
+    for (uint64_t key = 0; key < 1000; key += 2) values.get(key, [=] { return key + 7; });
+    auto bytes = budget.used.load();
+    for (uint64_t key = 0; key < 1001; ++key) {
+        auto index = read.find(key);
+        if (key < 1000 && key % 2 == 0) {
+            ASSERT_NE(index, decltype(values)::missing);
+            EXPECT_EQ(read.at(index).second, key + 7);
+        } else EXPECT_EQ(index, decltype(values)::missing);
+    }
+    EXPECT_EQ(budget.used.load(), bytes);
+    values.release(); EXPECT_EQ(read.find(0), decltype(values)::missing);
+}

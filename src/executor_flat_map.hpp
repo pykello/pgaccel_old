@@ -83,6 +83,20 @@ class FlatMap
         slots[position] = tag | uint64_t(index + 1);
         return {index, true};
     }
+    uint32_t find(const Key &key) const
+    {
+        if (slots.empty()) return missing;
+        const uint64_t h = hash(key), tag = h & 0xffffffff00000000ULL;
+        size_t position = h & (slots.size() - 1);
+        while (uint64_t slot = slots[position])
+        {
+            uint32_t index = uint32_t(slot) - 1;
+            if ((slot & 0xffffffff00000000ULL) == tag && equal(entries[index].first, key))
+                return index;
+            position = (position + 1) & (slots.size() - 1);
+        }
+        return missing;
+    }
     template <class F> void forEach(F function)
     {
         for (auto &entry : entries)
