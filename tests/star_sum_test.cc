@@ -87,3 +87,14 @@ TEST(StarSum, SixteenLaneProbesMaskOutsideDomainAndPartialBlocks) {
         EXPECT_EQ((**direct).values,expected->values);
     }
 }
+
+TEST(StarSum, ProjectionOnlyGroupsNeedNoAggregateStorage) {
+    auto registry=StarTables();
+    auto q=ParseSelect("SELECT f.k,b.day FROM t f,b,c WHERE f.k=b.k AND b.c=c.k "
+        "AND c.keep=1 GROUP BY f.k,b.day ORDER BY f.k",registry);
+    ASSERT_TRUE(q.ok());auto actual=ExecuteStarSum(*q,true,true);
+    ASSERT_TRUE(actual.has_value());ASSERT_TRUE(actual->ok());
+    QueryDesc reference=*q;reference.predicates.push_back(reference.predicates.front());
+    auto expected=ExecuteQuery(reference,false,false);ASSERT_TRUE(expected.ok());
+    EXPECT_EQ((**actual).values,expected->values);
+}

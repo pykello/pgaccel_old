@@ -206,7 +206,7 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
         OverwriteBuffer<int64_t> sums(index.size()*stateCount,budget);
         RunTasks(workers,[&](int worker) {
             size_t begin=sums.size()*worker/workers,end=sums.size()*(worker+1)/workers;
-            std::fill(sums.data()+begin,sums.data()+end,0);return true;
+            if(begin<end)std::fill(sums.data()+begin,sums.data()+end,0);return true;
         });
         std::pmr::vector<uint64_t> visited((index.size()+63)/64,0,&budget);
         BitmapDomain domain{index.minimum(),index.maximum(),index.words()};
@@ -260,8 +260,7 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
         };
         RunTasks(workers,scan);
         int outputWorkers=q.limit && *q.limit<=10000 && q.offset<=10000?workers:1;
-        auto candidates=RunTasks(outputWorkers,[&](int worker) {
-        ScopedValueResource memory(budget);QueryResults local(q,budget);
+        auto collect=[&](int worker,QueryResults &local) {
         for(size_t word=visited.size()*worker/outputWorkers;word<visited.size()*(worker+1)/outputWorkers;++word)
         for(uint64_t bits=visited[word];bits;bits&=bits-1) {
             uint32_t rank=word*64+__builtin_ctzll(bits);
@@ -279,9 +278,15 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
                 return cell;
             });
         }
-        return local.takeCandidates();
-        });
-        for(auto &part:candidates)for(auto &row:part)results.add(std::move(row));
+        };
+        if(outputWorkers==1)collect(0,results);
+        else {
+            auto candidates=RunTasks(outputWorkers,[&](int worker) {
+                ScopedValueResource memory(budget);QueryResults local(q,budget);
+                collect(worker,local);return local.takeCandidates();
+            });
+            for(auto &part:candidates)for(auto &row:part)results.add(std::move(row));
+        }
         return results.finish();
     } catch(const NotDense &) {return {};}
     catch(const std::exception &e) {return Status::Invalid(e.what());}
