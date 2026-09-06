@@ -2,7 +2,7 @@
 
 The target is end-to-end warm query latency no greater than one quarter
 of **both** DuckDB and ClickHouse. Start at SF10 with Q1, then validate
-SF100 when the SF10 gate passes. Follow with Q3 and Q14. Report misses
+SF100 when the SF10 gate passes. Follow with Q14 and Q3. Report misses
 explicitly; no result caching, precomputed answers, or query-name dispatch.
 Use eight workers and original SQL, with the previously documented
 ClickHouse decimal-ratio adaptation for Q14. Preserve every trial and
@@ -61,3 +61,36 @@ These motivate comparing bounded key domains and direct lookups with
 hashing. A consecutive sequence proof is a narrower, independently
 implemented opportunity in the resident column representation. No code
 or diagrams from these sources are copied.
+
+## Checkpoint status and subsequent work
+
+Q1 and Q14 passed SF10 and SF100 at their frozen checkpoints. The final
+three-query SF10 confirmation also passes the fourfold warm-median gate;
+see [SF10-CONFIRM.md](SF10-CONFIRM.md). Q3 improved from seconds to tens
+of milliseconds, with all temporary index construction inside query time.
+The final three-query SF100 validation is in progress at this checkpoint.
+
+The target is a measured warm-median speedup, not a bound on every trial.
+Preserve first trials and the complete warm range. Do not claim an entire
+workload win from these three queries or combine measurements from
+different frozen binaries into a new total.
+
+Further join work should proceed in this order:
+
+1. Re-run the complete SF1 coverage/correctness matrix and selected SF10
+   join shapes before widening kernel eligibility. Existing unit and
+   sanitizer suites cover numerical and key-domain edge cases, but do
+   not substitute for a full-workload performance comparison.
+2. Measure fallback joins with duplicates, wide integer domains, and
+   strings. Try compact key fingerprints and SIMD bucket comparisons
+   only where exact positional or bitmap-rank lookup does not apply.
+   Keep full-key equality and duplicate fanout in the correctness path.
+3. Compare radix partitioning and thread-local build/probe state for
+   working sets beyond cache. Include partition and merge costs, memory
+   peak, and skewed-key behavior in end-to-end timing. Do not assume
+   gather/scatter is beneficial: the rejected experiments here show it
+   can make the whole query slower.
+4. Extend eligible arithmetic and join shapes individually, with a small
+   commit, a forced-fallback reference test, repeated benchmarks, and a
+   retained/rejected decision for each change. Keep permissive dependency
+   licensing and original implementation as requirements.
