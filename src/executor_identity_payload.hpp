@@ -73,8 +73,7 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
                     if(!count)continue;
                     const auto *foreign=edge?&IdentityRaw(rg,edge->source):nullptr;
                     const auto *primary=payload->rank?&IdentityRaw(rg,key.column):nullptr;
-                    Selected(rg,count==rg.size?nullptr:bitmap,[&](int row) {
-                        uint32_t value=edge?payloads[edge->target]->lookup(IdentityRead(*foreign,row)):1;
+                    auto emit=[&](int row,uint32_t value) {
                         if(!value)return;
                         if(t==center) {
                             uint64_t logical=offsets[g]+row;
@@ -85,6 +84,35 @@ std::vector<std::unique_ptr<IdentityPayload>> BuildIdentityPayloads(
                             int64_t k=IdentityRead(*primary,row);
                             payload->rank->insert<true>(k);pairs.push_back({k,value});
                         } else payload->dense->set(offsets[g]+row,value);
+                    };
+                    const auto *child=edge?payloads[edge->target].get():nullptr;
+                    bool vectorable=avx && foreign && child->dense &&
+                        (foreign->bytesPerValue==1 || foreign->bytesPerValue==2 || foreign->bytesPerValue==4) &&
+                        child->first>=INT32_MIN && child->last<=INT32_MAX && Wide(child->last)-child->first<=INT32_MAX;
+                    if(vectorable) {
+                        auto first=_mm512_set1_epi32(child->first),last=_mm512_set1_epi32(child->last);
+                        auto lanes=_mm512_setr_epi32(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15);
+                        alignas(64)uint32_t selected[16],values[16];int row=0;
+                        for(;row+16<=rg.size;row+=16) {
+                            uint16_t mask=0xffff;if(count!=rg.size)std::memcpy(&mask,bitmap+row/8,2);
+                            if(!mask)continue;
+                            __m512i keys;
+                            if(foreign->bytesPerValue==1)keys=_mm512_cvtepi8_epi32(_mm_loadu_si128(reinterpret_cast<const __m128i *>(foreign->values+row)));
+                            else if(foreign->bytesPerValue==2)keys=_mm512_cvtepi16_epi32(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(foreign->values+row*2)));
+                            else keys=_mm512_loadu_si512(foreign->values+row*4);
+                            mask&=_mm512_cmpge_epi32_mask(keys,first)&_mm512_cmple_epi32_mask(keys,last);
+                            if(!mask)continue;
+                            auto found=child->dense->gather(_mm512_sub_epi32(keys,first),mask);
+                            mask&=_mm512_cmpneq_epi32_mask(found,_mm512_setzero_si512());
+                            if(!mask)continue;
+                            _mm512_mask_compressstoreu_epi32(selected,mask,_mm512_add_epi32(lanes,_mm512_set1_epi32(row)));
+                            _mm512_mask_compressstoreu_epi32(values,mask,found);
+                            for(int i=0;i<__builtin_popcount(mask);++i)emit(selected[i],values[i]);
+                        }
+                        for(;row<rg.size;++row)if(count==rg.size || (bitmap[row/8]>>(row%8)&1))
+                            emit(row,child->lookup(IdentityRead(*foreign,row)));
+                    } else Selected(rg,count==rg.size?nullptr:bitmap,[&](int row) {
+                        emit(row,child?child->lookup(IdentityRead(*foreign,row)):1);
                     });
                 }
                 return pairs;
