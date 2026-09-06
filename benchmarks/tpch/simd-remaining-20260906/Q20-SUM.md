@@ -8,6 +8,12 @@ This work has not passed the fourfold target against both engines.
 |---|---:|---:|---:|---:|
 | domain-v5 | 529.833 | 525.367 | 533.957 | 94.72 |
 | sum-v1 | 106.690 | 102.113 | 112.584 | 45.53 |
+| sum-v2 | 96.128 | 90.398 | 103.390 | 45.53 |
+
+Retain sum-v2 (`5f71146`): direct numeric bitmap construction lowers the
+SF10 median from 106.690 to 96.128 ms. All nine answers match. Both native
+and ASan/UBSan suites pass all 166 tests. The source domain no longer
+allocates a hash node for every selected key.
 
 Retain sum-v1 (`03b409f`). A fixed pair of integer keys replaces vector
 hash keys. Selected outer tuples define compact aggregate slots. Parallel
