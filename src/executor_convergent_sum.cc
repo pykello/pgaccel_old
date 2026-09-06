@@ -1,41 +1,11 @@
 #include "executor_convergent_plan.hpp"
-#include "executor_rank_join.hpp"
+#include "executor_identity_payload.hpp"
 #include "executor_bitmap_probe.hpp"
 #include "executor_small_group_key.hpp"
 #include "executor_result.hpp"
 #include "executor_compact_unsigned.hpp"
 
 namespace pgaccel {
-namespace {
-int64_t ConvergentRead(const RawColumnDataBase &data,int row) {
-    switch(data.bytesPerValue) {
-    case 1:return reinterpret_cast<const int8_t *>(data.values)[row];
-    case 2:return reinterpret_cast<const int16_t *>(data.values)[row];
-    case 4:return reinterpret_cast<const int32_t *>(data.values)[row];
-    case 8:return reinterpret_cast<const int64_t *>(data.values)[row];
-    default:throw NotDense{};
-    }
-}
-const RawColumnDataBase &ConvergentRaw(const RowGroup &rg,const ColumnRef &column) {
-    auto data=rg.columns[column.columnIdx].get();
-    if(data->type!=ColumnDataBase::RAW_COLUMN_DATA || data->size!=rg.size) throw NotDense{};
-    return *static_cast<const RawColumnDataBase *>(data);
-}
-struct ConvergentPayload {
-    int64_t first=0,last=0;
-    uint64_t selected=0;
-    std::optional<CompactUnsignedArray> dense;
-    std::pmr::vector<uint64_t> bits;
-    std::unique_ptr<RankJoinIndex> rank;
-    explicit ConvergentPayload(Budget &budget):bits(&budget) {}
-    uint32_t lookup(int64_t key) const {
-        if(key<first || key>last) return 0;
-        if(rank) {auto id=rank->rank(key);return id?uint32_t(rank->row(*id)):0;}
-        return dense->get(uint64_t(Wide(key)-first));
-    }
-    BitmapDomain domain() const {return {first,last,rank?rank->words():bits.data()};}
-};
-}
 
 std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool avx,bool parallel) {
     if(q.tables.size()<3 || q.tables.size()>8 || !q.grouped || q.groupExpressions.size()!=1 ||
@@ -75,68 +45,9 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
         }
         std::vector<FilterNodeP> filters(tables);
         for(int t=0;t<tables;++t)if(!clauses[t].empty())filters[t]=CreateFilterNode(clauses[t],avx);
-        std::vector<std::unique_ptr<ConvergentPayload>> payloads(tables);
-        for(int t:plan.order) {
-            const auto &table=*q.tables[t];auto &key=*plan.keys[t];
-            auto payload=std::make_unique<ConvergentPayload>(budget);
-            std::pmr::vector<uint64_t> offsets(table.RowGroupCount(),0,&budget);
-            if(key.sequence.active()) {
-                payload->first=key.sequence.minimum();payload->last=key.sequence.maximum();
-                payload->dense.emplace(key.sequence.size(),plan.keys[center]->sequence.size(),budget);
-                key.sequence.forEachStripe([&](uint32_t g,uint64_t offset){offsets[g]=offset;});
-            } else {
-                payload->first=INT64_MAX;payload->last=INT64_MIN;uint64_t size=0;
-                for(int g=0;g<table.RowGroupCount();++g) {
-                    const auto &rg=table.GetRowGroup(g);if(!rg.size)continue;
-                    const auto &raw=ConvergentRaw(rg,key.column);size+=rg.size;
-                    payload->first=std::min(payload->first,ConvergentRead(raw,0));
-                    payload->last=std::max(payload->last,ConvergentRead(raw,rg.size-1));
-                }
-                Wide width=Wide(payload->last)-payload->first+1;
-                if(width<=0 || width>Wide(size)*8 || width>(Wide(1)<<32))throw NotDense{};
-                payload->rank=std::make_unique<RankJoinIndex>(payload->first,payload->last,budget);
-            }
-            struct Pair {int64_t key;uint32_t value;};
-            int workers=parallel?std::min(8,std::max(1,table.RowGroupCount())):1;
-            auto parts=RunTasks(workers,[&](int worker) {
-                ScopedValueResource memory(budget);Scratch scratch(budget,RowGroupSize/8+256);
-                std::pmr::vector<Pair> pairs(&budget);uint8_t bitmap[RowGroupSize/8];
-                const auto *edge=plan.outgoing[t].empty()?nullptr:&plan.outgoing[t].front();
-                for(int g=worker;g<table.RowGroupCount();g+=workers) {
-                    const auto &rg=table.GetRowGroup(g);
-                    int count=filters[t]?filters[t]->ExecuteSet(rg,bitmap):rg.size;
-                    if(!count)continue;
-                    const auto *foreign=edge?&ConvergentRaw(rg,edge->source):nullptr;
-                    const auto *primary=payload->rank?&ConvergentRaw(rg,key.column):nullptr;
-                    Selected(rg,count==rg.size?nullptr:bitmap,[&](int row) {
-                        uint32_t value=edge?payloads[edge->target]->lookup(ConvergentRead(*foreign,row)):1;
-                        if(!value)return;
-                        if(t==center)value=uint32_t(offsets[g]+row+1);
-                        if(primary) {
-                            int64_t k=ConvergentRead(*primary,row);
-                            payload->rank->insert<true>(k);pairs.push_back({k,value});
-                        } else payload->dense->set(offsets[g]+row,value);
-                    });
-                }
-                return pairs;
-            });
-            if(payload->rank) {
-                payload->rank->finalize();payload->selected=payload->rank->size();
-                RunTasks(workers,[&](int worker) {
-                    for(const auto &pair:parts[worker])payload->rank->setRow(pair.key,pair.value);
-                    return true;
-                });
-            } else if(std::any_of(plan.outgoing[fact].begin(),plan.outgoing[fact].end(),
-                                 [&](const auto &edge){return edge.target==t;})) {
-                // Intermediate dimensions are looked up through their payload
-                // only. Membership bits are consumed by the fact's two arms.
-                payload->bits.resize((payload->dense->size()+63)/64,0);
-                for(size_t i=0;i<payload->dense->size();++i)if(payload->dense->get(i)) {
-                    payload->bits[i/64]|=uint64_t(1)<<(i%64);++payload->selected;
-                }
-            }
-            payloads[t]=std::move(payload);
-        }
+        std::vector<int> centerOf(tables,center);
+        std::vector<const uint8_t *> accepted(tables,nullptr);
+        auto payloads=BuildIdentityPayloads(q,plan,fact,plan.order,centerOf,accepted,filters,budget,avx,parallel);
         auto arms=plan.outgoing[fact];
         auto fraction=[&](const auto &edge) {
             const auto &p=*payloads[edge.target];return double(p.selected)/double(Wide(p.last)-p.first+1);
@@ -159,7 +70,7 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
                 const auto &rg=table.GetRowGroup(g);
                 int count=filters[fact]?filters[fact]->ExecuteSet(rg,bitmap):rg.size;
                 if(!count)continue;
-                const auto &a=ConvergentRaw(rg,arms[0].source),&b=ConvergentRaw(rg,arms[1].source);
+                const auto &a=IdentityRaw(rg,arms[0].source),&b=IdentityRaw(rg,arms[1].source);
                 Program program;int root=program.compile(*q.aggregateClauses[sumIndex].expression,rg);
                 for(int begin=0;begin<rg.size;begin+=Block) {
                     int size=std::min(Block,rg.size-begin),n=0;
@@ -167,11 +78,11 @@ std::optional<Result<QueryOutput>> ExecuteConvergentSum(const QueryDesc &q,bool 
                         n=BitmapSelectRange32(domain,reinterpret_cast<const int32_t *>(a.values),begin,size,
                             count==rg.size?nullptr:bitmap,selected);
                     else for(int row=begin;row<begin+size;++row)
-                        if((count==rg.size || (bitmap[row/8]>>(row%8)&1)) && domain.contains(ConvergentRead(a,row)))selected[n++]=row;
+                        if((count==rg.size || (bitmap[row/8]>>(row%8)&1)) && domain.contains(IdentityRead(a,row)))selected[n++]=row;
                     int accepted=0;
                     for(int i=0;i<n;++i) {
-                        int row=selected[i];uint32_t code=first.lookup(ConvergentRead(a,row));
-                        if(code && code==second.lookup(ConvergentRead(b,row))) {
+                        int row=selected[i];uint32_t code=first.lookup(IdentityRead(a,row));
+                        if(code && code==second.lookup(IdentityRead(b,row))) {
                             selected[accepted]=row;groups[accepted++]=code-1;
                         }
                     }
