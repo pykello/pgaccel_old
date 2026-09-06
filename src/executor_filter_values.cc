@@ -17,13 +17,17 @@ class ValuePredicate : public FilterNodeImpl {
     // ASCII literals use byte searches with nonoverlapping ordered matches.
     // Keep RE2 for non-ASCII values and malformed encodings.
     bool yes;
-    if (!sequence.empty() && IsAscii(value.text)) {
+    if (!sequence.empty()) {
       size_t position = 0; yes = true;
       for (const auto &literal : sequence) {
         position = value.text.find(literal, position);
         if (position == std::string_view::npos) { yes = false; break; }
         position += literal.size();
       }
+      // Missing literal bytes prove rejection even for non-ASCII input.
+      // Only surviving candidates need the exact UTF-8 regex fallback.
+      if (yes && !IsAscii(value.text))
+        yes = RE2::FullMatch(re2::StringPiece(value.text.data(), value.text.size()), *pattern);
     } else yes = prefix && IsAscii(value.text) ? value.text.starts_with(needle) :
         pattern
             ? (substring && IsAscii(value.text) ? value.text.find(needle) != std::string_view::npos
