@@ -150,7 +150,11 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
         const size_t outputs=q.aggregateClauses.size();
         std::array<int,8> stateIndex;stateIndex.fill(-1);size_t stateCount=0;
         for(size_t i=0;i<outputs;++i)if(q.aggregateClauses[i].type!=AggregateClause::AGGREGATE_PROJECT)stateIndex[i]=stateCount++;
-        std::pmr::vector<int64_t> sums(index.size()*stateCount,0,&budget);
+        OverwriteBuffer<int64_t> sums(index.size()*stateCount,budget);
+        RunTasks(workers,[&](int worker) {
+            size_t begin=sums.size()*worker/workers,end=sums.size()*(worker+1)/workers;
+            std::fill(sums.data()+begin,sums.data()+end,0);return true;
+        });
         std::pmr::vector<uint64_t> visited((index.size()+63)/64,0,&budget);
         BitmapDomain domain{index.minimum(),index.maximum(),index.words()};
         auto &factTable=*q.tables[fact];
