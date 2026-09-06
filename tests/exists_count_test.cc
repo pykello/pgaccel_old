@@ -32,3 +32,19 @@ TEST(ExistsCount, DuplicateOuterRowsInnerMultiplicityAntiAndFilters) {
         }
     }
 }
+
+TEST(ExistsCount, SignedBoundaryDomainsAndBudgetedFallback) {
+    for(bool sparse:{false,true}) {
+        int64_t low=INT64_MIN,high=sparse?INT64_MAX:INT64_MIN+1;
+        auto registry=test::Table({{test::Raw({low,high}),test::Dict<StringType>({"x","x"})}},
+            {{"k",std::make_shared<Int64Type>()},{"label",std::make_shared<StringType>()}});
+        auto fact=test::Table({{test::Raw({low,low}),test::Dict<DateType>({0,0}),test::Dict<DateType>({1,1})}},
+            {{"k",std::make_shared<Int64Type>()},{"a",std::make_shared<DateType>()},{"b",std::make_shared<DateType>()}});
+        registry.emplace("f",std::move(fact.at("t")));
+        auto q=ParseSelect("SELECT label,count(*) FROM t WHERE EXISTS(SELECT * FROM f WHERE f.k=t.k AND f.a<f.b) GROUP BY label",registry);
+        ASSERT_TRUE(q.ok());auto direct=ExecuteExistsCount(*q,true,true);
+        EXPECT_EQ(direct.has_value(),!sparse);
+        auto actual=ExecuteQuery(*q,true,true);ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,(Rows{{"x","1"}}));
+        if(!sparse) {QueryDesc limited=*q;limited.memoryBudgetBytes=1;limited.allowSpill=false;EXPECT_FALSE(ExecuteQuery(limited,true,true).ok());}
+    }
+}
