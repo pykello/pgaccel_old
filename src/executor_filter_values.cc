@@ -31,7 +31,6 @@ class ValuePredicate : public FilterNodeImpl {
     if (dict) {
       // At most 65,536 local labels: the complete membership map fits in 8 KiB.
       std::array<uint32_t, RowGroupSize / 32> labels{};
-      int rangeBegin = -1, rangeEnd = -1;
       auto signatures = substring && needle.size() >= 3
           ? data->localStringSignatures : std::span<const StringSignature>{};
       int selectedRows = rg.size;
@@ -55,17 +54,11 @@ class ValuePredicate : public FilterNodeImpl {
           return std::string_view(label).starts_with(needle);
         });
         if (negate) labels.fill(UINT32_MAX);
-        bool contiguous = true;
         for (auto it = begin; it != end; ++it) {
           size_t i = it - dictionary.begin();
           uint32_t bit = uint32_t(1) << (i % 32);
-          bool yes = matches(Label(dict, i, STRING_TYPE));
-          if (yes) labels[i / 32] |= bit;
+          if (matches(Label(dict, i, STRING_TYPE))) labels[i / 32] |= bit;
           else labels[i / 32] &= ~bit;
-          if (yes == negate) contiguous = false;
-        }
-        if (contiguous) {
-          rangeBegin = begin - dictionary.begin(); rangeEnd = end - dictionary.begin();
         }
       } else if (sparse) {
         std::array<uint64_t, RowGroupSize / 64> needed{};
@@ -117,28 +110,6 @@ class ValuePredicate : public FilterNodeImpl {
       auto apply = [&]<class CodeType>() {
         auto codes = reinterpret_cast<const CodeType *>(dict->values);
         int count = 0, base = 0;
-        if (avx && !sparse && rangeBegin >= 0) {
-          // Exact accepted prefixes form a code interval. Compare 32 codes
-          // directly instead of gathering one bitmap word for each code.
-          auto low = _mm512_set1_epi16(rangeBegin), high = _mm512_set1_epi16(rangeEnd - 1);
-          for (; base + 32 <= rg.size; base += 32) {
-            uint32_t previous = UINT32_MAX;
-            if (intersect) {
-              memcpy(&previous, bitmap + base / 8, sizeof(previous));
-              if (!previous) continue;
-            }
-            __m512i ids;
-            if constexpr (sizeof(CodeType) == 1)
-              ids = _mm512_cvtepu8_epi16(_mm256_loadu_si256(reinterpret_cast<const __m256i *>(codes + base)));
-            else ids = _mm512_loadu_si512(codes + base);
-            uint32_t selected = rangeBegin == rangeEnd ? 0 :
-                _mm512_cmpge_epu16_mask(ids, low) & _mm512_cmple_epu16_mask(ids, high);
-            if (negate) selected = ~selected;
-            selected &= previous;
-            memcpy(bitmap + base / 8, &selected, sizeof(selected));
-            count += __builtin_popcount(selected);
-          }
-        }
         if (avx && !sparse) {
           for (; base + 16 <= rg.size; base += 16) {
             uint16_t previous = UINT16_MAX;
