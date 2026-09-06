@@ -9,7 +9,7 @@ class ValuePredicate : public FilterNodeImpl {
   FilterClause f;
   std::unique_ptr<RE2> pattern;
   std::string needle;
-  bool substring = false, negate = false, avx;
+  bool substring = false, prefix = false, negate = false, avx;
   StringSignature required;
   std::unordered_set<Cell, Hash> members;
   bool matches(Cell value) const {
@@ -45,7 +45,22 @@ class ValuePredicate : public FilterNodeImpl {
         }
       }
       bool sparse = intersect && selectedRows <= rg.size / 4 && selectedRows < dict->dictSize() / 2;
-      if (sparse) {
+      if (prefix && !sparse) {
+        // Sorted labels make a literal prefix one contiguous candidate range.
+        // Keep exact RE2 checks within it, including invalid UTF-8 handling.
+        const auto &dictionary = static_cast<const DictColumnData<StringType> *>(dict)->dict;
+        auto begin = std::lower_bound(dictionary.begin(), dictionary.end(), needle);
+        auto end = std::partition_point(begin, dictionary.end(), [&](const auto &label) {
+          return std::string_view(label).starts_with(needle);
+        });
+        if (negate) labels.fill(UINT32_MAX);
+        for (auto it = begin; it != end; ++it) {
+          size_t i = it - dictionary.begin();
+          uint32_t bit = uint32_t(1) << (i % 32);
+          if (matches(Label(dict, i, STRING_TYPE))) labels[i / 32] |= bit;
+          else labels[i / 32] &= ~bit;
+        }
+      } else if (sparse) {
         std::array<uint64_t, RowGroupSize / 64> needed{};
         Selected(rg, bitmap, [&](int row) {
           int code = Code(dict, row);
@@ -180,6 +195,12 @@ public:
       pattern = std::make_unique<RE2>(regex, options);
       if (!pattern->ok())
         throw std::invalid_argument("Invalid UTF-8 LIKE pattern");
+      if (f.value.size() >= 2 && f.value.back() == '%') {
+        auto literal = f.value.substr(0, f.value.size() - 1);
+        if (literal.find_first_of("%_\\") == std::string::npos) {
+          prefix = true; needle = std::move(literal);
+        }
+      }
       if (f.value.size() >= 2 && f.value.front() == '%' &&
           f.value.back() == '%') {
         needle = f.value.substr(1, f.value.size() - 2);
