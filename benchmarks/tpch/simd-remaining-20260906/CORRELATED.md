@@ -26,11 +26,14 @@ or sharing is not assumed. All 155 native and sanitizer tests pass.
 | Experiment | Query | Warm median ms | Warm min ms | Warm max ms | Query peak MiB |
 |---|---|---:|---:|---:|---:|
 | pgaccel-domain-v1-sf10 | Q20 | 2016.970 | 2005.738 | 2028.203 | 96.78 |
+| pgaccel-domain-v2-sf10 | Q20 | 932.892 | 896.343 | 952.205 | 94.72 |
 
 Retain v1 for the measured capacity and latency improvement. It is still
-slower than both competitors at SF10. The next experiment replaces scalar
-membership hashing with exact bounded bitmaps and SIMD filtering. Broad
-or unsuitable domains retain the hash representation.
+slower than both competitors at SF10. Retain v2 (`100285a`): nine correct trials reduce the warm median to
+932.892 ms, another 2.16× improvement. It replaces scalar membership
+hashing with exact bounded bitmaps and SIMD filtering. Broad or unsuitable
+domains retain the hash representation. All 158 native and sanitizer tests
+pass. The next step derives domains from filtered outer dimensions.
 
 SF100 capacity checks, if listed above, are separate from the latency
 gate. They run under a 192 GiB service cap, zero swap, and a 64 GiB query
