@@ -22,7 +22,7 @@ for new arithmetic and threshold logic.
 | Query | Current state |
 |---|---|
 | Q1 | Both scales pass at checkpoint `7c92573` |
-| Q2 | SF10 144 ms; target unmet |
+| Q2 | Both scales pass at checkpoint `6e4e3da`; [results](Q2.md) |
 | Q3 | Both scales pass at checkpoint `7c92573` |
 | Q4 | Both scales pass at checkpoint `7c92573` |
 | Q5 | Optimization pending |
