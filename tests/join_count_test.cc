@@ -3,20 +3,21 @@
 namespace pgaccel { std::optional<Result<QueryOutput>> ExecuteJoinCount(const QueryDesc &,bool,bool); }
 using namespace pgaccel;
 TEST(JoinCount, SparseKeysDatePredicatesConditionalCountsAndDuplicateFallback) {
+    for(int64_t keyOffset:{int64_t(0),int64_t(INT64_MIN)})
     for(bool duplicate:{false,true}) {
         std::vector<std::vector<ColumnDataP>> groups;
         for(int g=0;g<3;++g) {
             std::vector<int64_t> keys;std::vector<std::string> priority;
-            for(int i=0;i<23;++i){keys.push_back((g*23+i)*3);priority.push_back(i%3==0?"urgent":i%3==1?"high":"other");}
-            if(g==2 && duplicate)keys[22]=6;
+            for(int i=0;i<23;++i){keys.push_back(keyOffset+(g*23+i)*3);priority.push_back(i%3==0?"urgent":i%3==1?"high":"other");}
+            if(g==2 && duplicate)keys[22]=keyOffset+6;
             if(g%2){std::reverse(keys.begin(),keys.end());std::reverse(priority.begin(),priority.end());}
-            groups.push_back({test::Raw(keys,4),test::Dict<StringType>(priority)});
+            groups.push_back({test::Raw(keys,keyOffset?8:4),test::Dict<StringType>(priority)});
         }
         auto registry=test::Table(std::move(groups),{{"k",std::make_shared<Int64Type>()},{"priority",std::make_shared<StringType>()}});
         groups.clear();
         for(int g=0;g<3;++g) {
             std::vector<int64_t> keys;std::vector<int32_t> a,b;std::vector<std::string> mode;
-            for(int i=0;i<259;++i){keys.push_back(i);a.push_back(i%5);b.push_back(i%7);mode.push_back(i%3==0?"mail":i%3==1?"ship":"air");}
+            for(int i=0;i<259;++i){keys.push_back(keyOffset+i);a.push_back(i%5);b.push_back(i%7);mode.push_back(i%3==0?"mail":i%3==1?"ship":"air");}
             keys[0]=INT64_MIN;keys[1]=INT64_MAX;
             groups.push_back({test::Raw(keys),test::Dict<DateType>(a),test::Dict<DateType>(b),test::Dict<StringType>(mode)});
         }
