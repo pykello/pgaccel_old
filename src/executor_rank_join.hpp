@@ -1,5 +1,6 @@
 #pragma once
 #include "executor_state.hpp"
+#include "executor_buffer.hpp"
 
 namespace pgaccel {
 namespace {
@@ -8,10 +9,11 @@ namespace {
 class RankJoinIndex {
     int64_t first,last;
     uint64_t cardinality=0;
-    std::pmr::vector<uint64_t> bits,rows;
+    std::pmr::vector<uint64_t> bits;
+    std::optional<OverwriteBuffer<uint64_t>> rows;
     std::pmr::vector<uint32_t> prefix;
 public:
-    RankJoinIndex(int64_t lo,int64_t hi,Budget &budget):first(lo),last(hi),bits(&budget),rows(&budget),prefix(&budget) {
+    RankJoinIndex(int64_t lo,int64_t hi,Budget &budget):first(lo),last(hi),bits(&budget),prefix(&budget) {
         Wide width=Wide(hi)-lo+1;
         if(width<=0 || width>Wide(SIZE_MAX)*64) throw std::invalid_argument("Invalid rank index domain");
         bits.resize(size_t((width+63)/64),0);
@@ -31,7 +33,7 @@ public:
             prefix[i]=uint32_t(offset);offset+=__builtin_popcountll(bits[i]);
         }
         if(offset>UINT32_MAX)throw std::invalid_argument("Rank index cardinality exceeds 32 bits");
-        cardinality=offset;rows.resize(cardinality);
+        cardinality=offset;rows.emplace(cardinality,*bits.get_allocator().resource());
     }
     std::optional<uint32_t> rank(int64_t key) const {
         if(prefix.empty())throw std::logic_error("Rank index is not finalized");
@@ -41,9 +43,9 @@ public:
         return prefix[offset/64]+__builtin_popcountll(word&(mask-1));
     }
     void setRow(int64_t key,uint64_t row) {
-        auto index=rank(key);if(!index)throw std::invalid_argument("Missing rank index key");rows[*index]=row;
+        auto index=rank(key);if(!index)throw std::invalid_argument("Missing rank index key");(*rows)[*index]=row;
     }
-    uint64_t row(uint32_t rank) const {return rows[rank];}
+    uint64_t row(uint32_t rank) const {return (*rows)[rank];}
     uint64_t size() const {return cardinality;}
     int64_t minimum() const {return first;}
     int64_t maximum() const {return last;}
