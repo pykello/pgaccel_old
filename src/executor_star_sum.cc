@@ -99,14 +99,14 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
         for(const auto &e:q.groupExpressions) {
             if(e->kind!=Expression::COLUMN){valid=false;break;}
             identity |= *e->column==fk || *e->column==bk;
-            valid &= e->column->tableIdx==bridge || *e->column==fk;
+            valid &= e->column->tableIdx==bridge || e->column->tableIdx==dk.tableIdx || *e->column==fk;
         }
         for(const auto &a:q.aggregateClauses) {
             if(a.type==AggregateClause::AGGREGATE_SUM)valid &= a.expression && StarOnTable(*a.expression,candidate);
             else if(a.type==AggregateClause::AGGREGATE_COUNT)valid &= !a.expression;
             else if(a.type==AggregateClause::AGGREGATE_PROJECT)
                 valid &= a.expression && (a.expression->kind==Expression::CONSTANT ||
-                    (a.expression->kind==Expression::COLUMN && (a.expression->column->tableIdx==bridge || *a.expression->column==fk)));
+                    (a.expression->kind==Expression::COLUMN && (a.expression->column->tableIdx==bridge || a.expression->column->tableIdx==dk.tableIdx || *a.expression->column==fk)));
             else valid=false;
         }
         if(valid && identity){fact=candidate;dimension=dk.tableIdx;factKey=fk;bridgeKey=bk;bridgeDimension=bd;dimensionKey=dk;}
@@ -241,7 +241,12 @@ std::optional<Result<QueryOutput>> ExecuteStarSum(const QueryDesc &q,bool avx,bo
                 else {
                     uint64_t row=index.row(rank);auto column=*a.expression->column;
                     if(column==factKey)column=bridgeKey;
-                    cell.value=Read(bridgeTable.GetRowGroup(row>>32),column,uint32_t(row));
+                    if(column.tableIdx==dimension) {
+                        auto key=Read(bridgeTable.GetRowGroup(row>>32),bridgeDimension,uint32_t(row));
+                        auto dimensionRow=sequence.lookup(int64_t(key.number));
+                        if(!dimensionRow)throw std::logic_error("Missing verified dimension row");
+                        cell.value=Read(q.tables[dimension]->GetRowGroup(*dimensionRow>>32),column,uint32_t(*dimensionRow));
+                    } else cell.value=Read(bridgeTable.GetRowGroup(row>>32),column,uint32_t(row));
                 }
                 return cell;
             });

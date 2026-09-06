@@ -98,3 +98,28 @@ TEST(StarSum, ProjectionOnlyGroupsNeedNoAggregateStorage) {
     auto expected=ExecuteQuery(reference,false,false);ASSERT_TRUE(expected.ok());
     EXPECT_EQ((**actual).values,expected->values);
 }
+
+TEST(StarSum, DimensionProjectionUsesVerifiedBridgeIdentity) {
+    for(bool duplicate:{false,true}) {
+        auto registry=StarTables();
+        auto dimension=test::Table({{test::Raw({0,1,duplicate?1:2,3,4,5}),
+            test::Dict<StringType>({"zero","same","same","three","four","five"})}},
+            {{"k",std::make_shared<Int64Type>()},{"name",std::make_shared<StringType>()}});
+        registry.erase("c");registry.emplace("c",std::move(dimension.at("t")));
+        for(const std::string identity:{"b.k,", ""})
+        for(const std::string slice:{"", " LIMIT 2 OFFSET 1"}) {
+            std::string keys=identity+"c.name,c.k,b.day";
+            auto q=ParseSelect("SELECT "+keys+",sum(f.x),count(*) FROM t f,b,c "
+                "WHERE f.k=b.k AND b.c=c.k GROUP BY "+keys+" ORDER BY "+keys+slice,registry);
+            ASSERT_TRUE(q.ok())<<q.status().Message();
+            QueryDesc reference=*q;reference.predicates.push_back(reference.predicates.front());
+            auto expected=ExecuteQuery(reference,false,false);ASSERT_TRUE(expected.ok());
+            for(bool avx:{false,true})for(bool parallel:{false,true}) {
+                auto direct=ExecuteStarSum(*q,avx,parallel);
+                EXPECT_EQ(direct.has_value(),!duplicate && !identity.empty());
+                auto actual=ExecuteQuery(*q,avx,parallel);ASSERT_TRUE(actual.ok())<<actual.status().Message();
+                EXPECT_EQ(actual->values,expected->values);
+            }
+        }
+    }
+}
