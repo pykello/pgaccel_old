@@ -3,6 +3,7 @@
 #include "executor_state.hpp"
 #include "executor_buffer.hpp"
 #include "executor_tasks.hpp"
+#include <bit>
 namespace pgaccel {
 namespace {
 // Packed values contain an exact group in the upper word and an exact
@@ -37,8 +38,30 @@ std::pmr::vector<uint64_t> CountPackedDistinct(std::vector<std::pmr::vector<uint
         return true;
     });
     RunTasks(workers,[&](int worker) {
+        size_t maximum=0;
+        for(size_t p=worker;p<partitions;p+=workers)maximum=std::max(maximum,offsets[p+1]-offsets[p]);
+        OverwriteBuffer<uint64_t> temporary(maximum,budget);
+        Scratch stack(budget,2048*sizeof(size_t));
+        size_t histogram[2048];
         for(size_t p=worker;p<partitions;p+=workers) {
-            auto begin=ordered.data()+offsets[p],end=ordered.data()+offsets[p+1];std::sort(begin,end);
+            auto begin=ordered.data()+offsets[p],end=ordered.data()+offsets[p+1];
+            size_t size=end-begin;
+            if(size<128)std::sort(begin,end);
+            else {
+                uint64_t differences=0;for(auto value=begin+1;value!=end;++value)differences|=*value^*begin;
+                auto source=begin,destination=temporary.data();
+                while(differences) {
+                    unsigned shift=std::countr_zero(differences),bits=std::min(11u,64-shift);
+                    size_t bins=size_t(1)<<bits,mask=bins-1;
+                    std::fill(histogram,histogram+bins,0);
+                    for(size_t i=0;i<size;++i)++histogram[(source[i]>>shift)&mask];
+                    size_t offset=0;
+                    for(size_t i=0;i<bins;++i){size_t count=histogram[i];histogram[i]=offset;offset+=count;}
+                    for(size_t i=0;i<size;++i)destination[histogram[(source[i]>>shift)&mask]++]=source[i];
+                    std::swap(source,destination);differences&=~(uint64_t(mask)<<shift);
+                }
+                begin=source;end=source+size;
+            }
             bool seen=false;uint64_t previous=0;
             for(auto value=begin;value!=end;++value)if(!seen || *value!=previous) {
                 ++counts[*value>>32];previous=*value;seen=true;

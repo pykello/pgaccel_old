@@ -26,3 +26,27 @@ TEST(PackedDistinct, EmptyInputsInvalidGroupAndAllocationLimits) {
     EXPECT_THROW(CountPackedDistinct(inputs,3,budget,true),NotDense);
     inputs.clear();Budget tiny(1);EXPECT_THROW(CountPackedDistinct(inputs,3,tiny,true),std::runtime_error);
 }
+
+TEST(PackedDistinct, RadixPassesSkipConstantBitsAndPreserveFullIdentity) {
+    for(bool parallel:{false,true}) {
+        Budget budget(1<<27);std::vector<std::pmr::vector<uint64_t>> inputs;
+        std::map<uint32_t,std::set<uint32_t>> expected;
+        uint64_t state=1234567;
+        for(int worker=0;worker<4;++worker) {
+            inputs.emplace_back(&budget);
+            for(int i=0;i<10000;++i) {
+                state=state*6364136223846793005ULL+1;
+                uint32_t group=((state>>40)%37)*1024+3;
+                uint32_t value=i%5?uint32_t(state>>32):UINT32_MAX;
+                inputs.back().push_back((uint64_t(group)<<32)|value);
+                inputs.back().push_back((uint64_t(group)<<32)|value);
+                expected[group].insert(value);
+            }
+            for(int i=0;i<256;++i)inputs.back().push_back(uint64_t(2)<<32);
+        }
+        auto counts=CountPackedDistinct(inputs,65536,budget,parallel);
+        EXPECT_EQ(counts[2],1);
+        for(const auto &[group,values]:expected)EXPECT_EQ(counts[group],values.size());
+        for(size_t group=0;group<counts.size();++group)if(group!=2 && !expected.contains(group))EXPECT_EQ(counts[group],0);
+    }
+}
