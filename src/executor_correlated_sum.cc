@@ -103,6 +103,17 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
     auto innerMember = scalar.innerKeys[memberKey - scalar.outerKeys.begin()];
     try {
         Budget budget(q.memoryBudgetBytes); ScopedValueResource memory(budget);
+        std::optional<Wide> thresholdMultiplier;
+        if (sum != 0) {
+            const auto &formula = *child.aggregateClauses[0].expression;
+            if (formula.kind == Expression::MULTIPLY) {
+                const Expression *literal = formula.left.get(), *binding = formula.right.get();
+                if (literal->kind != Expression::CONSTANT) std::swap(literal, binding);
+                if (literal->kind == Expression::CONSTANT && binding->kind == Expression::COLUMN &&
+                    binding->column->tableIdx == -1 && binding->column->columnIdx == sum)
+                    thresholdMultiplier = ParseDecimal(Scale(literal->type.get()), literal->literal);
+            }
+        }
         MembershipSet members(budget, 0);
         {
             auto sourceFilter = source.filterClauses.empty() ? FilterNodeP{} : CreateFilterNode(source.filterClauses, avx);
@@ -234,9 +245,11 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &q, bool
                     states[slot].sum = Add(states[slot].sum, p[slot].sum);
                     states[slot].count += p[slot].count;
                 }
-                if (states[slot].count && sum != 0)
-                    states[slot].sum = EvaluateWith(*child.aggregateClauses[0].expression,
+                if (states[slot].count && sum != 0) {
+                    if (thresholdMultiplier) states[slot].sum = Multiply(states[slot].sum, *thresholdMultiplier);
+                    else states[slot].sum = EvaluateWith(*child.aggregateClauses[0].expression,
                         [&](const ColumnRef &) { return Cell{states[slot].sum}; }).number;
+                }
             }
             return 0;
         }); };

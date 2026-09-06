@@ -109,14 +109,16 @@ TEST(CorrelatedSum, WidePartialSumsRemainExactDespiteCancellation) {
         test::Raw({INT64_MAX,INT64_MAX,-INT64_MAX,INT64_MIN,INT64_MIN,INT64_MAX})}},
         {{"pk",integer},{"sk",integer},{"qty",integer}});
     registry.emplace("f",std::move(facts.at("t")));
+    for(const std::string formula:{"0.5*sum(qty)","sum(qty)*0.5","sum(qty)/2","0.5*sum(qty)+0"}) {
     auto q=ParseSelect("SELECT pk FROM t WHERE pk IN (SELECT k FROM p) AND avail > "
-        "(SELECT 0.5*sum(qty) FROM f WHERE f.pk=t.pk AND f.sk=t.sk) ORDER BY pk",registry);
+        "(SELECT "+formula+" FROM f WHERE f.pk=t.pk AND f.sk=t.sk) ORDER BY pk",registry);
     ASSERT_TRUE(q.ok())<<q.status().Message();
     for(bool avx:{false,true})for(bool parallel:{false,true}) {
         auto fast=ExecuteCorrelatedSum(*q,avx,parallel);ASSERT_TRUE(fast);
         ASSERT_TRUE(fast->ok())<<fast->status().Message();
         auto expected=ExecuteQuery(GenericSum(*q),false,false);ASSERT_TRUE(expected.ok());
         EXPECT_EQ((*fast)->values,expected->values);EXPECT_EQ((*fast)->values,Rows({{"2"}}));
+    }
     }
 }
 
