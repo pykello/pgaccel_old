@@ -10,7 +10,9 @@ Exclude only trial 1 from warm medians. Use fresh multi-trial comparisons
 for promotion, then test the same frozen PGAccel binary at SF100. Preserve
 192 GiB SF100 service limits, zero swap and the 64 GiB PGAccel query limit.
 Do not run builds or tests during timed benchmark phases. A final complete
-22-query comparison on one binary is required after individual gates pass.
+22-query comparison on one binary and one consistent client interface is
+required after individual gates pass. Q16 uses the optional native Python API;
+earlier individual confirmations use the CLI and remain separately labeled.
 
 Validate row counts, ordering and every output value. The existing harness
 compares integer/decimal values exactly. Floating output uses its existing
@@ -25,7 +27,7 @@ for new arithmetic and threshold logic.
 | Q2 | Both scales pass at checkpoint `6e4e3da`; [results](Q2.md) |
 | Q3 | Both scales pass at checkpoint `7c92573` |
 | Q4 | Both scales pass at checkpoint `7c92573` |
-| Q5 | Optimization pending |
+| Q5 | Active: convergent dimension payload joins |
 | Q6 | Both scales pass at checkpoint `b12ce48`; [results](Q6.md) |
 | Q7 | Optimization pending |
 | Q8 | Optimization pending |
@@ -36,7 +38,7 @@ for new arithmetic and threshold logic.
 | Q13 | Both scales pass at checkpoint `5190383`; [results](Q13.md) |
 | Q14 | Both scales pass at checkpoint `7c92573` |
 | Q15 | Both scales pass at checkpoint `918e691`; [results](Q15.md) |
-| Q16 | Compact distinct join in progress; fresh SF10 53.6 ms, 3.52x DuckDB / 5.96x CH; [failed gate](Q16-CONFIRMATIONS.md) |
+| Q16 | Native Python passes both scales at `90e5747`; [results](Q16-NATIVE.md); CLI remains below target |
 | Q17 | Both scales pass at checkpoint `fdda059`; [results](Q17.md) |
 | Q18 | Both scales pass at checkpoint `537c8aa`; [results](Q18.md) |
 | Q19 | Both scales pass at checkpoint `7c92573` |
