@@ -27,9 +27,9 @@ for new arithmetic and threshold logic.
 | Q2 | Both scales pass at checkpoint `6e4e3da`; [results](Q2.md) |
 | Q3 | Both scales pass at checkpoint `7c92573` |
 | Q4 | Both scales pass at checkpoint `7c92573` |
-| Q5 | Active: convergent dimension payload joins |
+| Q5 | Native Python passes both scales at `f76d659`; [results](Q5.md) |
 | Q6 | Both scales pass at checkpoint `b12ce48`; [results](Q6.md) |
-| Q7 | Optimization pending |
+| Q7 | Active: projection pull-up and dimension payload joins |
 | Q8 | Optimization pending |
 | Q9 | Optimization pending |
 | Q10 | Optimization pending |

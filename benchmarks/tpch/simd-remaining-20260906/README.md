@@ -9,6 +9,7 @@ against DuckDB and ClickHouse. The target is fourfold warm-median speed.
 
 | Query | Current status | Evidence |
 |---|---|---|
+| Q5 | Native Python gates pass | [Q5 results](Q5.md) |
 | Q16 | Native Python gates pass; CLI remains below target | [Native results](Q16-NATIVE.md) |
 | Q13 | SF10 and SF100 gates pass | [Q13 results](Q13.md) |
 | Q15 | SF10 and SF100 gates pass | [Q15 results](Q15.md) |
@@ -22,7 +23,7 @@ against DuckDB and ClickHouse. The target is fourfold warm-median speed.
 | Q2 | SF10 and SF100 gates pass | [Q2 results](Q2.md) |
 | Q20 | SF10 and SF100 gates pass | [Q20 results](Q20.md) |
 
-Q5 is active; Q7–Q10 and Q21–Q22 remain queued. Q16 passes through the native Python API; Q2 and Q6 pass both scales. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
+Q7 is active; Q8–Q10 and Q21–Q22 remain queued. Q5 passes both scales. Q16 passes through the native Python API; Q2 and Q6 pass both scales. Q17 and Q20 pass both scales. The prior [full SF100 baseline](../sf100-20260905/RESULTS.md)
 remains historical evidence. Q20's allocation failure in that baseline is
 resolved by the new capacity check; no fresh full-workload win is claimed.
 
