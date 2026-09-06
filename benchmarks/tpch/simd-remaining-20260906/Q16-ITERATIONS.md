@@ -17,6 +17,11 @@ Every answer matches the DuckDB oracle. These are not promotion runs.
 | profile-v2 | 76.556 | 57.271 | 39064301 |
 | narrow-v1 | 75.356 | 55.004 | 39063789 |
 | format-v1 | 62.943 | 41.168 | 39063789 |
+| localhash-v1 | 66.242 | 45.551 | 39063789 |
+| firstrow-v1 | 66.802 | 45.565 | 39063789 |
+| orderhelper-v1 | 54.615 | 32.655 | 39063789 |
+| duplicatebits-v1 | 52.914 | 31.371 | 39063789 |
+| ownedlines-v1 | 61.802 | 39.305 | 39063789 |
 
 The profile binary adds per-stage timers and is diagnostic only. Its
 First-profile warm phase medians: preparation 2.9 ms, dimension

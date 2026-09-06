@@ -85,3 +85,37 @@ This is a response serialization improvement, separate from engine runtime;
 its additional response buffer is reflected in process memory, not the
 executor's temporary allocation counter. Final comparisons use one frozen
 runner at both scales and retain all answer conversions in client timing.
+
+## Exact bitmap filtering of duplicate candidates
+
+After partitioning exact `(group, supplier)` pairs, hash each pair into a
+bounded bitmap. Record both seen buckets and buckets hit more than once.
+A second pass counts pairs in singly hit buckets immediately and sends all
+pairs from repeated buckets to exact sorting. This cannot miss a duplicate:
+identical pairs always choose the same bucket, and every copy is retained
+when that bucket repeats. Different pairs colliding in a bucket merely
+increase exact-sort work. No approximate count is returned.
+
+```mermaid
+flowchart LR
+    A[Exact packed pairs] --> B[Partition by group]
+    B --> C[Seen and repeated bucket bitmaps]
+    C --> D[Bucket hit once]
+    C --> E[Repeated bucket: retain every pair]
+    D --> F[Exact per-group counts]
+    E --> G[Sort and deduplicate full pair]
+    G --> F
+```
+
+Bitmaps use at most 256 KiB per worker and are rebuilt for every partition.
+The first isolated SF10 measurement is 52.914 ms at `c8281ac`, compared
+with 54.615 ms for the separate ordering helper. The earlier local hash
+experiment was rejected: 66.242 ms versus its 62.943 ms baseline. All
+experiments and their raw trials remain available in the iteration report.
+
+The next scheduling experiment addresses false sharing: interleaved
+partitions let workers repeatedly write different counters in the same
+64-byte cache line. Partition ranges can instead end on the actual counter
+array's cache-line boundaries. Because the partition bits are the low group
+bits, the same boundary applies to every higher group component. This
+changes worker ownership while preserving the exact partition assignment.
