@@ -3,6 +3,7 @@
 #include <array>
 #include <immintrin.h>
 #include "column_index.hpp"
+#include "executor_literal_search.hpp"
 namespace pgaccel {
 namespace {
 class ValuePredicate : public FilterNodeImpl {
@@ -20,7 +21,7 @@ class ValuePredicate : public FilterNodeImpl {
     if (!sequence.empty()) {
       size_t position = 0; yes = true;
       for (const auto &literal : sequence) {
-        position = value.text.find(literal, position);
+        position = FindLiteralBytes(value.text, literal, position, avx);
         if (position == std::string_view::npos) { yes = false; break; }
         position += literal.size();
       }
