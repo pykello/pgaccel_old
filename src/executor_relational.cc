@@ -5,6 +5,7 @@
 #include "executor_tasks.hpp"
 #include "executor_correlation_domain.hpp"
 #include "executor_small_join_domain.hpp"
+#include "executor_membership_domain.hpp"
 #include "nodes.h"
 #include <functional>
 #include <cmath>
@@ -177,6 +178,7 @@ Result<QueryOutput> ExecuteRelational(const QueryDesc &source, bool avx, bool pa
             memberships.emplace_back(budget, scale);
             auto sub = childPlan(*membership.query);
             sub.numericMembershipOutput = true;
+            if (auto restricted = MembershipOutputDomain(q, membership, sub)) sub = std::move(*restricted);
             auto result = ExecuteQuery(sub, avx, parallel && !sub.membershipQueries.empty());
             if (!result.ok()) return Status::Invalid("Membership subquery: " + result.status().Message());
             subquerySpillBytes += result->spillBytes;

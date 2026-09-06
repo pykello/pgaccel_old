@@ -1,4 +1,5 @@
 #include "test_table.hpp"
+#include "../src/executor_membership_domain.hpp"
 #include <gtest/gtest.h>
 using namespace pgaccel;
 namespace pgaccel { std::optional<Result<QueryOutput>> ExecuteCorrelatedSum(const QueryDesc &, bool, bool); }
@@ -186,5 +187,31 @@ TEST(CorrelatedSum, AdditionalJoinedDomainsRestrictWholeGroups)
         EXPECT_FALSE(ExecuteQuery(limited,true,true).ok());
         auto anti = *q; anti.membershipQueries[1].anti=true;
         EXPECT_FALSE(ExecuteCorrelatedSum(anti,true,true));
+        auto parent = ParseSelect("SELECT s.k,s.n FROM s,n WHERE s.n=n.k AND n.active="+
+            std::to_string(active)+" AND s.k IN (SELECT sk FROM t WHERE pk IN (SELECT k FROM p) AND "
+            "avail > (SELECT 0.5*sum(qty) FROM f WHERE f.pk=t.pk AND f.sk=t.sk)) ORDER BY s.k,s.n",registry);
+        ASSERT_TRUE(parent.ok());
+        const auto &member = parent->membershipQueries[0];
+        auto pushed = MembershipOutputDomain(*parent,member,*member.query); ASSERT_TRUE(pushed);
+        ASSERT_EQ(pushed->membershipQueries.size(),2);
+        EXPECT_TRUE(pushed->membershipQueries[1].query->membershipQueries.empty());
+        auto direct = ExecuteCorrelatedSum(*pushed,true,true); ASSERT_TRUE(direct);
+        ASSERT_TRUE(direct->ok()) << direct->status().Message();
+        for (bool parallel : {false,true}) {
+            auto actual = ExecuteQuery(*parent,true,parallel); ASSERT_TRUE(actual.ok()) << actual.status().Message();
+            Rows expectedParent = active==1 ? Rows({{"10","1"},{"10","1"}}) :
+                active==0 ? Rows({{"20","2"},{"30","2"}}) : Rows{};
+            EXPECT_EQ(actual->values,expectedParent);
+        }
+        auto sliced = *member.query; sliced.limit=1;
+        EXPECT_FALSE(MembershipOutputDomain(*parent,member,sliced));
+        auto excluded = member; excluded.anti=true;
+        EXPECT_FALSE(MembershipOutputDomain(*parent,excluded,*member.query));
+        auto unfiltered = *parent;
+        unfiltered.filterClauses.clear();
+        std::erase_if(unfiltered.predicates,[](const auto &e) {
+            return e->kind==Expression::EQ && e->right->kind==Expression::CONSTANT;
+        });
+        EXPECT_FALSE(MembershipOutputDomain(unfiltered,member,*member.query));
     }
 }
