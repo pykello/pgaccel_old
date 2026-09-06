@@ -37,15 +37,20 @@ std::pmr::vector<uint64_t> CountPackedDistinct(std::vector<std::pmr::vector<uint
         }
         return true;
     });
+    auto boundary=[&](int worker)->size_t {
+        if(!worker)return 0;if(worker==workers)return partitions;
+        size_t alignment=(reinterpret_cast<uintptr_t>(counts.data())%64)/sizeof(uint64_t);
+        return ((partitions*worker/workers+alignment+7)&~size_t(7))-alignment;
+    };
     RunTasks(workers,[&](int worker) {
-        size_t maximum=0;
-        for(size_t p=worker;p<partitions;p+=workers)maximum=std::max(maximum,offsets[p+1]-offsets[p]);
+        size_t first=boundary(worker),last=boundary(worker+1),maximum=0;
+        for(size_t p=first;p<last;++p)maximum=std::max(maximum,offsets[p+1]-offsets[p]);
         OverwriteBuffer<uint64_t> temporary(maximum,budget);
         Scratch stack(budget,2048*sizeof(size_t));
         size_t histogram[2048];
         auto bitmapSize=[](size_t n){return std::bit_ceil(std::min<size_t>(1<<14,std::max<size_t>(128,n))*64);};
         OverwriteBuffer<uint64_t> seenAndRepeated(maximum>=128?bitmapSize(maximum)/32:0,budget);
-        for(size_t p=worker;p<partitions;p+=workers) {
+        for(size_t p=first;p<last;++p) {
             auto begin=ordered.data()+offsets[p],end=ordered.data()+offsets[p+1];
             size_t size=end-begin;auto original=begin;
             if(size>=128) {

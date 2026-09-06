@@ -8,7 +8,7 @@ TEST(PackedDistinct, DuplicatePairsAcrossWorkersAndPartitions) {
         std::vector<std::set<uint32_t>> expected(2050);
         for(int worker=0;worker<3;++worker) {
             inputs.emplace_back(&budget);
-            for(uint32_t group:{0,1,1024,1025,2049})for(uint32_t value:{0u,1u,7u,UINT32_MAX}) {
+            for(uint32_t group=0;group<expected.size();++group)for(uint32_t value:{0u,1u,7u,UINT32_MAX}) {
                 if((group+value+worker)%3==0)continue;
                 inputs.back().push_back((uint64_t(group)<<32)|value);expected[group].insert(value);
                 inputs.back().push_back((uint64_t(group)<<32)|value);
