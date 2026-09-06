@@ -4,6 +4,7 @@ import argparse
 from decimal import Decimal
 from datetime import datetime, timezone
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -39,12 +40,13 @@ def strings(rows):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--engine', choices=['duckdb', 'pgaccel', 'clickhouse'], required=True)
+    p.add_argument('--engine', choices=['duckdb', 'pgaccel', 'pgaccel-native', 'clickhouse'], required=True)
     p.add_argument('--queries', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--oracle', type=Path)
     p.add_argument('--database', help='DuckDB file or ClickHouse database name')
     p.add_argument('--runner', type=Path)
+    p.add_argument('--module', type=Path, help='frozen pgaccel_native extension module')
     p.add_argument('--native', type=Path)
     p.add_argument('--url', default='http://127.0.0.1:18123')
     p.add_argument('--server-pid-file', type=Path)
@@ -77,9 +79,11 @@ def main():
         p.error('non-DuckDB phases require saved --oracle answers')
     if args.engine == 'pgaccel' and (not args.runner or not args.native):
         p.error('PGAccel requires --runner and --native')
-    if args.engine != 'pgaccel' and not args.database:
+    if args.engine == 'pgaccel-native' and (not args.module or not args.native):
+        p.error('native PGAccel requires --module and --native')
+    if args.engine in ('duckdb', 'clickhouse') and not args.database:
         p.error('DuckDB and ClickHouse require --database')
-    if args.engine == 'pgaccel' and args.threads != 8:
+    if args.engine.startswith('pgaccel') and args.threads != 8:
         p.error('this PGAccel runner has an eight-worker fast-path setting')
     if args.output.exists():
         p.error('output must not exist; use a fresh checkpoint name')
@@ -91,7 +95,7 @@ def main():
                 'source_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], text=True)),
                 'timing': 'client_ms includes statement execution, fetch, and answer conversion; no oracle runs in this phase',
                 'validation': 'Exact integers/decimals and strings/dates; floats max(1e-6 absolute, 1e-12 relative)'}
-    proc = None; con = None; engine_pid = os.getpid()
+    proc = None; con = None; native_db = None; engine_pid = os.getpid()
     query_bytes = args.query_memory_gib << 30
 
     def pg_start():
@@ -130,6 +134,17 @@ def main():
         if args.engine == 'pgaccel':
             metadata['load'] = pg_start()
             metadata['runner_sha256'] = hashlib.sha256(args.runner.read_bytes()).hexdigest()
+            metadata['interface'] = 'CLI with JSON rows'
+        elif args.engine == 'pgaccel-native':
+            spec = importlib.util.spec_from_file_location('pgaccel_native', args.module.resolve())
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            native_db = module.Database(str(args.native), memory_bytes=query_bytes,
+                                        spill_bytes=512 << 30)
+            metadata['load'] = {'load_ms': native_db.load_ms, 'index_bytes': 0}
+            metadata['module_sha256'] = hashlib.sha256(args.module.read_bytes()).hexdigest()
+            metadata['interface'] = 'Native Python; complete execute call including string results'
+            metadata['timeout_policy'] = 'No in-process cancellation; use an external process deadline'
         elif args.engine == 'duckdb':
             import duckdb
             con = duckdb.connect(args.database, read_only=True)
@@ -200,6 +215,12 @@ def main():
                             rows = value['rows']
                             diagnostics = {'execution_ms': value['ms'][0], 'query_peak_allocation_bytes': value['query_peak_allocation_bytes'],
                                            'spill_bytes_written': value['spill_bytes_written']}
+                        elif args.engine == 'pgaccel-native':
+                            value = native_db.execute(sql)
+                            rows = value['rows']
+                            diagnostics = {'execution_ms': value['execution_ms'],
+                                           'query_peak_allocation_bytes': value['peak_memory_bytes'],
+                                           'spill_bytes_written': value['spill_bytes']}
                         elif args.engine == 'duckdb':
                             timer = threading.Timer(args.timeout, con.interrupt); timer.start()
                             cursor = con.execute(sql)
@@ -244,6 +265,8 @@ def main():
             except subprocess.TimeoutExpired: proc.kill(); proc.wait()
         if con:
             con.close()
+        if native_db:
+            native_db.close()
 
 
 if __name__ == '__main__':
