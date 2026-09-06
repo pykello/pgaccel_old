@@ -19,6 +19,11 @@ This work has not passed the fourfold target against both engines.
 | sum-v10 | 54.245 | 39.566 | 59.336 | 17.41 |
 | sum-v11 | 37.682 | 34.459 | 41.136 | 17.41 |
 | sum-v12 | 36.952 | 33.842 | 40.945 | 17.41 |
+| sum-v13 | 41.629 | 39.858 | 44.820 | 17.41 |
+
+Reject sum-v13 (`8aff0be`, reverted by `d94bc17`). Its constant-factor
+shortcut measured 41.629 ms and showed no consistent improvement in
+[controlled ABBA batches](FACTOR-EXPERIMENT.md).
 
 Sum-v12 (`20b860a`) precomputes comparison scales and avoids repeated
 expression traversal for row thresholds. Its median is 36.952 ms, with
