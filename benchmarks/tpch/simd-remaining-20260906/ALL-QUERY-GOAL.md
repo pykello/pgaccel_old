@@ -4,10 +4,14 @@ The user accepted 3x on 2026-09-07 for the 16 queries previously targeted
 at 4x, retaining 2x for Q7, Q8, Q9, Q10, Q21 and Q22. Do not redo completed
 optimizations or benchmarks merely to pursue the old threshold.
 
-The complete SF10 run on frozen native module `a7bccf3` validates all
-answers and meets every revised target. Q12 measures 3.418x and Q18
-3.111x against the faster peer; the original fourfold gate failure is
-preserved. The SF100 full sweep is next, using that same module.
+The final full sweep is complete. All 22 queries at both SF10 and SF100
+meet their revised targets against both engines on the same frozen native
+module `a7bccf3`. Every recorded answer validates.
+
+See [all query timings and recorded memory](FINAL-ALL1.md) and
+[compact evidence](FINAL-ALL1.json). The original SF10 fourfold gate is
+preserved; its measurements were accepted under the revised target,
+without replacing them with diagnostic rechecks.
 
 Run engines sequentially with eight workers and preserve all trial times.
 Exclude only trial 1 from warm medians. Use fresh multi-trial comparisons
@@ -50,11 +54,9 @@ for new arithmetic and threshold logic.
 | Q21 | Both scales meet 2x target at `9b3fd59`; [results](Q21.md) |
 | Q22 | Both scales meet 2x target at `a7bccf3`; [results](Q22.md) |
 
-Run the final full-workload comparison on one frozen native module. Recheck Q7 and the
-16 threefold targets in the final sweep on one frozen module. Retain original implementations or permissively
-licensed dependencies only. Each retained change gets a separate small
-commit with an explanatory body wrapped at 72 characters. Record rejected
-experiments and preserve the general executor for unsupported shapes.
+The final comparison supersedes the historical individual checkpoints
+listed above. Implementations and permissive dependencies are unchanged
+from the validated frozen module.
 
 [Confirmed cohort](SIX.md) · [Correlated results](CORRELATED.md) ·
 [Measured next steps](PROFILE-NEXT.md)
