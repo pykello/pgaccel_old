@@ -1,15 +1,13 @@
-# TPC-H targets: fourfold confirmed cohort, twofold remaining queries
+# TPC-H targets: threefold cohort, twofold remaining queries
 
-The user revised the target on 2026-09-06: Q7, Q8, Q9, Q10, Q21 and Q22
-must be at least twice as fast as both DuckDB and ClickHouse at SF10 and
-SF100, measured by warm-median client execution. Preserve the fourfold
-target for the other 16 individually confirmed queries. Individual
-checkpoints do not replace the final full-workload comparison.
+The user accepted 3x on 2026-09-07 for the 16 queries previously targeted
+at 4x, retaining 2x for Q7, Q8, Q9, Q10, Q21 and Q22. Do not redo completed
+optimizations or benchmarks merely to pursue the old threshold.
 
-All 22 queries now meet their assigned targets in individual checkpoints.
-Q22 passes at `a7bccf3`; the final all-query comparison on one frozen native
-module and one interface remains required. Historical individual results
-and fourfold failures are preserved. No full-workload win is claimed yet.
+The complete SF10 run on frozen native module `a7bccf3` validates all
+answers and meets every revised target. Q12 measures 3.418x and Q18
+3.111x against the faster peer; the original fourfold gate failure is
+preserved. The SF100 full sweep is next, using that same module.
 
 Run engines sequentially with eight workers and preserve all trial times.
 Exclude only trial 1 from warm medians. Use fresh multi-trial comparisons
@@ -53,7 +51,7 @@ for new arithmetic and threshold logic.
 | Q22 | Both scales meet 2x target at `a7bccf3`; [results](Q22.md) |
 
 Run the final full-workload comparison on one frozen native module. Recheck Q7 and the
-16 fourfold confirmations in the final sweep on one frozen module. Retain original implementations or permissively
+16 threefold targets in the final sweep on one frozen module. Retain original implementations or permissively
 licensed dependencies only. Each retained change gets a separate small
 commit with an explanatory body wrapped at 72 characters. Record rejected
 experiments and preserve the general executor for unsupported shapes.
