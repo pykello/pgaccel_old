@@ -3,12 +3,14 @@
 #include "query_columns.hpp"
 #include "util.h"
 #include "executor.h"
+#include "predicate_columns.hpp"
 #include <filesystem>
 #include <cstring>
+#include <numeric>
 
 namespace pgaccel {
 struct PreparedDirectQuery {
-    TableRegistry tables; // owns every physical table referenced by query
+    TableRegistry tables; // statement-specific data; execute only the bound query
     QueryDesc query;
     DirectScanStats loadIO;
 };
@@ -30,6 +32,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         }
         auto parsed=ParseSelect(sql,schemas);if(!parsed.ok())return parsed.status();
         auto needed=RequiredQueryColumns(*parsed);
+        auto predicateColumns=PredicateOnlyColumns(*parsed);
         // A physical table may serve several aliases/scopes. Until selections
         // are owned per scope, only push filters in an ordinary inner query.
         bool push = parsed->leftJoins.empty() && parsed->existenceJoins.empty() &&
@@ -66,6 +69,9 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 if (parsed->tables[filter.columnRef.tableIdx]==schema.get()) filters.push_back(filter);
             FilterNodeP node;
             auto select = [&](const auto &columns, const RowGroup &batch)->Result<std::vector<uint16_t>> {
+                if(filters.empty()) {
+                    std::vector<uint16_t> rows(batch.size);std::iota(rows.begin(),rows.end(),0);return rows;
+                }
                 if (!node) {
                     for (auto &filter:filters) {
                         auto found=std::find_if(columns.begin(),columns.end(),[&](const auto &c){
@@ -90,9 +96,15 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 if (rows.size()!=size_t(count)) return Status::Invalid("Inconsistent direct selection count");
                 return rows;
             };
-            auto table=filters.empty()
+            auto predicates=predicateColumns.find(schema.get());
+            ColumnTransform transform;
+            if(predicates!=predicateColumns.end())transform=[&](const ColumnDesc &column,const ColumnDataP &data)->Result<ColumnDataP> {
+                auto found=predicates->second.find(column.name);
+                return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx);
+            };
+            auto table=filters.empty() && !transform
                 ? LoadDirectTable(name,paths.at(schema.get()).string(),fields->second,&io)
-                : ColumnarTable::LoadDirectSelected(name,paths.at(schema.get()).string(),fields->second,select,&io);
+                : ColumnarTable::LoadDirectSelected(name,paths.at(schema.get()).string(),fields->second,select,&io,transform);
             if(!table.ok())return table.status();
             result.loadIO.bytesRead+=io.bytesRead;result.loadIO.readCalls+=io.readCalls;
             result.loadIO.rows+=io.rows;result.loadIO.groups+=io.groups;

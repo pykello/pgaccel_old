@@ -334,7 +334,7 @@ ColumnarTable::LoadImpl(const std::string &tableName,
 namespace pgaccel {
 Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name,
     const std::string &path, const std::set<std::string> &fields,
-    const RowSelector &select, DirectScanStats *io) {
+    const RowSelector &select, DirectScanStats *io, const ColumnTransform &transform) {
     auto schema = LoadSchema(name, path); if (!schema.ok()) return schema.status();
     auto result = ColumnarTableP(new ColumnarTable()); result->name_ = name;
     std::set<std::string> normalized;
@@ -357,6 +357,11 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
                 if (!column.ok()) return column.status();
                 compact.columns.push_back(std::move(column).ValueUnsafe());
             }
+        }
+        if(transform)for(size_t c=0;c<columns.size();++c) {
+            auto column=transform(columns[c],compact.columns[c]);if(!column.ok())return column.status();
+            if(!*column || (*column)->size!=compact.size)return Status::Invalid("Transform changed row count");
+            compact.columns[c]=std::move(column).ValueUnsafe();
         }
         result->row_groups_.push_back(std::move(compact)); return true;
     });
