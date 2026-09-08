@@ -1,4 +1,5 @@
 #include "columnar_table.h"
+#include "direct_query.hpp"
 #include "parser.h"
 #include "query_resources.hpp"
 #include "executor.h"
@@ -23,11 +24,13 @@ static std::string Json(const std::string &s) {
 int main(int argc,char **argv) {
     std::ios::sync_with_stdio(false);
     std::cin.tie(nullptr);
-    if(argc<7) { std::cerr<<"query_runner parquet|native|native-dir PATH TABLE SCHEMA|- PARALLEL AVX [REPEATS=1] [SAVE_PATH]\n";return 2; }
+    if(argc<7) { std::cerr<<"query_runner parquet|native|native-dir|direct-dir PATH TABLE SCHEMA|- PARALLEL AVX [REPEATS=1] [SAVE_PATH]\n";return 2; }
     using Clock=std::chrono::steady_clock;auto begin=Clock::now();
     std::map<std::string,std::string> schema;
     if(std::string(argv[4])!="-") { std::ifstream f(argv[4]);std::string n,t;while(f>>n>>t) schema[ToLower(n)]=t;if(schema.empty())return 2; }
     TableRegistry registry;ColumnarTableP table;
+    bool direct = std::string(argv[1]) == "direct-dir";
+    if (!direct) {
     if(std::string(argv[1])=="native" || std::string(argv[1])=="native-dir") {
         auto path=std::string(argv[1])=="native-dir" ? (std::filesystem::path(argv[2])/(std::string(argv[3])+".pgaccel")).string() : argv[2];
         auto r=ColumnarTable::Load(argv[3],path);if(!r.ok()){std::cerr<<r.status().Message();return 2;}table=std::move(r).ValueUnsafe(); }
@@ -70,11 +73,29 @@ int main(int argc,char **argv) {
     std::cout<<"]}"<<std::endl;
     if(argc>8){auto s=table->Save(argv[8]);if(!s.ok())return 2;std::cout<<"{\"status\":\"saved\"}"<<std::endl;}
     registry.emplace(ToLower(argv[3]),std::move(table));
+    } else {
+        std::cout << "{\"status\":\"loaded\",\"mode\":\"direct-projected\",\"load_ms\":0}" << std::endl;
+    }
     int id=0,repeats=argc>7?std::max(1,std::stoi(argv[7])):1;
     std::string sql;
     while(std::getline(std::cin,sql)) {
         if(sql.empty())continue;++id;
-        auto parsed=ParseSelect(sql,registry);
+        double prepareMs = 0; uint64_t directBytes = 0;
+        std::optional<PreparedDirectQuery> prepared;
+        Result<QueryDesc> parsed(Status::Invalid("Unprepared query"));
+        if (direct) {
+            auto start = Clock::now();
+            auto result = PrepareDirectQuery(argv[2], sql);
+            prepareMs = std::chrono::duration<double,std::milli>(Clock::now()-start).count();
+            if (!result.ok()) {
+                std::cout << "{\"id\":" << id << ",\"status\":\"prepare_failure\",\"error\":"
+                          << Json(result.status().Message()) << "}" << std::endl;
+                continue;
+            }
+            prepared.emplace(std::move(result).ValueUnsafe());
+            directBytes = prepared->loadIO.bytesRead;
+            parsed = std::move(prepared->query);
+        } else parsed=ParseSelect(sql,registry);
         if(!parsed.ok()){std::cout<<"{\"id\":"<<id<<",\"status\":\"parse_failure\",\"error\":"<<Json(parsed.status().Message())<<"}"<<std::endl;continue;}
         auto q=std::move(parsed).ValueUnsafe();
         uint64_t memoryBytes=q.memoryBudgetBytes, spillBytes=q.spillByteBudget;
@@ -89,6 +110,7 @@ int main(int argc,char **argv) {
         }
         struct rusage usage{};getrusage(RUSAGE_SELF,&usage);
         std::cout<<"{\"id\":"<<id<<",\"status\":"<<Json(error.empty()?"success":"execution_failure")
+                 <<",\"prepare_ms\":"<<prepareMs<<",\"direct_load_bytes\":"<<directBytes
                  <<",\"query_peak_allocation_bytes\":"<<output.peakMemoryBytes
                  <<",\"process_peak_rss_bytes\":"<<uint64_t(usage.ru_maxrss)*1024
                  <<",\"spill_bytes_written\":"<<output.spillBytes;
