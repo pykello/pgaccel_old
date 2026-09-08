@@ -2,6 +2,7 @@
 #include "executor_identity_payload.hpp"
 #include "executor_literal_filter.hpp"
 #include "executor_result.hpp"
+#include <atomic>
 
 namespace pgaccel {
 namespace {
@@ -72,11 +73,14 @@ std::optional<Result<QueryOutput>> ExecuteChainSum(const QueryDesc &q,bool avx,b
             if(lowest<INT64_MIN || highest>INT64_MAX){narrow=false;break;}
         }
         auto execute=[&]<class Sum>()->Result<QueryOutput> {
+            constexpr bool shared=std::is_same_v<Sum,int64_t>;
+            std::pmr::vector<Sum> sharedSums(shared?countGroups:0,0,&budget);
+            std::pmr::vector<uint64_t> sharedSeen(shared?(countGroups+63)/64:0,0,&budget);
             struct Partial {std::pmr::vector<Sum> sums;std::pmr::vector<uint8_t> seen;
                 Partial(size_t n,Budget &b):sums(n,0,&b),seen(n,0,&b) {}};
             auto parts=RunTasks(workers,[&](int worker) {
                 ScopedValueResource memory(budget);Scratch scratch(budget,32*Block*8+RowGroupSize/8+4096);
-                Partial part(countGroups,budget);uint8_t bitmap[RowGroupSize/8];alignas(64)int64_t buffers[32*Block];
+                Partial part(shared?0:countGroups,budget);uint8_t bitmap[RowGroupSize/8];alignas(64)int64_t buffers[32*Block];
                 uint32_t selected[Block],ids[Block];
                 for(int g=worker;g<table.RowGroupCount();g+=workers) {
                     const auto &rg=table.GetRowGroup(g);int count=filters[fact]?filters[fact]->ExecuteSet(rg,bitmap):rg.size;
@@ -94,14 +98,22 @@ std::optional<Result<QueryOutput>> ExecuteChainSum(const QueryDesc &q,bool avx,b
                             if(!id || id>countGroups)throw NotDense{};ids[i]=id-1;
                         }
                         program.evaluate<true>(0,n,buffers,avx,selected);
-                        for(int i=0;i<n;++i){part.sums[ids[i]]+=buffers[root*Block+i];part.seen[ids[i]]=1;}
+                        for(int i=0;i<n;++i) {
+                            auto id=ids[i];
+                            if constexpr(shared) {
+                                std::atomic_ref<int64_t>(sharedSums[id]).fetch_add(buffers[root*Block+i],std::memory_order_relaxed);
+                                std::atomic_ref<uint64_t>(sharedSeen[id/64]).fetch_or(uint64_t(1)<<(id%64),std::memory_order_relaxed);
+                            } else {part.sums[id]+=buffers[root*Block+i];part.seen[id]=1;}
+                        }
                     }
                 }
                 return part;
             });
             QueryResults results(q,budget);
             for(uint32_t id=0;id<countGroups;++id) {
-                Wide sumValue=0;bool seen=false;for(const auto &part:parts){sumValue=Add(sumValue,part.sums[id]);seen|=part.seen[id];}
+                Wide sumValue=0;bool seen=false;
+                if constexpr(shared) {sumValue=sharedSums[id];seen=(sharedSeen[id/64]>>(id%64))&1;}
+                else for(const auto &part:parts){sumValue=Add(sumValue,part.sums[id]);seen|=part.seen[id];}
                 if(!seen)continue;
                 // Grouping includes the proved unique center key. Every other
                 // grouping field is functionally determined along its key chain.

@@ -68,3 +68,14 @@ TEST(ChainSum, NarrowStateAndWidePrefixesRemainExact) {
     }
     EXPECT_GT(widePeak,narrowPeak);
 }
+TEST(ChainSum, SharedNarrowStateKeepsConcurrentUpdatesToOneGroup) {
+    auto tables=test::ConvergentTables();
+    std::vector<std::vector<ColumnDataP>> stripes;
+    for(int i=0;i<8;++i)stripes.push_back({test::Raw(std::vector<int64_t>(8192,100),4),
+                                         test::Raw(std::vector<int64_t>(8192,1),1)});
+    auto fact=test::Table(std::move(stripes),{{"o",std::make_shared<Int64Type>()},{"x",std::make_shared<Int64Type>()}});
+    tables["t"]=std::move(fact.at("t"));
+    auto q=ParseSelect("SELECT c.k,SUM(t.x) FROM t,o,c WHERE t.o=o.k AND o.c=c.k GROUP BY c.k",tables);
+    ASSERT_TRUE(q.ok());auto actual=ExecuteChainSum(*q,true,true);ASSERT_TRUE(actual.has_value());
+    ASSERT_TRUE(actual->ok());EXPECT_EQ((**actual).values,Rows({{"10","65536"}}));
+}
