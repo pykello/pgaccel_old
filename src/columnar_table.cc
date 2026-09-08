@@ -101,6 +101,15 @@ ColumnarTable::Load(const std::string &tableName,
     return Load(tableName, metadataStream, dataStream, fields);
 }
 
+Result<ColumnarTableP>
+ColumnarTable::LoadSchema(const std::string &name, const std::string &path) {
+    try {
+        DirectInput data(path);
+        std::ifstream metadata(path + ".metadata");
+        return LoadImpl(name, metadata, data, std::nullopt, nullptr, {}, nullptr, true);
+    } catch (const std::exception &e) { return Status::Invalid(e.what()); }
+}
+
 Result<DirectScanStats>
 ColumnarTable::ScanDirect(const std::string &path, const std::set<std::string> &fields,
                          const ScanConsumer &consumer) {
@@ -129,7 +138,7 @@ ColumnarTable::LoadImpl(const std::string &tableName,
                     std::istream& dataStream,
                     std::optional<std::set<std::string>> maybeFields,
                     const std::string *directPath, const ScanConsumer &consumer,
-                    DirectScanStats *stats)
+                    DirectScanStats *stats, bool schemaOnly)
 {
     auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
     result->name_ = tableName;
@@ -228,6 +237,19 @@ ColumnarTable::LoadImpl(const std::string &tableName,
         column_positions.push_back(position);
         column_groups.push_back(groupCount);
         column_descs.push_back(std::move(columnDesc));
+    }
+
+    if (schemaOnly) {
+        result->schema_only_ = true;
+        for (size_t c = 0; c < column_descs.size(); ++c) {
+            dataStream.seekg(column_positions[c]);
+            if (!dataStream) return Status::Invalid("Invalid native schema column offset");
+            auto &desc = column_descs[c];
+            desc.layout = desc.type->type_num() == STRING_TYPE || desc.type->type_num() == DATE_TYPE
+                ? ColumnDataBase::DICT_COLUMN_DATA : ColumnDataBase::RAW_COLUMN_DATA;
+        }
+        result->schema_ = std::move(column_descs);
+        return result;
     }
 
     if (directPath) {

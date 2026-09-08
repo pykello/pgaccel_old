@@ -63,6 +63,8 @@ public:
         return row_groups_[idx];
     }
 
+    bool IsSchemaOnly() const { return schema_only_; }
+
     int RowGroupCount() const {
         return row_groups_.size();
     }
@@ -80,6 +82,10 @@ public:
     // Synchronous projected scan. Each callback borrows one owned stripe;
     // retaining its column shared_ptrs deliberately extends their lifetime.
     // A false callback value stops early; an error aborts the scan.
+    // Binding only: no rows are loaded. Use this with ParseSelect to discover
+    // required physical columns before constructing an executable registry.
+    static Result<ColumnarTableP> LoadSchema(const std::string &name, const std::string &path);
+
     static Result<DirectScanStats> ScanDirect(const std::string &path,
         const std::set<std::string> &fields, const ScanConsumer &consumer);
 
@@ -116,11 +122,13 @@ private:
         std::istream &metadata, std::istream &data,
         std::optional<std::set<std::string>> fields,
         const std::string *directPath = nullptr,
-        const ScanConsumer &consumer = {}, DirectScanStats *stats = nullptr);
+        const ScanConsumer &consumer = {}, DirectScanStats *stats = nullptr,
+        bool schemaOnly = false);
 
     std::vector<ColumnDesc> schema_;
     std::vector<RowGroup> row_groups_;
     std::string name_;
+    bool schema_only_ = false;
     std::vector<std::shared_ptr<const GlobalDictionary>> dictionaries_;
 };
 

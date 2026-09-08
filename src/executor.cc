@@ -57,6 +57,8 @@ Result<QueryOutput> ExecuteModern(const QueryDesc &, bool, bool);
 Result<QueryOutput>
 ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
 {
+    for (const auto *table : query.tables)
+        if (table->IsSchemaOnly()) return Status::Invalid("Cannot execute a schema-only table");
     if (!query.materializedSources.empty()) {
         if(auto extreme=ExecuteGroupedExtreme(query,useAvx,useParallelism))return std::move(*extreme);
         if(auto histogram=ExecuteLeftCountHistogram(query,useAvx,useParallelism))return std::move(*histogram);
