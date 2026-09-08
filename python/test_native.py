@@ -51,4 +51,31 @@ with tempfile.TemporaryDirectory() as directory:
         raise AssertionError('Closed database accepted query')
     with native.Database(directory, parallel=False, avx=False) as db:
         assert db.execute('SELECT SUM(id) FROM fixture')['rows'] == [['10']]
+    # Direct mode replaces its resident columns on SQL changes, and reuses
+    # data (not results) for exact repeats. Keep returned strings across reloads.
+    (root / 'fixture.pgaccel').rename(root / 'FIXTURE.pgaccel')
+    (root / 'fixture.pgaccel.metadata').rename(root / 'FIXTURE.pgaccel.metadata')
+    with native.Database(directory, direct=True) as db:
+        query = 'SELECT label FROM fixture ORDER BY id'
+        first = db.execute(query)
+        assert first['rows'] == [[label] for label in labels]
+        assert first['direct_load_bytes'] > 0 and first['prepare_ms'] > 0
+        repeat = db.execute(query)
+        assert repeat['rows'] == first['rows']
+        assert repeat['direct_load_bytes'] == 0 and repeat['prepare_ms'] == 0
+        assert db.execute('SELECT SUM(id) FROM fixture')['rows'] == [['10']]
+        try:
+            db.execute('SELECT missing FROM fixture')
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('Invalid direct query accepted')
+        assert db.execute(query)['direct_load_bytes'] > 0
+        assert first['rows'] == [[label] for label in labels]
+    try:
+        db.execute(query)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError('Closed direct database accepted query')
 print('Native Python integration checks passed')

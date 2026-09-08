@@ -1,5 +1,6 @@
 #include "columnar_table.h"
 #include "executor.h"
+#include "direct_query.hpp"
 #include "query_resources.hpp"
 #include "util.h"
 #include <pybind11/pybind11.h>
@@ -18,12 +19,14 @@ class Database {
     TableRegistry tables;
     std::mutex mutex;
     uint64_t memoryBytes, spillBytes;
-    bool parallel, avx, closed = false;
+    bool parallel, avx, direct, closed = false;
+    std::string directDirectory, residentSQL;
     double loadMs = 0;
 public:
     Database(const std::string &directory, uint64_t memory, uint64_t spill,
-             bool parallel, bool avx)
-        : memoryBytes(memory), spillBytes(spill), parallel(parallel), avx(avx) {
+             bool parallel, bool avx, bool direct)
+        : memoryBytes(memory), spillBytes(spill), parallel(parallel), avx(avx),
+          direct(direct), directDirectory(directory) {
         py::gil_scoped_release release;
         auto start = Clock::now();
         std::vector<std::filesystem::path> files;
@@ -34,23 +37,42 @@ public:
         if (files.empty()) throw std::invalid_argument("No native tables found");
         for (const auto &path : files) {
             auto name = ToLower(path.stem().string());
-            auto loaded = ColumnarTable::Load(name, path.string());
+            auto loaded = direct ? ColumnarTable::LoadSchema(name, path.string())
+                                 : ColumnarTable::Load(name, path.string());
             if (!loaded.ok()) throw std::runtime_error(loaded.status().Message());
             if (!tables.emplace(name, std::move(loaded).ValueUnsafe()).second)
                 throw std::invalid_argument("Duplicate table name: " + name);
         }
+        if (direct) tables.clear();
         loadMs = std::chrono::duration<double, std::milli>(Clock::now()-start).count();
     }
 
     py::dict execute(const std::string &sql) {
         QueryOutput output;
-        double ms;
+        double ms, prepareMs = 0;
+        uint64_t directBytes = 0;
         {
             // Drop the lock before reacquiring the GIL: another Python thread
             // may be waiting for the same database while holding the GIL.
             py::gil_scoped_release release;
             std::lock_guard lock(mutex);
             if (closed) throw std::runtime_error("Database is closed");
+            if (direct && (tables.empty() || sql != residentSQL)) {
+                // Release the previous working set before allocating the next.
+                // Failed preparation must not leave a reusable SQL marker.
+                residentSQL.clear();
+                tables.clear();
+                auto start = Clock::now();
+                auto prepared = PrepareDirectQuery(directDirectory, sql);
+                if (!prepared.ok())
+                    throw std::invalid_argument(prepared.status().Message());
+                auto owned = std::move(prepared).ValueUnsafe();
+                directBytes = owned.loadIO.bytesRead;
+                tables = std::move(owned.tables);
+                residentSQL = sql;
+                prepareMs = std::chrono::duration<double, std::milli>(
+                    Clock::now()-start).count();
+            }
             auto parsed = ParseSelect(sql, tables);
             if (!parsed.ok()) throw std::invalid_argument(parsed.status().Message());
             auto query = std::move(parsed).ValueUnsafe();
@@ -83,6 +105,8 @@ public:
         result["rows"] = std::move(rows);
         result["columns"] = py::cast(output.fieldNames);
         result["execution_ms"] = ms;
+        result["prepare_ms"] = prepareMs;
+        result["direct_load_bytes"] = directBytes;
         result["peak_memory_bytes"] = output.peakMemoryBytes;
         result["spill_bytes"] = output.spillBytes;
         return result;
@@ -100,10 +124,11 @@ public:
 PYBIND11_MODULE(pgaccel_native, module) {
     module.doc() = "Read-only native pgaccel tables; result cells are strings.";
     py::class_<Database>(module, "Database")
-        .def(py::init<const std::string &, uint64_t, uint64_t, bool, bool>(),
+        .def(py::init<const std::string &, uint64_t, uint64_t, bool, bool, bool>(),
              py::arg("directory"), py::arg("memory_bytes") = uint64_t(64)<<30,
              py::arg("spill_bytes") = uint64_t(512)<<30,
-             py::arg("parallel") = true, py::arg("avx") = true)
+             py::arg("parallel") = true, py::arg("avx") = true,
+             py::arg("direct") = false)
         .def("execute", &Database::execute, py::arg("sql"))
         .def("close", &Database::close)
         .def_property_readonly("load_ms", &Database::load_ms)

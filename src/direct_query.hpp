@@ -1,6 +1,7 @@
 #pragma once
 #include "direct_table.hpp"
 #include "query_columns.hpp"
+#include "util.h"
 #include <filesystem>
 
 namespace pgaccel {
@@ -18,7 +19,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         std::map<const ColumnarTable *,std::filesystem::path> paths;
         for(const auto &entry:std::filesystem::directory_iterator(directory)) {
             if(!entry.is_regular_file() || entry.path().extension()!=".pgaccel")continue;
-            auto name=entry.path().stem().string();
+            auto name=ToLower(entry.path().stem().string());
             auto schema=ColumnarTable::LoadSchema(name,entry.path().string());
             if(!schema.ok())return schema.status();
             paths[(*schema).get()]=entry.path();

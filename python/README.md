@@ -52,3 +52,25 @@ python python/test_native.py build-python/pgaccel_native*.so build/query_runner
 The CMake setup follows the official
 [pybind11 build documentation](https://pybind11.readthedocs.io/en/stable/compiling.html).
 The default build keeps this optional dependency disabled.
+
+## Experimental direct loading
+
+Pass `direct=True` to load only the physical columns referenced by each SQL
+statement. Binding includes joins and nested queries. Native payloads are read
+with Linux `O_DIRECT`; schema metadata uses ordinary small reads. Unsupported
+filesystems or alignment failures raise errors without a buffered fallback.
+Snapshots must remain immutable while the database is open.
+
+The database retains one projected working set. An identical SQL string reuses
+its columns, while a different string releases them before preparing the next
+statement. Every call reparses and executes the query; there is no result cache.
+`prepare_ms` and `direct_load_bytes` report new preparation, and are zero on
+reuse. `load_ms` measures constructor schema checks in this mode. Client timing
+includes preparation on the first call and after SQL changes; `execution_ms`
+still measures only execution.
+
+This is not an automatic 8 GiB memory policy. Projected columns, dictionaries,
+Python results and query state together may exceed the query allocation budget.
+Enforce a total process/cgroup limit separately. Some SF100 queries still exceed
+8 GiB even with column projection; see the memory experiment report in
+`benchmarks/tpch/memory-8g-20260908/README.md`.
