@@ -85,7 +85,7 @@ int main(int argc,char **argv) {
         Result<QueryDesc> parsed(Status::Invalid("Unprepared query"));
         if (direct) {
             auto start = Clock::now();
-            auto result = PrepareDirectQuery(argv[2], sql);
+            auto result = PrepareDirectQuery(argv[2], sql, std::stoi(argv[6]));
             prepareMs = std::chrono::duration<double,std::milli>(Clock::now()-start).count();
             if (!result.ok()) {
                 std::cout << "{\"id\":" << id << ",\"status\":\"prepare_failure\",\"error\":"

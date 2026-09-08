@@ -17,10 +17,18 @@ TEST(QueryColumns, ScopedDependenciesAndDirectRebinding) {
         "SELECT sum(v) FROM t WHERE k IN (SELECT k FROM t WHERE v > 2)",
         "SELECT sum(v) FROM t WHERE v > (SELECT avg(v) FROM t)",
         "SELECT k, sum(v) FROM t GROUP BY k ORDER BY sum(v) DESC",
-        "SELECT count(*) FROM t"}) {
-        auto original=ParseSelect(sql,t);ASSERT_TRUE(original.ok());auto expected=ExecuteQuery(*original,true,true);ASSERT_TRUE(expected.ok());
+        "SELECT count(*) FROM t",
+        "SELECT sum(v) FROM t WHERE k >= 2",
+        "SELECT sum(v) FROM t WHERE k > 100"}) {
+        auto original=ParseSelect(sql,t);ASSERT_TRUE(original.ok())<<sql<<": "<<original.status().Message();auto expected=ExecuteQuery(*original,true,true);ASSERT_TRUE(expected.ok());
         auto prepared=PrepareDirectQuery(directory,sql);ASSERT_TRUE(prepared.ok())<<prepared.status().Message();
         EXPECT_FALSE(prepared->tables.at("t")->ColumnIndex("unused"));
+        if(sql=="SELECT sum(v) FROM t WHERE k >= 2") {
+            ASSERT_EQ(prepared->tables.at("t")->RowGroupCount(),1);
+            EXPECT_EQ(prepared->tables.at("t")->GetRowGroup(0).size,2);
+        }
+        if(sql=="SELECT sum(v) FROM t WHERE k > 100")
+            EXPECT_EQ(prepared->tables.at("t")->RowGroupCount(),0);
         auto actual=ExecuteQuery(prepared->query,true,true);ASSERT_TRUE(actual.ok())<<actual.status().Message();EXPECT_EQ(actual->values,expected->values);
     }
 }

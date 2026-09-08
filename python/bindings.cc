@@ -63,7 +63,7 @@ public:
                 residentSQL.clear();
                 tables.clear();
                 auto start = Clock::now();
-                auto prepared = PrepareDirectQuery(directDirectory, sql);
+                auto prepared = PrepareDirectQuery(directDirectory, sql, avx);
                 if (!prepared.ok())
                     throw std::invalid_argument(prepared.status().Message());
                 auto owned = std::move(prepared).ValueUnsafe();
