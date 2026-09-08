@@ -2,7 +2,47 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
-## Latest: compacted aggregate inputs
+## Latest: Q7 and Q10 fit with faster warm execution
+
+Q7 now compacts its lineitem input even though nation is used under two aliases.
+Only repeated uses of the table being compacted prevent this scope-local
+selection; other dimensions remain complete (`d0571fd`).
+
+For Q10, the phase probe measured 7,603,412,992 bytes resident in the live cgroup
+immediately after preparation. Narrowing each worker's group sums alone was
+insufficient: replicated arrays still exhausted the remaining total budget.
+`5af58ed` establishes bounds for any positive or negative partial sum, without
+relying on cancellation. `f1146b9` uses one shared int64 sum array and a presence
+bitmap when that proof succeeds. Workers use relaxed atomic addition/bit updates,
+and results are read after all tasks join. Unproved ranges retain separate wide
+sums. Tests include signed extremes and simultaneous updates to one group.
+
+| Query | Previous client ms | Warm client ms | First call s | Peak cgroup GiB | Query-state MiB |
+|---|---:|---:|---:|---:|---:|
+| Q7 | 521.101 | 449.134 | 19.581 | 4.365 | 407.105 |
+| Q10 | 1160.066 | 598.865 | 26.026 | 7.596 | 314.472 |
+
+Both native Python runs pass all nine typed-oracle comparisons with an enforced
+8 GiB total cap, zero swap and a 512 MiB query allowance. Warm medians exclude
+only the first call; preparation is query-specific and explicitly timed. No
+peer-engine reruns or successful-sample substitutions were used. Earlier Q7/Q10
+failures below are retained historical evidence and are superseded by these
+successful runs. The final native suite passes 268 tests and Python integration; all 22 SF1
+answers also pass the final shared-state validation gate.
+
+Across these checkpoints, sixteen SF100 queries have a successful capped run.
+Q5, Q8, Q9, Q13, Q20 and Q21 still lack one. This is not a new all-query sweep,
+a full cache-transition test, or achievement of the stated goal; some existing
+warm timings also remain slower than the historical baseline.
+
+Next priorities are filter-only string storage (notably Q13), sparse dimension
+representations for the larger joins, and total memory admission across query
+transitions. Filter-only dictionary labels may be replaceable by representatives
+of identical predicate outcomes, but only after proving that no output, key,
+ordering or other scope observes the original string values. This would preserve
+row/key sequences while avoiding retention of large comment dictionaries.
+
+## Earlier checkpoint: compacted aggregate inputs
 
 Direct preparation now applies eligible simple filters one stripe at a time,
 then retains only qualifying rows. Numeric min/max bounds are recomputed;
@@ -13,7 +53,7 @@ auxiliary row indexes survive compaction. `c11288e` adds the primitive,
 inside CASE expressions separately from dimension conditions.
 
 The policy preserves dimension tables to keep consecutive-key join proofs.
-It declines pushdown across child scopes, repeated aliases, outer joins and
+It declines pushdown across child scopes, repeated candidate-table aliases, outer joins and
 existence joins. An initial experiment compacting dimensions passed all 22 SF1
 answers but sent several joins down much slower paths; that policy was replaced.
 Its one-pass correctness evidence is retained, not used as a timing comparison.
@@ -43,7 +83,7 @@ its historical query-state peak was 2,236,134,864 bytes. Allowing 3 GiB of query
 state under the same total cap then produces an OOM kill. Both failures are
 retained. No post-exit tiny systemd peak is treated as a live measurement.
 
-The next Q10 experiment should reduce the per-worker grouped SUM arrays in
+The Q10 follow-up, now implemented above, was to reduce the per-worker grouped SUM arrays in
 `executor_chain_sum.cc`: eight 128-bit arrays over a large dimension can consume
 roughly two gigabytes. A proved int64 accumulation path may halve that state;
 it must establish bounds before execution and retain a wide fallback. Broader

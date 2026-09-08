@@ -60,8 +60,9 @@ statement. Binding includes joins and nested queries. For a simple query scope,
 preparation also discards rows failing simple filters on the sole SUM-input
 table (or on the only table). Columns are compacted together; numeric bounds
 and local dictionaries are rebuilt. Dimensions remain intact to preserve
-consecutive-key join proofs. Queries with child scopes, repeated physical
-aliases, outer joins or existence joins currently use projection alone. Native payloads are read
+consecutive-key join proofs. Queries with child scopes, repeated uses of the candidate physical table,
+outer joins or existence joins currently use projection alone. Other dimension
+aliases can coexist with fact compaction. Native payloads are read
 with Linux `O_DIRECT`; schema metadata uses ordinary small reads. Unsupported
 filesystems or alignment failures raise errors without a buffered fallback.
 Snapshots must remain immutable while the database is open.
