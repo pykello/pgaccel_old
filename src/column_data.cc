@@ -1,4 +1,5 @@
 #include "column_data.hpp"
+#include <limits>
 
 namespace pgaccel
 {
@@ -107,6 +108,20 @@ LoadDictColumnData(std::istream &in, AccelType *dataType, bool aligned)
     return Status::Invalid("Invalid type for DictColumnData: ", dataType->type_num());
 }
 
+// Keep the reduction at the stored width so the compiler can vectorize it.
+// Dispatch once per stripe, rather than branching on width for every value.
+template<class Stored>
+static std::pair<int64_t,int64_t> NativeBounds(const uint8_t *bytes, int count) {
+    auto values = reinterpret_cast<const Stored *>(bytes);
+    Stored minimum = std::numeric_limits<Stored>::max();
+    Stored maximum = std::numeric_limits<Stored>::lowest();
+    for (int i = 0; i < count; ++i) {
+        minimum = std::min(minimum, values[i]);
+        maximum = std::max(maximum, values[i]);
+    }
+    return {minimum, maximum};
+}
+
 template<class AccelTy>
 static Result<ColumnDataP>
 LoadRawColumnData(std::istream &in, bool aligned)
@@ -130,19 +145,16 @@ LoadRawColumnData(std::istream &in, bool aligned)
     if (aligned && !SkipNativePadding(in)) return Status::Invalid("Invalid native padding");
     if (!in) return Status::Invalid("Truncated raw column");
     // Range pruning trusts these bounds; validate them against stored values.
-    int64_t actualMin = INT64_MAX, actualMax = INT64_MIN;
-    for (int row = 0; row < result->size; ++row) {
-        int64_t value = 0;
-        switch (result->bytesPerValue) {
-        case 1: value = ((int8_t*)result->values)[row]; break;
-        case 2: value = ((int16_t*)result->values)[row]; break;
-        case 4: value = ((int32_t*)result->values)[row]; break;
-        case 8: value = ((int64_t*)result->values)[row]; break;
-        }
-        actualMin = std::min(actualMin,value); actualMax = std::max(actualMax,value);
-        if (value < result->minValue || value > result->maxValue)
-            return Status::Invalid("Native value outside declared bounds");
+    std::pair<int64_t,int64_t> bounds;
+    switch (result->bytesPerValue) {
+    case 1: bounds = NativeBounds<int8_t>(result->values, result->size); break;
+    case 2: bounds = NativeBounds<int16_t>(result->values, result->size); break;
+    case 4: bounds = NativeBounds<int32_t>(result->values, result->size); break;
+    case 8: bounds = NativeBounds<int64_t>(result->values, result->size); break;
     }
+    auto [actualMin, actualMax] = bounds;
+    if (result->size && (actualMin < result->minValue || actualMax > result->maxValue))
+        return Status::Invalid("Native value outside declared bounds");
 
     if (result->size && (actualMin != result->minValue || actualMax != result->maxValue))
         return Status::Invalid("Native bounds do not match stored values");

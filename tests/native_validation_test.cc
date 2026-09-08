@@ -40,3 +40,36 @@ TEST(NativeValidation, VersionAndPairIdentity) {
     std::stringstream unsupported(bad);data1.clear();data1.seekg(0);
     EXPECT_FALSE(ColumnarTable::Load("t",unsupported,data1).ok());
 }
+TEST(NativeValidation, RawBoundsAllWidthsAndVectorTails) {
+    Int64Type logical;
+    for (int width : {1,2,4,8}) for (int count : {0,1,63,64,65,65535,65536}) {
+        RawColumnData<Int64Type> column;
+        column.type = ColumnDataBase::RAW_COLUMN_DATA;
+        column.size = count; column.bytesPerValue = width;
+        column.values = static_cast<uint8_t *>(AllocateAligned(512, count*width));
+        int64_t low = width == 8 ? INT64_MIN : -(int64_t(1) << (width*8-1));
+        int64_t high = width == 8 ? INT64_MAX : (int64_t(1) << (width*8-1))-1;
+        column.minValue = count ? low : 0;
+        column.maxValue = count > 1 ? high : column.minValue;
+        for (int i=0; i<count; ++i) {
+            int64_t value = i ? high : low;
+            switch (width) {
+            case 1: reinterpret_cast<int8_t *>(column.values)[i] = value; break;
+            case 2: reinterpret_cast<int16_t *>(column.values)[i] = value; break;
+            case 4: reinterpret_cast<int32_t *>(column.values)[i] = value; break;
+            case 8: reinterpret_cast<int64_t *>(column.values)[i] = value; break;
+            }
+        }
+        auto load = [&] {
+            std::stringstream stream;
+            EXPECT_TRUE(column.Save(stream).ok());
+            return ColumnDataBase::Load(stream, &logical);
+        };
+        ASSERT_TRUE(load().ok()) << width << ':' << count;
+        if (count > 1) {
+            --column.maxValue; EXPECT_FALSE(load().ok()); ++column.maxValue;
+            ++column.minValue; EXPECT_FALSE(load().ok()); --column.minValue;
+        }
+        if (count == 1) { ++column.maxValue; EXPECT_FALSE(load().ok()); }
+    }
+}
