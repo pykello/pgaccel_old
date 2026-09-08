@@ -1,0 +1,218 @@
+{
+  "query": 2,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-2-1788908515070168696",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/pgaccel_old/build-python/pgaccel_native.cpython-312-x86_64-linux-gnu.so",
+    "2"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-native-direct-2-1788908515070168696.service; invocation ID: 636da913dc234ff7a4698ad3b893450f\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 4.339s\nCPU time consumed: 6.430s\nMemory peak: 352.0K\nMemory swap peak: 0B\n",
+  "module_sha256": "0e164227947e12f9f340bf6c01b61c6015b3ca09536afc84dc974f6111b4be5f",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 77.47943651338574,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "measurements": {
+    "trials": [
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 91.023066,
+        "prepare_ms": 3250.147152,
+        "direct_load_bytes": 1259556725,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 3341.8486229493283,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 81.38283,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 82.00540003599599,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 84.062257,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 84.57336999708787,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 88.091777,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 89.59473500726745,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 93.352502,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 93.8809720100835,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 88.905741,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 89.44312296807766,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 87.941716,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 88.46901601646096,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 86.649294,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 88.04826898267493,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      },
+      {
+        "columns": [
+          "s_acctbal ",
+          "s_name ",
+          "n_name ",
+          "p_partkey ",
+          "p_mfgr ",
+          "s_address ",
+          "s_phone ",
+          "s_comment "
+        ],
+        "execution_ms": 93.173931,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 19799396,
+        "spill_bytes": 0,
+        "client_ms": 93.67709199432284,
+        "row_count": 100,
+        "rows_sha256": "7d44703b94d46d464527384f1f68e2ae070ffedc99822759ad86d94a11b357f5"
+      }
+    ],
+    "cgroup_peak_bytes": 1432256512,
+    "memory_max": 8589934592,
+    "swap_max": 0
+  },
+  "correct": true,
+  "median_client_ms": 88.95606949226931,
+  "first_client_ms": 3341.8486229493283,
+  "memory_verified": true,
+  "reuse_verified": true,
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-q2-sf100.json",
+  "raw_sha256": "cecc716e8edd68b436580bccce400618540b3def70ac72a0282c97c7c97c87a3"
+}
