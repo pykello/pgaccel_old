@@ -1,0 +1,140 @@
+[
+  {
+    "query": 18,
+    "correct": true,
+    "types": [
+      "VARCHAR",
+      "BIGINT",
+      "BIGINT",
+      "DATE",
+      "DECIMAL(15,2)",
+      "DECIMAL(38,2)"
+    ],
+    "raw_sha256": "dd0c3762014091cf94d4898d2b0f211ebb6527e6f814682599aa0aa7483209ea"
+  },
+  {
+    "query": 11,
+    "correct": true,
+    "types": [
+      "BIGINT",
+      "DECIMAL(38,2)"
+    ],
+    "raw_sha256": "3cf5cf285217e2492126d1f99c386834873de8e824ab6be2eced1f7e5eaeb76a"
+  },
+  {
+    "query": 15,
+    "correct": true,
+    "types": [
+      "BIGINT",
+      "VARCHAR",
+      "VARCHAR",
+      "VARCHAR",
+      "DECIMAL(38,4)"
+    ],
+    "raw_sha256": "99e6c317289a559e724a1ea620f6f168855be5b77927cd20734b8b4796b3d456"
+  },
+  {
+    "query": 16,
+    "correct": true,
+    "types": [
+      "VARCHAR",
+      "VARCHAR",
+      "INTEGER",
+      "BIGINT"
+    ],
+    "raw_sha256": "7d375aea9b5b597314063312d5186bd72a2933ca400de8d0153d552105d1a879"
+  },
+  {
+    "query": 14,
+    "correct": true,
+    "types": [
+      "DOUBLE"
+    ],
+    "raw_sha256": "ea75bff44f51b7dc600a667e11c0de67415c8117eb24854e84aa3fdc2c78b1a4"
+  },
+  {
+    "query": 12,
+    "correct": true,
+    "types": [
+      "VARCHAR",
+      "HUGEINT",
+      "HUGEINT"
+    ],
+    "raw_sha256": "92a8c105e8a87652570e3434167c99810664c768de3dcb9517ded22e8fc037c9"
+  },
+  {
+    "query": 19,
+    "correct": true,
+    "types": [
+      "DECIMAL(38,4)"
+    ],
+    "raw_sha256": "0f67776cba3e800c86a43c34bf8e1bb76c8607f787eeec1fc00915c105d4c867"
+  },
+  {
+    "query": 17,
+    "correct": true,
+    "types": [
+      "DOUBLE"
+    ],
+    "raw_sha256": "07f6999879e44cbecbf36f5ab9aab7ee09d2baf7087f4f8de772858e3e609195"
+  },
+  {
+    "query": 2,
+    "correct": true,
+    "types": [
+      "DECIMAL(15,2)",
+      "VARCHAR",
+      "VARCHAR",
+      "BIGINT",
+      "VARCHAR",
+      "VARCHAR",
+      "VARCHAR",
+      "VARCHAR"
+    ],
+    "raw_sha256": "de569baf0d8e2953f9561e54ab87cdc04ed81d291fd68c82a2630b2c3f1567cd"
+  },
+  {
+    "query": 4,
+    "correct": true,
+    "types": [
+      "VARCHAR",
+      "BIGINT"
+    ],
+    "raw_sha256": "ca67b42a4a41466f35bcd7959a7b3d1c39dab3cd4b38ec972a031f75e6dc9d4e"
+  },
+  {
+    "query": 22,
+    "correct": true,
+    "types": [
+      "VARCHAR",
+      "BIGINT",
+      "DECIMAL(38,2)"
+    ],
+    "raw_sha256": "333ed91a5a5743ab13c909c6421bc0804c5de00cf4823e1fbbbe776d46abddc0"
+  },
+  {
+    "query": 6,
+    "correct": true,
+    "types": [
+      "DECIMAL(38,4)"
+    ],
+    "raw_sha256": "cb26929ffc3f3cf8f971372da6a6d917ae9abc6e5479a567779c3cf0bf1bf386"
+  },
+  {
+    "query": 1,
+    "correct": true,
+    "types": [
+      "VARCHAR",
+      "VARCHAR",
+      "DECIMAL(38,2)",
+      "DECIMAL(38,2)",
+      "DECIMAL(38,4)",
+      "DECIMAL(38,6)",
+      "DOUBLE",
+      "DOUBLE",
+      "DOUBLE",
+      "BIGINT"
+    ],
+    "raw_sha256": "bae19d3f3b9abec9165d6bd7aaf0356063cb3b035d1584c3b00c392b08bd2513"
+  }
+]

@@ -1,0 +1,99 @@
+{
+  "query": 22,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-projected-sweep-q22",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/usr/bin/time",
+    "-v",
+    "/tmp/pgaccel-resident-direct-multi-probe",
+    "/home/hadi/projects/tpch-work/sf100/native",
+    "auto",
+    "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q22.sql",
+    "customer.c_acctbal",
+    "customer.c_custkey",
+    "customer.c_phone",
+    "orders.o_custkey"
+  ],
+  "returncode": 0,
+  "probe_sha256": "fb60e6722610db60d5bd486a8635fa17bd981823725b96b1199a8d64f4ef7153",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "stderr": "Running as unit: pgaccel-projected-sweep-q22.service; invocation ID: fb3f31e721b447ebbfcd19cbb19e44d3\n\tCommand being timed: \"/tmp/pgaccel-resident-direct-multi-probe /home/hadi/projects/tpch-work/sf100/native auto /home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q22.sql customer.c_acctbal customer.c_custkey customer.c_phone orders.o_custkey\"\n\tUser time (seconds): 21.17\n\tSystem time (seconds): 1.17\n\tPercent of CPU this job got: 337%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:06.61\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 1243800\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 455149\n\tVoluntary context switches: 1198\n\tInvoluntary context switches: 44\n\tSwaps: 0\n\tFile system inputs: 2027520\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 6.615s\nCPU time consumed: 22.348s\nMemory peak: 608.0K\nMemory swap peak: 0B\n",
+  "baseline_client_ms": 375.95797049289104,
+  "note": "Explicit projected direct loads, then nine existing-executor trials; query budget 512 MiB, global 8 GiB/no swap. Load and JSON serialization excluded from execution timing. Not yet native Database integration.",
+  "measurements": {
+    "load_ms": 3002.62,
+    "read_bytes": 1038090240,
+    "memory_max": 8589934592,
+    "swap_max": 0,
+    "trials": [
+      {
+        "execution_ms": 388.601,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 393.74,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 377.759,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 380.422,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 377.834,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 375.37,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 383.792,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 391.821,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      },
+      {
+        "execution_ms": 385.268,
+        "query_peak_bytes": 32095413,
+        "row_count": 7,
+        "rows_sha256": "713ce1b391243d3b1de1fc7866e206422250c7861e800244e1b1edeb4aeb320e"
+      }
+    ],
+    "cgroup_peak_bytes": 1271873536
+  },
+  "correct": true,
+  "median_execution_ms": 382.10699999999997,
+  "memory_verified": true,
+  "engine_revision": "3ba3cbe",
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/projected-q22-sf100.json",
+  "raw_sha256": "333ed91a5a5743ab13c909c6421bc0804c5de00cf4823e1fbbbe776d46abddc0",
+  "strict_type_revalidation": true
+}

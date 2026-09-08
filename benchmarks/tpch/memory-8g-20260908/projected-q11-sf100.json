@@ -1,0 +1,103 @@
+{
+  "query": 11,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-projected-sweep-q11",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/usr/bin/time",
+    "-v",
+    "/tmp/pgaccel-resident-direct-multi-probe",
+    "/home/hadi/projects/tpch-work/sf100/native",
+    "auto",
+    "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q11.sql",
+    "nation.n_name",
+    "nation.n_nationkey",
+    "partsupp.ps_availqty",
+    "partsupp.ps_partkey",
+    "partsupp.ps_suppkey",
+    "partsupp.ps_supplycost",
+    "supplier.s_nationkey",
+    "supplier.s_suppkey"
+  ],
+  "returncode": 0,
+  "probe_sha256": "fb60e6722610db60d5bd486a8635fa17bd981823725b96b1199a8d64f4ef7153",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "stderr": "Running as unit: pgaccel-projected-sweep-q11.service; invocation ID: cf9d722292e047149933a924661324ea\n\tCommand being timed: \"/tmp/pgaccel-resident-direct-multi-probe /home/hadi/projects/tpch-work/sf100/native auto /home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q11.sql nation.n_name nation.n_nationkey partsupp.ps_availqty partsupp.ps_partkey partsupp.ps_suppkey partsupp.ps_supplycost supplier.s_nationkey supplier.s_suppkey\"\n\tUser time (seconds): 3.20\n\tSystem time (seconds): 1.32\n\tPercent of CPU this job got: 151%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:02.98\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 1161468\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 393954\n\tVoluntary context switches: 1273\n\tInvoluntary context switches: 8\n\tSwaps: 0\n\tFile system inputs: 2201608\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 2.986s\nCPU time consumed: 4.530s\nMemory peak: 348.0K\nMemory swap peak: 0B\n",
+  "baseline_client_ms": 30.496283507090993,
+  "note": "Explicit projected direct loads, then nine existing-executor trials; query budget 512 MiB, global 8 GiB/no swap. Load and JSON serialization excluded from execution timing. Not yet native Database integration.",
+  "measurements": {
+    "load_ms": 2509.06,
+    "read_bytes": 1127221622,
+    "memory_max": 8589934592,
+    "swap_max": 0,
+    "trials": [
+      {
+        "execution_ms": 46.5325,
+        "query_peak_bytes": 80339904,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 40.6449,
+        "query_peak_bytes": 80386624,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 40.0962,
+        "query_peak_bytes": 80518592,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 41.2296,
+        "query_peak_bytes": 80323520,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 39.6985,
+        "query_peak_bytes": 80409664,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 40.147,
+        "query_peak_bytes": 80339904,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 40.331,
+        "query_peak_bytes": 80359616,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 39.5764,
+        "query_peak_bytes": 80453056,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "execution_ms": 42.4716,
+        "query_peak_bytes": 80339904,
+        "row_count": 0,
+        "rows_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    ],
+    "cgroup_peak_bytes": 1188159488
+  },
+  "correct": true,
+  "median_execution_ms": 40.239000000000004,
+  "memory_verified": true,
+  "engine_revision": "3ba3cbe",
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/projected-q11-sf100.json",
+  "raw_sha256": "3cf5cf285217e2492126d1f99c386834873de8e824ab6be2eced1f7e5eaeb76a",
+  "strict_type_revalidation": true
+}
