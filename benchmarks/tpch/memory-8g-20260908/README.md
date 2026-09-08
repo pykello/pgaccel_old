@@ -2,7 +2,44 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
-## Latest: Q7 and Q10 fit with faster warm execution
+## Latest: predicate-only strings bring Q13 and Q20 under the cap
+
+`9196971` checks every bound use of a physical string column, across aliases,
+scalar/membership subqueries and materialized scopes. Compression is allowed
+only when every use observes the same literal predicate. Outputs, grouping,
+join/correlation keys, computed expressions and different predicates disable it.
+During direct preparation each stripe retains at most two actual labels: one
+matching and one nonmatching representative. One-byte row codes preserve every
+predicate outcome, row count and join-key sequence. The original SQL is still
+executed against these statement-specific buffers; source snapshots are unchanged.
+
+For example, with `NOT LIKE '%special%requests%'`, ordinary comments can share
+one ordinary representative, while matching comments share a matching one.
+Their spelling can be discarded only because no permitted query use observes
+it. A later statement that selects the comment reloads the original column.
+This preserves Q13's left join without deleting orders or building a result cache.
+
+| Query | Previous client ms | Warm client ms | First call s | Peak cgroup GiB | Result |
+|---|---:|---:|---:|---:|---|
+| Q13 | 1093.312 | 547.416 | 38.081 | 1.851 | Faster warm; all answers pass |
+| Q20 | 211.185 | 241.926 | 21.181 | 7.887 | Memory passes; warm regression |
+
+Both runs verify the live 8 GiB total limit and zero swap, use a 512 MiB query
+allowance, and pass all nine typed-oracle comparisons. Warm medians exclude only
+the first call; preparation includes reading and evaluating original strings.
+The final suite passes 270 native tests, all 22 SF1 answers, and Python integration.
+No peer engines were rerun. The measured module is frozen as
+`pgaccel_native-predicate-strings.cpython-312-x86_64-linux-gnu.so` in the checkpoint
+directory, with its hash in each report.
+
+Eighteen SF100 queries now have a successful memory-capped run across these
+checkpoints. Q5, Q8, Q9 and Q21 still lack one. This is memory/correctness coverage,
+not achievement of the full performance goal: Q20 is about 15% slower, other
+previously reported regressions remain, and a complete query-transition cache
+policy has not been demonstrated. Next work must address those four working
+sets and the warm regressions while keeping cold preparation visible.
+
+## Earlier checkpoint: Q7 and Q10 fit with faster warm execution
 
 Q7 now compacts its lineitem input even though nation is used under two aliases.
 Only repeated uses of the table being compacted prevent this scope-local

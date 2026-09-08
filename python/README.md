@@ -67,6 +67,12 @@ with Linux `O_DIRECT`; schema metadata uses ordinary small reads. Unsupported
 filesystems or alignment failures raise errors without a buffered fallback.
 Snapshots must remain immutable while the database is open.
 
+Preparation may also replace a string dictionary by matching/nonmatching
+representatives when every bound use, across all scopes, observes the same
+literal predicate. It retains all rows and keys. Original strings remain when
+an output, grouping, key or different predicate needs them. These buffers belong
+only to the prepared statement; they are not a general replacement snapshot.
+
 The database retains one projected working set. An identical SQL string reuses
 its columns, while a different string releases them before preparing the next
 statement. Every call reparses and executes the query; there is no result cache.
