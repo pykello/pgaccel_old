@@ -72,6 +72,9 @@ representatives when every bound use, across all scopes, observes the same
 literal predicate. It retains all rows and keys. Original strings remain when
 an output, grouping, key or different predicate needs them. These buffers belong
 only to the prepared statement; they are not a general replacement snapshot.
+Date pairs used exclusively in one same-row comparison can likewise retain
+representatives of true/false outcomes. Actual date values, other constraints,
+and cross-alias comparisons prevent that transformation.
 
 The database retains one projected working set. An identical SQL string reuses
 its columns, while a different string releases them before preparing the next

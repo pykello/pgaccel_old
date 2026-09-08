@@ -2,7 +2,42 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
-## Latest: predicate-only strings bring Q13 and Q20 under the cap
+## Latest: paired date predicates bring Q21 under the cap
+
+`9fae20f` extends statement-specific predicate storage to date pairs. It checks
+all scopes before compressing columns used only in the same comparison between
+two dates in one source row. True and false outcomes retain representative pairs
+of actual dates, encoded with one-byte local codes. Both columns use the same
+outcome and row selection. Outputs, literal constraints, competing comparisons
+and cross-alias comparisons disable the transformation. All row and join-key
+sequences remain intact, including Q21's three uses of lineitem.
+
+| Query | Previous client ms | Warm client ms | First call s | Peak cgroup GiB |
+|---|---:|---:|---:|---:|
+| Q21 | 682.195 | 682.736 | 19.447 | 6.844 |
+| Q4 | 209.989 | 182.054 | 15.676 | 4.535 |
+
+Both runs pass all nine typed-oracle checks and verify the live 8 GiB total cap
+with zero swap. The query allowance is 768 MiB: Q21's recorded query-state peak
+was slightly above 512 MiB. This does not raise the total limit. Q21's warm median
+is effectively unchanged rather than a demonstrated speedup; Q4 is faster.
+First-call direct reading, predicate evaluation and compaction remain visible.
+The final suite passes 271 tests, all 22 SF1 answers, and Python integration.
+
+Nineteen SF100 queries have now completed under the cap across these checkpoints.
+Q5, Q8 and Q9 still lack successful capped runs. The full objective remains
+unfinished: Q20 and other recorded regressions require work, as does bounded
+residency across a full sequence of different queries.
+
+The next preparation step should use inner-join membership to filter large fact
+inputs. Build eligible-key membership from a dimension's literal filters, retain
+the dimension's complete key sequence, and discard fact rows that cannot match.
+This may reduce Q5/Q8 lineitem inputs through filtered orders, and Q9 through
+filtered part keys. The transformation must preserve duplicate join multiplicity,
+limit itself to proved inner-join scopes, and include membership construction in
+first-call time and total memory. It has not yet been implemented or measured.
+
+## Earlier checkpoint: predicate-only strings bring Q13 and Q20 under the cap
 
 `9196971` checks every bound use of a physical string column, across aliases,
 scalar/membership subqueries and materialized scopes. Compression is allowed
