@@ -2,6 +2,55 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
+## Latest: compacted aggregate inputs
+
+Direct preparation now applies eligible simple filters one stripe at a time,
+then retains only qualifying rows. Numeric min/max bounds are recomputed;
+local dictionaries are pruned and recoded, including a two-byte to one-byte
+transition where possible. All columns use the same ordered selection. No
+auxiliary row indexes survive compaction. `c11288e` adds the primitive,
+`edea6e8` enables it for direct queries, and `21f4e3b` recognizes fact values
+inside CASE expressions separately from dimension conditions.
+
+The policy preserves dimension tables to keep consecutive-key join proofs.
+It declines pushdown across child scopes, repeated aliases, outer joins and
+existence joins. An initial experiment compacting dimensions passed all 22 SF1
+answers but sent several joins down much slower paths; that policy was replaced.
+Its one-pass correctness evidence is retained, not used as a timing comparison.
+The retained policy passes all 22 SF1 answers, all 266 native tests, and Python
+integration. The SQL is still reparsed and executed on every call.
+
+These are nine-call native Python experiments with an enforced 8 GiB total cap
+and no swap. Warm medians exclude the first call, which now includes filtering
+and compaction as well as direct reads. Prepared data are specific to the current
+SQL; this is not a cold-query speed claim or a demonstrated whole-workload cache.
+All successful trials pass the saved typed oracle.
+
+| Query | Previous client ms | Prepared warm client ms | First call s | Peak cgroup GiB |
+|---|---:|---:|---:|---:|
+| Q1 | 440.185 | 424.602 | 28.547 | 6.884 |
+| Q3 | 430.604 | 395.620 | 17.643 | 5.725 |
+| Q6 | 79.652 | 4.512 | 9.340 | 0.157 |
+| Q14 | 132.674 | 122.000 | 11.665 | 0.206 |
+
+Q3 adds a successful capped query to the previous thirteen-query coverage.
+Q6 and Q14 show substantial residency reductions. Q1's slight timing change
+is not a substantial memory improvement: its broad filter retains most rows.
+No ClickHouse or DuckDB timings were rerun.
+
+Q7 still hits the total 8 GiB cap. Q10 first fails the 512 MiB executor budget;
+its historical query-state peak was 2,236,134,864 bytes. Allowing 3 GiB of query
+state under the same total cap then produces an OOM kill. Both failures are
+retained. No post-exit tiny systemd peak is treated as a live measurement.
+
+The next Q10 experiment should reduce the per-worker grouped SUM arrays in
+`executor_chain_sum.cc`: eight 128-bit arrays over a large dimension can consume
+roughly two gigabytes. A proved int64 accumulation path may halve that state;
+it must establish bounds before execution and retain a wide fallback. Broader
+coverage still needs sparse dimension directories, filter-only string disposal,
+and a total shared memory admission/cache policy. The all-query target remains
+unmet.
+
 ## Measured projected working sets
 
 Each query is a separate process with explicit required columns loaded using O_DIRECT. Native version-1 fixtures are unchanged. A systemd cgroup enforces `MemoryMax=8G` and `MemorySwapMax=0`; its limit and `memory.peak` are read inside the process. Nine query trials follow loading. Medians exclude only trial one. All successful trials validate against the saved DuckDB SF100 oracle.
