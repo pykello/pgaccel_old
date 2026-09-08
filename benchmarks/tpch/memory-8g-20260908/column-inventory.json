@@ -1,0 +1,1893 @@
+{
+  "note": "Static once-per-column inventory; not actual reads. Includes dictionaries and headers; excludes repeated scans. 4 GB/s is the user-supplied assumption.",
+  "columns": {
+    "c_custkey": {
+      "table": "customer",
+      "bytes": 60006412,
+      "offset": 24,
+      "stripes": 229
+    },
+    "c_name": {
+      "table": "customer",
+      "bytes": 360002748,
+      "offset": 60006436,
+      "stripes": 229
+    },
+    "c_address": {
+      "table": "customer",
+      "bytes": 464973679,
+      "offset": 420009184,
+      "stripes": 229
+    },
+    "c_nationkey": {
+      "table": "customer",
+      "bytes": 15004580,
+      "offset": 884982863,
+      "stripes": 229
+    },
+    "c_phone": {
+      "table": "customer",
+      "bytes": 315002558,
+      "offset": 899987443,
+      "stripes": 229
+    },
+    "c_acctbal": {
+      "table": "customer",
+      "bytes": 60006412,
+      "offset": 1214990001,
+      "stripes": 229
+    },
+    "c_mktsegment": {
+      "table": "customer",
+      "bytes": 15017633,
+      "offset": 1274996413,
+      "stripes": 229
+    },
+    "c_comment": {
+      "table": "customer",
+      "bytes": 1173884576,
+      "offset": 1290014046,
+      "stripes": 229
+    },
+    "l_orderkey": {
+      "table": "lineitem",
+      "bytes": 2400407976,
+      "offset": 24,
+      "stripes": 9156
+    },
+    "l_partkey": {
+      "table": "lineitem",
+      "bytes": 2400407976,
+      "offset": 2400408000,
+      "stripes": 9156
+    },
+    "l_suppkey": {
+      "table": "lineitem",
+      "bytes": 2400407976,
+      "offset": 4800815976,
+      "stripes": 9156
+    },
+    "l_linenumber": {
+      "table": "lineitem",
+      "bytes": 600294270,
+      "offset": 7201223952,
+      "stripes": 9156
+    },
+    "l_quantity": {
+      "table": "lineitem",
+      "bytes": 1200332172,
+      "offset": 7801518222,
+      "stripes": 9156
+    },
+    "l_extendedprice": {
+      "table": "lineitem",
+      "bytes": 2400407976,
+      "offset": 9001850394,
+      "stripes": 9156
+    },
+    "l_discount": {
+      "table": "lineitem",
+      "bytes": 600294270,
+      "offset": 11402258370,
+      "stripes": 9156
+    },
+    "l_tax": {
+      "table": "lineitem",
+      "bytes": 600294270,
+      "offset": 12002552640,
+      "stripes": 9156
+    },
+    "l_returnflag": {
+      "table": "lineitem",
+      "bytes": 600285114,
+      "offset": 12602846910,
+      "stripes": 9156
+    },
+    "l_linestatus": {
+      "table": "lineitem",
+      "bytes": 600239334,
+      "offset": 13203132024,
+      "stripes": 9156
+    },
+    "l_shipdate": {
+      "table": "lineitem",
+      "bytes": 1292402964,
+      "offset": 13803371358,
+      "stripes": 9156
+    },
+    "l_commitdate": {
+      "table": "lineitem",
+      "bytes": 1290365008,
+      "offset": 15095774322,
+      "stripes": 9156
+    },
+    "l_receiptdate": {
+      "table": "lineitem",
+      "bytes": 1292767388,
+      "offset": 16386139330,
+      "stripes": 9156
+    },
+    "l_shipinstruct": {
+      "table": "lineitem",
+      "bytes": 600733758,
+      "offset": 17678906718,
+      "stripes": 9156
+    },
+    "l_shipmode": {
+      "table": "lineitem",
+      "bytes": 600678822,
+      "offset": 18279640476,
+      "stripes": 9156
+    },
+    "l_comment": {
+      "table": "lineitem",
+      "bytes": 19167191803,
+      "offset": 18880319298,
+      "stripes": 9156
+    },
+    "n_nationkey": {
+      "table": "nation",
+      "bytes": 45,
+      "offset": 24,
+      "stripes": 1
+    },
+    "n_name": {
+      "table": "nation",
+      "bytes": 314,
+      "offset": 69,
+      "stripes": 1
+    },
+    "n_regionkey": {
+      "table": "nation",
+      "bytes": 45,
+      "offset": 383,
+      "stripes": 1
+    },
+    "n_comment": {
+      "table": "nation",
+      "bytes": 1994,
+      "offset": 428,
+      "stripes": 1
+    },
+    "o_orderkey": {
+      "table": "orders",
+      "bytes": 600064092,
+      "offset": 24,
+      "stripes": 2289
+    },
+    "o_custkey": {
+      "table": "orders",
+      "bytes": 600064092,
+      "offset": 600064116,
+      "stripes": 2289
+    },
+    "o_orderstatus": {
+      "table": "orders",
+      "bytes": 150061803,
+      "offset": 1200128208,
+      "stripes": 2289
+    },
+    "o_totalprice": {
+      "table": "orders",
+      "bytes": 600064092,
+      "offset": 1350190011,
+      "stripes": 2289
+    },
+    "o_orderdate": {
+      "table": "orders",
+      "bytes": 322056804,
+      "offset": 1950254103,
+      "stripes": 2289
+    },
+    "o_orderpriority": {
+      "table": "orders",
+      "bytes": 150169386,
+      "offset": 2272310907,
+      "stripes": 2289
+    },
+    "o_clerk": {
+      "table": "orders",
+      "bytes": 2390826133,
+      "offset": 2422480293,
+      "stripes": 2289
+    },
+    "o_shippriority": {
+      "table": "orders",
+      "bytes": 150045780,
+      "offset": 4813306426,
+      "stripes": 2289
+    },
+    "o_comment": {
+      "table": "orders",
+      "bytes": 8149130661,
+      "offset": 4963352206,
+      "stripes": 2289
+    },
+    "p_partkey": {
+      "table": "part",
+      "bytes": 80008568,
+      "offset": 24,
+      "stripes": 306
+    },
+    "p_name": {
+      "table": "part",
+      "bytes": 774985535,
+      "offset": 80008592,
+      "stripes": 306
+    },
+    "p_mfgr": {
+      "table": "part",
+      "bytes": 20031212,
+      "offset": 854994127,
+      "stripes": 306
+    },
+    "p_brand": {
+      "table": "part",
+      "bytes": 20095472,
+      "offset": 875025339,
+      "stripes": 306
+    },
+    "p_type": {
+      "table": "part",
+      "bytes": 21132812,
+      "offset": 895120811,
+      "stripes": 306
+    },
+    "p_size": {
+      "table": "part",
+      "bytes": 20006120,
+      "offset": 916253623,
+      "stripes": 306
+    },
+    "p_container": {
+      "table": "part",
+      "bytes": 20145350,
+      "offset": 936259743,
+      "stripes": 306
+    },
+    "p_retailprice": {
+      "table": "part",
+      "bytes": 80008568,
+      "offset": 956405093,
+      "stripes": 306
+    },
+    "p_comment": {
+      "table": "part",
+      "bytes": 331266015,
+      "offset": 1036413661,
+      "stripes": 306
+    },
+    "ps_partkey": {
+      "table": "partsupp",
+      "bytes": 319903116,
+      "offset": 24,
+      "stripes": 1221
+    },
+    "ps_suppkey": {
+      "table": "partsupp",
+      "bytes": 320034188,
+      "offset": 319903140,
+      "stripes": 1221
+    },
+    "ps_availqty": {
+      "table": "partsupp",
+      "bytes": 160034188,
+      "offset": 639937328,
+      "stripes": 1221
+    },
+    "ps_supplycost": {
+      "table": "partsupp",
+      "bytes": 320034188,
+      "offset": 799971516,
+      "stripes": 1221
+    },
+    "ps_comment": {
+      "table": "partsupp",
+      "bytes": 10331002271,
+      "offset": 1120005704,
+      "stripes": 1221
+    },
+    "r_regionkey": {
+      "table": "region",
+      "bytes": 25,
+      "offset": 24,
+      "stripes": 1
+    },
+    "r_name": {
+      "table": "region",
+      "bytes": 71,
+      "offset": 49,
+      "stripes": 1
+    },
+    "r_comment": {
+      "table": "region",
+      "bytes": 367,
+      "offset": 120,
+      "stripes": 1
+    },
+    "s_suppkey": {
+      "table": "supplier",
+      "bytes": 4000448,
+      "offset": 24,
+      "stripes": 16
+    },
+    "s_name": {
+      "table": "supplier",
+      "bytes": 24000192,
+      "offset": 4000472,
+      "stripes": 16
+    },
+    "s_address": {
+      "table": "supplier",
+      "bytes": 30997472,
+      "offset": 28000664,
+      "stripes": 16
+    },
+    "s_nationkey": {
+      "table": "supplier",
+      "bytes": 1000320,
+      "offset": 58998136,
+      "stripes": 16
+    },
+    "s_phone": {
+      "table": "supplier",
+      "bytes": 21000192,
+      "offset": 59998456,
+      "stripes": 16
+    },
+    "s_acctbal": {
+      "table": "supplier",
+      "bytes": 4000448,
+      "offset": 80998648,
+      "stripes": 16
+    },
+    "s_comment": {
+      "table": "supplier",
+      "bytes": 68307040,
+      "offset": 84999096,
+      "stripes": 16
+    }
+  },
+  "queries": [
+    {
+      "query": 1,
+      "columns": [
+        "l_discount",
+        "l_extendedprice",
+        "l_linestatus",
+        "l_quantity",
+        "l_returnflag",
+        "l_shipdate",
+        "l_tax"
+      ],
+      "serialized_bytes": 7294256100,
+      "full_columns_at_4GBps_ms": 1823.564025,
+      "baseline": {
+        "id": 1,
+        "sql_sha256": "f5b91004137e609374a73cceaf9226598e93c937bc38aa61d8a22f5088ff62d9",
+        "correct": true,
+        "rows": 4,
+        "median_client_ms": 440.18473199685104,
+        "trial_client_ms": [
+          451.6012890089769,
+          434.697666001739,
+          438.55084001552314,
+          439.70102799357846,
+          443.5386050026864,
+          440.6684360001236,
+          443.3879750140477,
+          439.30587900104,
+          441.64281801204197
+        ],
+        "trial_execution_ms": [
+          451.40289,
+          434.547626,
+          438.404966,
+          439.54665,
+          443.392879,
+          440.522808,
+          443.169347,
+          439.139745,
+          441.493562
+        ],
+        "trial_query_peak_bytes": [
+          1056512,
+          1056512,
+          1056512,
+          1056512,
+          1056512,
+          1056512,
+          1056512,
+          1056512,
+          1056512
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105211719680
+      }
+    },
+    {
+      "query": 2,
+      "columns": [
+        "n_name",
+        "n_nationkey",
+        "n_regionkey",
+        "p_mfgr",
+        "p_partkey",
+        "p_size",
+        "p_type",
+        "ps_partkey",
+        "ps_suppkey",
+        "ps_supplycost",
+        "r_name",
+        "r_regionkey",
+        "s_acctbal",
+        "s_address",
+        "s_comment",
+        "s_name",
+        "s_nationkey",
+        "s_phone",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 1254456816,
+      "full_columns_at_4GBps_ms": 313.614204,
+      "baseline": {
+        "id": 2,
+        "sql_sha256": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+        "correct": true,
+        "rows": 100,
+        "median_client_ms": 77.47943651338574,
+        "trial_client_ms": [
+          65.04837700049393,
+          63.95871299901046,
+          66.59832299919799,
+          72.04132797778584,
+          76.24712001415901,
+          78.71175301261246,
+          80.71787501103245,
+          82.68547299667262,
+          83.81260198075324
+        ],
+        "trial_execution_ms": [
+          64.454438,
+          63.436505,
+          66.064521,
+          71.501593,
+          75.608558,
+          78.170986,
+          80.141987,
+          82.130608,
+          83.280542
+        ],
+        "trial_query_peak_bytes": [
+          19799396,
+          19799396,
+          19799396,
+          19799396,
+          19799396,
+          19799396,
+          19799396,
+          19799396,
+          19799396
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105227579392
+      }
+    },
+    {
+      "query": 3,
+      "columns": [
+        "c_custkey",
+        "c_mktsegment",
+        "l_discount",
+        "l_extendedprice",
+        "l_orderkey",
+        "l_shipdate",
+        "o_custkey",
+        "o_orderdate",
+        "o_orderkey",
+        "o_shippriority"
+      ],
+      "serialized_bytes": 8440767999,
+      "full_columns_at_4GBps_ms": 2110.19199975,
+      "baseline": {
+        "id": 3,
+        "sql_sha256": "73f486ad51a065b1fb449c90edc1563fa3865a617681970f5de2f52e6c68ac69",
+        "correct": true,
+        "rows": 10,
+        "median_client_ms": 430.6044785043923,
+        "trial_client_ms": [
+          525.1754089840688,
+          470.07812798256055,
+          420.61778300558217,
+          440.59117400320247,
+          458.11823100666516,
+          419.6842370147351,
+          419.5421420154162,
+          419.5218950044364,
+          446.7062230105512
+        ],
+        "trial_execution_ms": [
+          524.998594,
+          469.908355,
+          420.463919,
+          440.428655,
+          457.96064,
+          419.52891,
+          419.391235,
+          419.368455,
+          446.552168
+        ],
+        "trial_query_peak_bytes": [
+          499354356,
+          499354356,
+          499354356,
+          499354356,
+          499354356,
+          499354356,
+          499354356,
+          499354356,
+          499354356
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105938690048
+      }
+    },
+    {
+      "query": 4,
+      "columns": [
+        "l_commitdate",
+        "l_orderkey",
+        "l_receiptdate",
+        "o_orderdate",
+        "o_orderkey",
+        "o_orderpriority"
+      ],
+      "serialized_bytes": 6055830654,
+      "full_columns_at_4GBps_ms": 1513.9576635,
+      "baseline": {
+        "id": 4,
+        "sql_sha256": "545bf448a444ef759afbc6e3a6f838b620a38136ec28d4bda858d1e59d0b37cc",
+        "correct": true,
+        "rows": 5,
+        "median_client_ms": 209.9891594989458,
+        "trial_client_ms": [
+          209.31843802100047,
+          210.2501509943977,
+          216.36023200699128,
+          211.27712400630116,
+          208.78036099020392,
+          209.4546669977717,
+          209.72816800349392,
+          210.87926902691834,
+          209.08596200752072
+        ],
+        "trial_execution_ms": [
+          209.155848,
+          210.079421,
+          216.185747,
+          211.116155,
+          208.610468,
+          209.275022,
+          209.558797,
+          210.705805,
+          208.915381
+        ],
+        "trial_query_peak_bytes": [
+          150209928,
+          150209924,
+          150209932,
+          150209924,
+          150209924,
+          150209932,
+          150209928,
+          150209928,
+          150209924
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105938690048
+      }
+    },
+    {
+      "query": 5,
+      "columns": [
+        "c_custkey",
+        "c_nationkey",
+        "l_discount",
+        "l_extendedprice",
+        "l_orderkey",
+        "l_suppkey",
+        "n_name",
+        "n_nationkey",
+        "n_regionkey",
+        "o_custkey",
+        "o_orderdate",
+        "o_orderkey",
+        "r_name",
+        "r_regionkey",
+        "s_nationkey",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 9403715446,
+      "full_columns_at_4GBps_ms": 2350.9288615,
+      "baseline": {
+        "id": 5,
+        "sql_sha256": "f6e3336d1a1a11269321792dd6c276fa7c9e0ed0998895fb76098b1aa89775b3",
+        "correct": true,
+        "rows": 5,
+        "median_client_ms": 374.16336199385114,
+        "trial_client_ms": [
+          376.2548890081234,
+          374.07232497935183,
+          397.411401005229,
+          378.26542599941604,
+          374.25439900835045,
+          375.05185400368646,
+          372.97001300612465,
+          372.8361530229449,
+          373.05122599354945
+        ],
+        "trial_execution_ms": [
+          376.078438,
+          373.884122,
+          397.251554,
+          378.103107,
+          374.094268,
+          374.888466,
+          372.809782,
+          372.675731,
+          372.893556
+        ],
+        "trial_query_peak_bytes": [
+          266371709,
+          266371709,
+          266371709,
+          266371709,
+          266371709,
+          266371709,
+          266371709,
+          266371709,
+          266371709
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105938690048
+      }
+    },
+    {
+      "query": 6,
+      "columns": [
+        "l_discount",
+        "l_extendedprice",
+        "l_quantity",
+        "l_shipdate"
+      ],
+      "serialized_bytes": 5493437382,
+      "full_columns_at_4GBps_ms": 1373.3593455,
+      "baseline": {
+        "id": 6,
+        "sql_sha256": "98b88b193d427f818f0f923acffe73c4d82cd2587a5ec7ecca0ac81d51a52d90",
+        "correct": true,
+        "rows": 1,
+        "median_client_ms": 79.65183150372468,
+        "trial_client_ms": [
+          80.22784302011132,
+          80.07593499496579,
+          78.73949999338947,
+          80.28633901267312,
+          80.81903101992793,
+          79.86994300154038,
+          78.39609798975289,
+          78.62357998965308,
+          79.43372000590898
+        ],
+        "trial_execution_ms": [
+          80.138781,
+          79.988618,
+          78.66144,
+          80.202989,
+          80.714107,
+          79.793295,
+          78.316417,
+          78.543337,
+          79.353317
+        ],
+        "trial_query_peak_bytes": [
+          619520,
+          619520,
+          619520,
+          619520,
+          619520,
+          619520,
+          619520,
+          619520,
+          619520
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105938690048
+      }
+    },
+    {
+      "query": 7,
+      "columns": [
+        "c_custkey",
+        "c_nationkey",
+        "l_discount",
+        "l_extendedprice",
+        "l_orderkey",
+        "l_shipdate",
+        "l_suppkey",
+        "n_name",
+        "n_nationkey",
+        "o_custkey",
+        "o_orderkey",
+        "s_nationkey",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 10374061465,
+      "full_columns_at_4GBps_ms": 2593.51536625,
+      "baseline": {
+        "id": 7,
+        "sql_sha256": "6919da657163855aab8273d6ca0b38ed6259b04b75b298b7a826741f3d59c5b4",
+        "correct": true,
+        "rows": 4,
+        "median_client_ms": 521.1005214951001,
+        "trial_client_ms": [
+          506.70135801192373,
+          520.4352870059665,
+          518.4524729847908,
+          520.092057005968,
+          519.8201950115617,
+          521.8472070118878,
+          521.7657559842337,
+          523.5436559887603,
+          524.7165790060535
+        ],
+        "trial_execution_ms": [
+          506.37089,
+          520.158181,
+          518.188042,
+          519.818531,
+          519.570142,
+          521.586579,
+          521.494319,
+          523.265074,
+          524.451406
+        ],
+        "trial_query_peak_bytes": [
+          493989310,
+          460434878,
+          460434878,
+          460434878,
+          460434878,
+          460434878,
+          460434878,
+          460434878,
+          460434878
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105938690048
+      }
+    },
+    {
+      "query": 8,
+      "columns": [
+        "c_custkey",
+        "c_nationkey",
+        "l_discount",
+        "l_extendedprice",
+        "l_orderkey",
+        "l_partkey",
+        "l_suppkey",
+        "n_name",
+        "n_nationkey",
+        "n_regionkey",
+        "o_custkey",
+        "o_orderdate",
+        "o_orderkey",
+        "p_partkey",
+        "p_type",
+        "r_name",
+        "r_regionkey",
+        "s_nationkey",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 11905264802,
+      "full_columns_at_4GBps_ms": 2976.3162005,
+      "baseline": {
+        "id": 8,
+        "sql_sha256": "12f6fd5f30dbdc284d4779eecef6383c7bc89598c29106729e3ee4672502e9ce",
+        "correct": true,
+        "rows": 2,
+        "median_client_ms": 658.3596554992255,
+        "trial_client_ms": [
+          658.1615990144201,
+          656.1823340016417,
+          657.168253994314,
+          656.6745410091244,
+          653.7043260177597,
+          662.6657949818764,
+          661.6900019871537,
+          661.3448319840245,
+          659.551057004137
+        ],
+        "trial_execution_ms": [
+          657.956146,
+          655.985236,
+          656.942057,
+          656.471726,
+          653.49322,
+          662.455311,
+          661.480939,
+          661.149756,
+          659.353554
+        ],
+        "trial_query_peak_bytes": [
+          482952494,
+          482952494,
+          482952494,
+          482952494,
+          482952494,
+          482952494,
+          482952494,
+          482952494,
+          482952494
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105938690048
+      }
+    },
+    {
+      "query": 9,
+      "columns": [
+        "l_discount",
+        "l_extendedprice",
+        "l_orderkey",
+        "l_partkey",
+        "l_quantity",
+        "l_suppkey",
+        "n_name",
+        "n_nationkey",
+        "o_orderdate",
+        "o_orderkey",
+        "p_name",
+        "p_partkey",
+        "ps_partkey",
+        "ps_suppkey",
+        "ps_supplycost",
+        "s_nationkey",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 14144345964,
+      "full_columns_at_4GBps_ms": 3536.086491,
+      "baseline": {
+        "id": 9,
+        "sql_sha256": "ffb470c5b7cac40c3465dba9ae055bf0722dd4e6bdea007f4261f269711db564",
+        "correct": true,
+        "rows": 175,
+        "median_client_ms": 2174.809167496278,
+        "trial_client_ms": [
+          2241.315022984054,
+          2163.6131429986563,
+          2186.6913830162957,
+          2179.191545001231,
+          2170.4267899913248,
+          2166.382285999134,
+          2193.798372987658,
+          2182.105317013338,
+          2169.1228739800863
+        ],
+        "trial_execution_ms": [
+          2241.03336,
+          2163.342539,
+          2186.432989,
+          2178.91537,
+          2170.087881,
+          2166.08159,
+          2193.519178,
+          2181.837309,
+          2168.799686
+        ],
+        "trial_query_peak_bytes": [
+          286937101,
+          286937101,
+          286937101,
+          286937101,
+          286937101,
+          286937101,
+          286937101,
+          286937101,
+          286937101
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 105938690048
+      }
+    },
+    {
+      "query": 10,
+      "columns": [
+        "c_acctbal",
+        "c_address",
+        "c_comment",
+        "c_custkey",
+        "c_name",
+        "c_nationkey",
+        "c_phone",
+        "l_discount",
+        "l_extendedprice",
+        "l_orderkey",
+        "l_returnflag",
+        "n_name",
+        "n_nationkey",
+        "o_custkey",
+        "o_orderdate",
+        "o_orderkey"
+      ],
+      "serialized_bytes": 9972461648,
+      "full_columns_at_4GBps_ms": 2493.115412,
+      "baseline": {
+        "id": 10,
+        "sql_sha256": "22db5599906505c498cb713756e7cdc556dd913146cdcef4d407b80e0ace43d7",
+        "correct": true,
+        "rows": 20,
+        "median_client_ms": 1160.0660474941833,
+        "trial_client_ms": [
+          1197.9302839899901,
+          1185.3994209959637,
+          1166.1154750036076,
+          1163.9418829872739,
+          1159.6271519956645,
+          1160.5049429927021,
+          1157.2827549825888,
+          1159.1984020196833,
+          1155.545912013622
+        ],
+        "trial_execution_ms": [
+          1197.641618,
+          1185.148227,
+          1165.874018,
+          1163.702559,
+          1159.380138,
+          1160.260219,
+          1157.048135,
+          1158.966097,
+          1155.312404
+        ],
+        "trial_query_peak_bytes": [
+          2236134864,
+          2236134864,
+          2236134864,
+          2236134864,
+          2236134864,
+          2236134864,
+          2236134864,
+          2236134864,
+          2236134864
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 11,
+      "columns": [
+        "n_name",
+        "n_nationkey",
+        "ps_availqty",
+        "ps_partkey",
+        "ps_suppkey",
+        "ps_supplycost",
+        "s_nationkey",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 1125006807,
+      "full_columns_at_4GBps_ms": 281.25170175,
+      "baseline": {
+        "id": 11,
+        "sql_sha256": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+        "correct": true,
+        "rows": 0,
+        "median_client_ms": 30.496283507090993,
+        "trial_client_ms": [
+          35.591785999713466,
+          32.110286003444344,
+          31.756649987073615,
+          30.706649005878717,
+          30.074010021053255,
+          30.268484028056264,
+          30.816250015050173,
+          30.28591800830327,
+          30.13017401099205
+        ],
+        "trial_execution_ms": [
+          35.418723,
+          31.977018,
+          31.629701,
+          30.574806,
+          29.940984,
+          30.145205,
+          30.692166,
+          30.149689,
+          29.996681
+        ],
+        "trial_query_peak_bytes": [
+          80339904,
+          80353856,
+          80353856,
+          80353856,
+          80362048,
+          80353856,
+          80362048,
+          80339904,
+          80433344
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 12,
+      "columns": [
+        "l_commitdate",
+        "l_orderkey",
+        "l_receiptdate",
+        "l_shipdate",
+        "l_shipmode",
+        "o_orderkey",
+        "o_orderpriority"
+      ],
+      "serialized_bytes": 7626855636,
+      "full_columns_at_4GBps_ms": 1906.713909,
+      "baseline": {
+        "id": 12,
+        "sql_sha256": "9232f1080af42ef57af2a9f759536537bd2701b773b345760aa77976cb094efe",
+        "correct": true,
+        "rows": 2,
+        "median_client_ms": 341.9823760050349,
+        "trial_client_ms": [
+          348.8298180163838,
+          335.7027210004162,
+          342.318871000316,
+          345.9991510026157,
+          345.72072597802617,
+          349.74963500280865,
+          341.6458810097538,
+          338.4306810039561,
+          341.1731399828568
+        ],
+        "trial_execution_ms": [
+          348.663825,
+          335.553907,
+          342.165341,
+          345.85034,
+          345.569108,
+          349.603564,
+          341.491873,
+          338.275018,
+          341.029353
+        ],
+        "trial_query_peak_bytes": [
+          225687100,
+          225687144,
+          225687136,
+          225687132,
+          225687144,
+          225687120,
+          225687120,
+          225687132,
+          225687128
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 13,
+      "columns": [
+        "c_custkey",
+        "o_comment",
+        "o_custkey",
+        "o_orderkey"
+      ],
+      "serialized_bytes": 9409265257,
+      "full_columns_at_4GBps_ms": 2352.31631425,
+      "baseline": {
+        "id": 13,
+        "sql_sha256": "584921edb3d7d10ca7a6a31b6cb0e6164b2bf71b2d2b8eced002ed2b61e04611",
+        "correct": true,
+        "rows": 45,
+        "median_client_ms": 1093.3120045083342,
+        "trial_client_ms": [
+          1066.800432978198,
+          1064.2080410034396,
+          1121.0740699898452,
+          1082.5263279839419,
+          1099.9814410170075,
+          1106.7573580075987,
+          1123.1755730113946,
+          1086.642567999661,
+          1065.9393270034343
+        ],
+        "trial_execution_ms": [
+          1066.588543,
+          1064.031843,
+          1120.866232,
+          1082.34737,
+          1099.79651,
+          1106.575431,
+          1122.988152,
+          1086.441296,
+          1065.750784
+        ],
+        "trial_query_peak_bytes": [
+          480115712,
+          480115712,
+          480115712,
+          480115712,
+          480115712,
+          480115712,
+          480115712,
+          480115712,
+          480115712
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 14,
+      "columns": [
+        "l_discount",
+        "l_extendedprice",
+        "l_partkey",
+        "l_shipdate",
+        "p_partkey",
+        "p_type"
+      ],
+      "serialized_bytes": 6794654566,
+      "full_columns_at_4GBps_ms": 1698.6636415,
+      "baseline": {
+        "id": 14,
+        "sql_sha256": "070949acfd4aca6551be98f4a9bb46d8093a4c6142051b94ada58092302b8f68",
+        "correct": true,
+        "rows": 1,
+        "median_client_ms": 132.67371499387082,
+        "trial_client_ms": [
+          133.6113019788172,
+          132.29044299805537,
+          133.4957830258645,
+          132.66814799862914,
+          133.7269919749815,
+          132.6792819891125,
+          132.47907397453673,
+          132.68469300237484,
+          132.24651300697587
+        ],
+        "trial_execution_ms": [
+          133.436366,
+          132.168156,
+          133.356236,
+          132.545669,
+          133.59472,
+          132.562469,
+          132.352093,
+          132.563335,
+          132.106639
+        ],
+        "trial_query_peak_bytes": [
+          3550656,
+          3550656,
+          3550656,
+          3550656,
+          3550656,
+          3550656,
+          3550656,
+          3550656,
+          3550656
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 15,
+      "columns": [
+        "l_discount",
+        "l_extendedprice",
+        "l_shipdate",
+        "l_suppkey",
+        "s_address",
+        "s_name",
+        "s_phone",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 6773511490,
+      "full_columns_at_4GBps_ms": 1693.3778725,
+      "baseline": {
+        "id": 15,
+        "sql_sha256": "3f6c85d74d04a0df389d8cdb9fe8310c02bbe76a9e37b4bef8eab2b6a8544da6",
+        "correct": true,
+        "rows": 1,
+        "median_client_ms": 146.97844100010116,
+        "trial_client_ms": [
+          154.57937298924662,
+          147.38296301220544,
+          146.2315690005198,
+          148.20193001651205,
+          159.24316400196403,
+          146.250426012557,
+          145.69186200969853,
+          146.57391898799688,
+          147.91749298456125
+        ],
+        "trial_execution_ms": [
+          154.387485,
+          147.193458,
+          146.055808,
+          148.024956,
+          159.049786,
+          146.07357,
+          145.515592,
+          146.396538,
+          147.722105
+        ],
+        "trial_query_peak_bytes": [
+          81125064,
+          81125064,
+          81125064,
+          81125064,
+          81125064,
+          81125064,
+          81125064,
+          81125064,
+          81125064
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 16,
+      "columns": [
+        "p_brand",
+        "p_partkey",
+        "p_size",
+        "p_type",
+        "ps_partkey",
+        "ps_suppkey",
+        "s_comment",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 853487764,
+      "full_columns_at_4GBps_ms": 213.371941,
+      "baseline": {
+        "id": 16,
+        "sql_sha256": "8e7a5d035d60df3dc0dfb01aea92afdbdb742c3d6f83c585850680390d9a8b12",
+        "correct": true,
+        "rows": 27840,
+        "median_client_ms": 213.19530199980363,
+        "trial_client_ms": [
+          210.51567801623605,
+          209.41465298528783,
+          216.29191099782474,
+          213.8621770136524,
+          212.23206701688468,
+          208.1356830021832,
+          214.72598498803563,
+          212.52842698595487,
+          226.0241520125419
+        ],
+        "trial_execution_ms": [
+          200.409122,
+          199.15679,
+          205.76242,
+          203.578573,
+          201.960089,
+          197.879202,
+          204.007768,
+          202.340078,
+          202.423369
+        ],
+        "trial_query_peak_bytes": [
+          326254315,
+          326254315,
+          326254315,
+          326254315,
+          326254315,
+          326254315,
+          326254315,
+          326254315,
+          326254315
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 17,
+      "columns": [
+        "l_extendedprice",
+        "l_partkey",
+        "l_quantity",
+        "p_brand",
+        "p_container",
+        "p_partkey"
+      ],
+      "serialized_bytes": 6121397514,
+      "full_columns_at_4GBps_ms": 1530.3493785,
+      "baseline": {
+        "id": 17,
+        "sql_sha256": "da436e2736a6c1f71667e2e20464c00ed5c23c6d895fe5be63a3521e6eaea326",
+        "correct": true,
+        "rows": 1,
+        "median_client_ms": 272.28102600201964,
+        "trial_client_ms": [
+          269.9530709942337,
+          275.23261299938895,
+          274.8615379969124,
+          273.1789310055319,
+          273.06306301034056,
+          271.49898899369873,
+          268.312355998205,
+          267.8041760227643,
+          268.10198999010026
+        ],
+        "trial_execution_ms": [
+          268.039401,
+          275.039971,
+          274.655591,
+          272.974613,
+          272.849052,
+          271.293963,
+          268.095601,
+          267.58153,
+          267.896451
+        ],
+        "trial_query_peak_bytes": [
+          22483723,
+          22483723,
+          22483723,
+          22483723,
+          22483723,
+          22483723,
+          22483723,
+          22483723,
+          22483723
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 18,
+      "columns": [
+        "c_custkey",
+        "c_name",
+        "l_orderkey",
+        "l_quantity",
+        "o_custkey",
+        "o_orderdate",
+        "o_orderkey",
+        "o_totalprice"
+      ],
+      "serialized_bytes": 6142998388,
+      "full_columns_at_4GBps_ms": 1535.749597,
+      "baseline": {
+        "id": 18,
+        "sql_sha256": "b295647dde893ee7e6bc4ed9fa3fa135db2988a82f2d397211a4a222e2bcd46e",
+        "correct": true,
+        "rows": 100,
+        "median_client_ms": 733.7551634991542,
+        "trial_client_ms": [
+          729.7354949987493,
+          732.0301189902239,
+          734.4217599893454,
+          726.824381010374,
+          731.1256549728569,
+          736.7778309853747,
+          770.634977001464,
+          736.2846260075457,
+          733.0885670089629
+        ],
+        "trial_execution_ms": [
+          729.378475,
+          731.681691,
+          734.066879,
+          726.447749,
+          730.793875,
+          736.420994,
+          770.276037,
+          735.801967,
+          732.741694
+        ],
+        "trial_query_peak_bytes": [
+          115521672,
+          115521672,
+          115521672,
+          115521672,
+          115521672,
+          115521672,
+          115521672,
+          115521672,
+          115521672
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 19,
+      "columns": [
+        "l_discount",
+        "l_extendedprice",
+        "l_partkey",
+        "l_quantity",
+        "l_shipinstruct",
+        "l_shipmode",
+        "p_brand",
+        "p_container",
+        "p_partkey",
+        "p_size"
+      ],
+      "serialized_bytes": 7943110484,
+      "full_columns_at_4GBps_ms": 1985.777621,
+      "baseline": {
+        "id": 19,
+        "sql_sha256": "de453db653139252224b52af97486efe04515f6d628aa0ec6cf2dd5619c0afa4",
+        "correct": true,
+        "rows": 1,
+        "median_client_ms": 217.09547450882383,
+        "trial_client_ms": [
+          222.24175700102933,
+          219.6645429939963,
+          221.436417021323,
+          221.39587500714697,
+          216.35587300988846,
+          215.9528319898527,
+          216.72376000788063,
+          216.7093830066733,
+          217.46718900976703
+        ],
+        "trial_execution_ms": [
+          221.953683,
+          219.400268,
+          221.15804,
+          221.112647,
+          216.0793,
+          215.680555,
+          216.460433,
+          216.439699,
+          217.164735
+        ],
+        "trial_query_peak_bytes": [
+          10130818,
+          10130818,
+          10130818,
+          10130818,
+          10130818,
+          10130818,
+          10130818,
+          10130818,
+          10130818
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 20,
+      "columns": [
+        "l_partkey",
+        "l_quantity",
+        "l_shipdate",
+        "l_suppkey",
+        "n_name",
+        "n_nationkey",
+        "p_name",
+        "p_partkey",
+        "ps_availqty",
+        "ps_partkey",
+        "ps_suppkey",
+        "s_address",
+        "s_name",
+        "s_nationkey",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 9008515474,
+      "full_columns_at_4GBps_ms": 2252.1288685,
+      "baseline": {
+        "id": 20,
+        "sql_sha256": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+        "correct": true,
+        "rows": 17971,
+        "median_client_ms": 211.18503900652286,
+        "trial_client_ms": [
+          208.96063299733214,
+          209.32942000217736,
+          212.19655897584744,
+          210.03800601465628,
+          211.3411989994347,
+          212.34930597711354,
+          211.71465702354908,
+          211.028879013611,
+          210.32701098010875
+        ],
+        "trial_execution_ms": [
+          201.194216,
+          201.759256,
+          203.675269,
+          200.190221,
+          201.550402,
+          202.397969,
+          201.902825,
+          201.322479,
+          200.750769
+        ],
+        "trial_query_peak_bytes": [
+          18090320,
+          18090320,
+          18090320,
+          18090320,
+          18090320,
+          18090320,
+          18090320,
+          18090320,
+          18090320
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 21,
+      "columns": [
+        "l_commitdate",
+        "l_orderkey",
+        "l_receiptdate",
+        "l_suppkey",
+        "n_name",
+        "n_nationkey",
+        "o_orderkey",
+        "o_orderstatus",
+        "s_name",
+        "s_nationkey",
+        "s_suppkey"
+      ],
+      "serialized_bytes": 8163075562,
+      "full_columns_at_4GBps_ms": 2040.7688905,
+      "baseline": {
+        "id": 21,
+        "sql_sha256": "7218fbe354d0b9e0e6bef8309fa16ae13a11919dfebb91ad078adb774bcd25fa",
+        "correct": true,
+        "rows": 100,
+        "median_client_ms": 682.1947965072468,
+        "trial_client_ms": [
+          698.6275629897136,
+          679.922554991208,
+          682.9333759960718,
+          679.3045189988334,
+          681.4562170184217,
+          690.3432410035748,
+          679.2254780011717,
+          693.830074975267,
+          691.1240990157239
+        ],
+        "trial_execution_ms": [
+          697.006836,
+          679.629911,
+          682.597766,
+          679.006961,
+          681.149933,
+          690.034648,
+          678.925406,
+          693.49014,
+          690.735624
+        ],
+        "trial_query_peak_bytes": [
+          542784912,
+          542784912,
+          542784912,
+          542784912,
+          542784912,
+          542784912,
+          542784912,
+          542784912,
+          542784912
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    },
+    {
+      "query": 22,
+      "columns": [
+        "c_acctbal",
+        "c_custkey",
+        "c_phone",
+        "o_custkey"
+      ],
+      "serialized_bytes": 1035079474,
+      "full_columns_at_4GBps_ms": 258.7698685,
+      "baseline": {
+        "id": 22,
+        "sql_sha256": "8f246df348430afa43f64e9942bcaad736dd57318820d517b1a3bead0de19775",
+        "correct": true,
+        "rows": 7,
+        "median_client_ms": 375.95797049289104,
+        "trial_client_ms": [
+          384.83773299958557,
+          375.1580499811098,
+          372.7170149795711,
+          377.61043198406696,
+          377.85605899989605,
+          376.7578910046723,
+          372.20930101466365,
+          379.6103179920465,
+          368.2368959998712
+        ],
+        "trial_execution_ms": [
+          384.605799,
+          374.916142,
+          372.49572,
+          377.389982,
+          377.64713,
+          376.536608,
+          371.994109,
+          379.369772,
+          368.030713
+        ],
+        "trial_query_peak_bytes": [
+          32095413,
+          32095413,
+          32095413,
+          32095413,
+          32095413,
+          32095413,
+          32095413,
+          32095413,
+          32095413
+        ],
+        "trial_spill_bytes": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "peak_process_rss_bytes": 107585290240
+      }
+    }
+  ]
+}
