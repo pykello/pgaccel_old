@@ -14,6 +14,15 @@ DictColumnData<StringType>::SaveValue(std::ostream &out,
     return true;
 }
 
+static bool SkipNativePadding(std::istream &in) {
+    auto position = in.tellg();
+    if (position < 0) return false;
+    size_t padding = (512 - uint64_t(position) % 512) % 512;
+    char bytes[512];
+    in.read(bytes, padding);
+    return bool(in) && std::all_of(bytes, bytes + padding, [](char c) { return c == 0; });
+}
+
 template<class AccelTy>
 static void
 ReadValues(std::istream &in, int count, typename AccelTy::c_type *out)
@@ -38,7 +47,7 @@ ReadValues<StringType>(std::istream &in, int count, std::string *out)
 
 template<class AccelTy>
 static Result<ColumnDataP>
-LoadDictColumnData(std::istream &in)
+LoadDictColumnData(std::istream &in, bool aligned)
 {
     int dictSize = 0;
     auto result = std::make_shared<DictColumnData<AccelTy>>();
@@ -61,7 +70,9 @@ LoadDictColumnData(std::istream &in)
         return Status::Invalid("Dictionary must be sorted and unique");
     int bytesPerValue = (dictSize < 256) ? 1 : 2;
     result->values = (uint8_t *) AllocateAligned(512, bytesPerValue * result->size);
+    if (aligned && !SkipNativePadding(in)) return Status::Invalid("Invalid native padding");
     in.read((char *) result->values, bytesPerValue * result->size);
+    if (aligned && !SkipNativePadding(in)) return Status::Invalid("Invalid native padding");
 
     if (!in) return Status::Invalid("Truncated column data");
     std::vector<bool> used(dictSize,false);
@@ -77,20 +88,20 @@ LoadDictColumnData(std::istream &in)
 }
 
 static Result<ColumnDataP>
-LoadDictColumnData(std::istream &in, AccelType *dataType)
+LoadDictColumnData(std::istream &in, AccelType *dataType, bool aligned)
 {
     switch (dataType->type_num())
     {
         case TypeNum::INT32_TYPE:
-            return LoadDictColumnData<Int32Type>(in);
+            return LoadDictColumnData<Int32Type>(in, aligned);
         case TypeNum::INT64_TYPE:
-            return LoadDictColumnData<Int64Type>(in);
+            return LoadDictColumnData<Int64Type>(in, aligned);
         case TypeNum::STRING_TYPE:
-            return LoadDictColumnData<StringType>(in);
+            return LoadDictColumnData<StringType>(in, aligned);
         case TypeNum::DATE_TYPE:
-            return LoadDictColumnData<DateType>(in);
+            return LoadDictColumnData<DateType>(in, aligned);
         case TypeNum::DECIMAL_TYPE:
-            return LoadDictColumnData<DecimalType>(in);
+            return LoadDictColumnData<DecimalType>(in, aligned);
     }
 
     return Status::Invalid("Invalid type for DictColumnData: ", dataType->type_num());
@@ -98,7 +109,7 @@ LoadDictColumnData(std::istream &in, AccelType *dataType)
 
 template<class AccelTy>
 static Result<ColumnDataP>
-LoadRawColumnData(std::istream &in)
+LoadRawColumnData(std::istream &in, bool aligned)
 {
     auto result = std::make_shared<RawColumnData<AccelTy>>();
     result->type = ColumnDataBase::RAW_COLUMN_DATA;
@@ -114,7 +125,9 @@ LoadRawColumnData(std::istream &in)
         return Status::Invalid("Invalid raw column header");
     result->values =
         (uint8_t *) AllocateAligned(512, result->bytesPerValue * result->size);
+    if (aligned && !SkipNativePadding(in)) return Status::Invalid("Invalid native padding");
     in.read((char *) result->values, result->bytesPerValue * result->size);
+    if (aligned && !SkipNativePadding(in)) return Status::Invalid("Invalid native padding");
     if (!in) return Status::Invalid("Truncated raw column");
     // Range pruning trusts these bounds; validate them against stored values.
     int64_t actualMin = INT64_MAX, actualMax = INT64_MIN;
@@ -138,25 +151,25 @@ LoadRawColumnData(std::istream &in)
 }
 
 static Result<ColumnDataP>
-LoadRawColumnData(std::istream &in, AccelType *dataType)
+LoadRawColumnData(std::istream &in, AccelType *dataType, bool aligned)
 {
     switch (dataType->type_num())
     {
         case TypeNum::INT32_TYPE:
-            return LoadRawColumnData<Int32Type>(in);
+            return LoadRawColumnData<Int32Type>(in, aligned);
         case TypeNum::TIMESTAMP_TYPE:
         case TypeNum::INT64_TYPE:
-            return LoadRawColumnData<Int64Type>(in);
+            return LoadRawColumnData<Int64Type>(in, aligned);
         case TypeNum::DATE_TYPE:
-            return LoadRawColumnData<DateType>(in);
+            return LoadRawColumnData<DateType>(in, aligned);
         case TypeNum::DECIMAL_TYPE:
-            return LoadRawColumnData<DecimalType>(in);
+            return LoadRawColumnData<DecimalType>(in, aligned);
     }
 
     return Status::Invalid("Invalid type for RawColumnDate: ", dataType->type_num());
 }
 
-Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
+Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType, bool aligned)
 {
     ColumnDataBase::Type type = ColumnDataBase::Type(-1);
     in.read((char *) &type, sizeof(type));
@@ -168,9 +181,9 @@ Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType)
     switch (type)
     {
         case ColumnDataBase::DICT_COLUMN_DATA:
-            return LoadDictColumnData(in, dataType);
+            return LoadDictColumnData(in, dataType, aligned);
         case ColumnDataBase::RAW_COLUMN_DATA:
-            return LoadRawColumnData(in, dataType);
+            return LoadRawColumnData(in, dataType, aligned);
         default:
             return Status::Invalid("Unknown column data type: ", type);
     }

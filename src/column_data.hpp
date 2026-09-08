@@ -43,11 +43,11 @@ struct ColumnDataBase {
     std::span<const StringSignature> localStringSignatures;
     uint64_t globalRowOffset = 0;
 
-    virtual Result<bool> Save(std::ostream &out) const = 0;
+    virtual Result<bool> Save(std::ostream &out, bool aligned = false) const = 0;
 
     virtual ~ColumnDataBase() {};
 
-    static Result<ColumnDataP> Load(std::istream &in, AccelType *type);
+    static Result<ColumnDataP> Load(std::istream &in, AccelType *type, bool aligned = false);
 };
 
 struct DictColumnDataBase: public ColumnDataBase {
@@ -66,7 +66,7 @@ struct DictColumnData: public DictColumnDataBase {
     using DictTy = typename Ty::c_type;
     std::vector<DictTy> dict;
 
-    virtual Result<bool> Save(std::ostream &out) const;
+    virtual Result<bool> Save(std::ostream &out, bool aligned = false) const;
 
     virtual ~DictColumnData() {
         if (values)
@@ -110,26 +110,38 @@ template<class Ty>
 struct RawColumnData: public RawColumnDataBase {
     typename Ty::c_type minValue, maxValue;
 
-    virtual Result<bool> Save(std::ostream &out) const;
+    virtual Result<bool> Save(std::ostream &out, bool aligned = false) const;
 };
+
+// Version 2 pads value vectors to the allocation alignment, including their
+// final vector tail. Version 1 retains its original byte layout.
+inline void PadNativeValues(std::ostream &out) {
+    auto position = out.tellp();
+    if (position < 0) { out.setstate(std::ios::failbit); return; }
+    const char zeros[512]{};
+    size_t padding = (512 - uint64_t(position) % 512) % 512;
+    out.write(zeros, padding);
+}
 
 // Save functions
 template<typename AccelTy>
 Result<bool>
-RawColumnData<AccelTy>::Save(std::ostream &out) const
+RawColumnData<AccelTy>::Save(std::ostream &out, bool aligned) const
 {
     out.write((char *) &type, sizeof(type));
     out.write((char *) &size, sizeof(size));
     out.write((char *) &bytesPerValue, sizeof(bytesPerValue));
     out.write((char *) &minValue, sizeof(minValue));
     out.write((char *) &maxValue, sizeof(maxValue));
+    if (aligned) PadNativeValues(out);
     out.write((char *) values, size * bytesPerValue);
+    if (aligned) PadNativeValues(out);
     return true;
 }
 
 template<typename AccelTy>
 Result<bool>
-DictColumnData<AccelTy>::Save(std::ostream &out) const
+DictColumnData<AccelTy>::Save(std::ostream &out, bool aligned) const
 {
     out.write((char *) &type, sizeof(type));
     int dictSize = dict.size();
@@ -140,7 +152,9 @@ DictColumnData<AccelTy>::Save(std::ostream &out) const
     }
     out.write((char *) &size, sizeof(size));
     int bytesPerValue = (dictSize < 256) ? 1 : 2;
+    if (aligned) PadNativeValues(out);
     out.write((char *) values, size * bytesPerValue);
+    if (aligned) PadNativeValues(out);
     return true;
 }
 

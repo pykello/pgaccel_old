@@ -27,26 +27,26 @@ ColumnarTable::ColumnIndex(const std::string& name) const
 }
 
 Result<bool>
-ColumnarTable::Save(const std::string &path)
+ColumnarTable::Save(const std::string &path, bool aligned)
 {
     std::ofstream dataStream(path, std::ios::binary);
     std::ofstream metadataStream(path + ".metadata");
-    return Save(metadataStream, dataStream);
+    return Save(metadataStream, dataStream, aligned);
 }
 
 
 Result<bool>
 ColumnarTable::Save(std::ostream& metadataStream,
-                    std::ostream& dataStream) const
+                    std::ostream& dataStream, bool aligned) const
 {
     // Pair the two files and declare the native payload ABI explicitly.
     std::random_device random;
     uint64_t identity[2] = {
         (uint64_t(random()) << 32) | random(),
         (uint64_t(random()) << 32) | random()};
-    dataStream.write("PGACCEL1", 8);
+    dataStream.write(aligned ? "PGACCEL2" : "PGACCEL1", 8);
     dataStream.write(reinterpret_cast<const char *>(identity), sizeof(identity));
-    metadataStream << "PGACCEL_SNAPSHOT 1 "
+    metadataStream << "PGACCEL_SNAPSHOT " << (aligned ? 2 : 1) << " "
                    << (std::endian::native == std::endian::little ? "little" : "big")
                    << " " << sizeof(int) << " " << sizeof(int64_t)
                    << " " << sizeof(ColumnDataBase::Type) << " " << RowGroupSize
@@ -63,7 +63,7 @@ ColumnarTable::Save(std::ostream& metadataStream,
 
         for (const auto &rowGroup: row_groups_)
         {
-            RAISE_IF_FAILS(rowGroup.columns[colIdx]->Save(dataStream));
+            RAISE_IF_FAILS(rowGroup.columns[colIdx]->Save(dataStream, aligned));
         }
     }
 
@@ -126,6 +126,7 @@ ColumnarTable::Load(const std::string &tableName,
     std::vector<ColumnDesc> column_descs;
 
     int numCols = 0;
+    bool aligned = false;
     std::string first;
     metadataStream >> first;
     if (first == "PGACCEL_SNAPSHOT") {
@@ -134,15 +135,16 @@ ColumnarTable::Load(const std::string &tableName,
         uint64_t expected[2] = {}, actual[2] = {};
         metadataStream >> version >> endian >> integerBytes >> wideBytes >> enumBytes >> groupSize
                        >> expected[0] >> expected[1];
-        if (!metadataStream || version != 1 || integerBytes != sizeof(int) ||
+        if (!metadataStream || (version != 1 && version != 2) || integerBytes != sizeof(int) ||
             wideBytes != sizeof(int64_t) || enumBytes != sizeof(ColumnDataBase::Type) ||
             groupSize != RowGroupSize ||
             endian != (std::endian::native == std::endian::little ? "little" : "big"))
             return Status::Invalid("Unsupported snapshot version or native ABI");
+        aligned = version == 2;
         char magic[8] = {};
         dataStream.read(magic, sizeof(magic));
         dataStream.read(reinterpret_cast<char *>(actual), sizeof(actual));
-        if (!dataStream || std::memcmp(magic, "PGACCEL1", 8) ||
+        if (!dataStream || std::memcmp(magic, aligned ? "PGACCEL2" : "PGACCEL1", 8) ||
             actual[0] != expected[0] || actual[1] != expected[1])
             return Status::Invalid("Snapshot data and metadata do not match");
         metadataStream >> numCols;
@@ -223,7 +225,7 @@ ColumnarTable::Load(const std::string &tableName,
         {
             auto &rowGroup = result->row_groups_[group];
             Result<ColumnDataP> columnData(Status::Invalid("Invalid native column"));
-            try { columnData = ColumnDataBase::Load(dataStream,columnDesc.type.get()); }
+            try { columnData = ColumnDataBase::Load(dataStream,columnDesc.type.get(),aligned); }
             catch (const std::exception &e) { return Status::Invalid(e.what()); }
             RAISE_IF_FAILS(columnData);
             if (!rowGroup.columns.empty() && rowGroup.size != (*columnData)->size)

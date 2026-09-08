@@ -70,9 +70,9 @@ public:
     // Explicit construction before concurrent readers; no SQL is consulted.
     Result<DictionaryBuildStats> BuildDictionaries(uint64_t memoryLimit);
 
-    Result<bool> Save(const std::string &path);
+    Result<bool> Save(const std::string &path, bool aligned = false);
     Result<bool> Save(std::ostream& metadataStream,
-                      std::ostream& dataStream) const;
+                      std::ostream& dataStream, bool aligned = false) const;
 
     // Execution-owned numeric intermediates; an empty input binds a schema.
     static ColumnarTableP NumericIntermediate(
