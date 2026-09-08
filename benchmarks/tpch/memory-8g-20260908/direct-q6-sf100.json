@@ -1,0 +1,111 @@
+{
+  "probe_sha256": "6660c310042b711c4878f1fcb998f3570400ac77429d2863061050f66aa476e1",
+  "sql_sha256": "98b88b193d427f818f0f923acffe73c4d82cd2587a5ec7ecca0ac81d51a52d90",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "expected": "12330426888.4637",
+  "trials": [
+    {
+      "command": [
+        "systemd-run",
+        "--user",
+        "--unit=pgaccel-direct-sum-0",
+        "--property=MemoryMax=8G",
+        "--property=MemorySwapMax=0",
+        "--wait",
+        "--pipe",
+        "/usr/bin/time",
+        "-v",
+        "/tmp/pgaccel-direct-sum-probe",
+        "/home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel",
+        "lineitem",
+        "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q06.sql",
+        "l_shipdate",
+        "l_discount",
+        "l_quantity",
+        "l_extendedprice"
+      ],
+      "returncode": 0,
+      "stdout": "{\"elapsed_ms\":10854.9,\"rows\":600037902,\"selected\":11421368,\"read_bytes\":5498732544,\"read_calls\":5244,\"io_buffers\":5242880,\"answer\":\"12330426888.4637\"}\n",
+      "stderr": "Running as unit: pgaccel-direct-sum-0.service; invocation ID: 74ccb81364af4a0c984d9a498d1494e5\n\tCommand being timed: \"/tmp/pgaccel-direct-sum-probe /home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel lineitem /home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q06.sql l_shipdate l_discount l_quantity l_extendedprice\"\n\tUser time (seconds): 7.05\n\tSystem time (seconds): 0.86\n\tPercent of CPU this job got: 72%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:10.85\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 10208\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 1868\n\tVoluntary context switches: 5245\n\tInvoluntary context switches: 7\n\tSwaps: 0\n\tFile system inputs: 10739712\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 10.862s\nCPU time consumed: 7.929s\nMemory peak: 256.0K\nMemory swap peak: 0B\n",
+      "measurement": {
+        "elapsed_ms": 10854.9,
+        "rows": 600037902,
+        "selected": 11421368,
+        "read_bytes": 5498732544,
+        "read_calls": 5244,
+        "io_buffers": 5242880,
+        "answer": "12330426888.4637"
+      },
+      "correct": true
+    },
+    {
+      "command": [
+        "systemd-run",
+        "--user",
+        "--unit=pgaccel-direct-sum-1",
+        "--property=MemoryMax=8G",
+        "--property=MemorySwapMax=0",
+        "--wait",
+        "--pipe",
+        "/usr/bin/time",
+        "-v",
+        "/tmp/pgaccel-direct-sum-probe",
+        "/home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel",
+        "lineitem",
+        "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q06.sql",
+        "l_shipdate",
+        "l_discount",
+        "l_quantity",
+        "l_extendedprice"
+      ],
+      "returncode": 0,
+      "stdout": "{\"elapsed_ms\":10842.7,\"rows\":600037902,\"selected\":11421368,\"read_bytes\":5498732544,\"read_calls\":5244,\"io_buffers\":5242880,\"answer\":\"12330426888.4637\"}\n",
+      "stderr": "Running as unit: pgaccel-direct-sum-1.service; invocation ID: 7dca3e935c814c2a83e3eee077bdb9b5\n\tCommand being timed: \"/tmp/pgaccel-direct-sum-probe /home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel lineitem /home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q06.sql l_shipdate l_discount l_quantity l_extendedprice\"\n\tUser time (seconds): 7.09\n\tSystem time (seconds): 0.82\n\tPercent of CPU this job got: 73%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:10.84\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 10208\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 1867\n\tVoluntary context switches: 5245\n\tInvoluntary context switches: 8\n\tSwaps: 0\n\tFile system inputs: 10739712\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 10.849s\nCPU time consumed: 7.925s\nMemory peak: 328.0K\nMemory swap peak: 0B\n",
+      "measurement": {
+        "elapsed_ms": 10842.7,
+        "rows": 600037902,
+        "selected": 11421368,
+        "read_bytes": 5498732544,
+        "read_calls": 5244,
+        "io_buffers": 5242880,
+        "answer": "12330426888.4637"
+      },
+      "correct": true
+    },
+    {
+      "command": [
+        "systemd-run",
+        "--user",
+        "--unit=pgaccel-direct-sum-2",
+        "--property=MemoryMax=8G",
+        "--property=MemorySwapMax=0",
+        "--wait",
+        "--pipe",
+        "/usr/bin/time",
+        "-v",
+        "/tmp/pgaccel-direct-sum-probe",
+        "/home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel",
+        "lineitem",
+        "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q06.sql",
+        "l_shipdate",
+        "l_discount",
+        "l_quantity",
+        "l_extendedprice"
+      ],
+      "returncode": 0,
+      "stdout": "{\"elapsed_ms\":10942.5,\"rows\":600037902,\"selected\":11421368,\"read_bytes\":5498732544,\"read_calls\":5244,\"io_buffers\":5242880,\"answer\":\"12330426888.4637\"}\n",
+      "stderr": "Running as unit: pgaccel-direct-sum-2.service; invocation ID: bffc9d94920749ef941874e3161bcabb\n\tCommand being timed: \"/tmp/pgaccel-direct-sum-probe /home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel lineitem /home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q06.sql l_shipdate l_discount l_quantity l_extendedprice\"\n\tUser time (seconds): 7.17\n\tSystem time (seconds): 0.84\n\tPercent of CPU this job got: 73%\n\tElapsed (wall clock) time (h:mm:ss or m:ss): 0:10.94\n\tAverage shared text size (kbytes): 0\n\tAverage unshared data size (kbytes): 0\n\tAverage stack size (kbytes): 0\n\tAverage total size (kbytes): 0\n\tMaximum resident set size (kbytes): 10208\n\tAverage resident set size (kbytes): 0\n\tMajor (requiring I/O) page faults: 0\n\tMinor (reclaiming a frame) page faults: 1868\n\tVoluntary context switches: 5245\n\tInvoluntary context switches: 4\n\tSwaps: 0\n\tFile system inputs: 10739712\n\tFile system outputs: 0\n\tSocket messages sent: 0\n\tSocket messages received: 0\n\tSignals delivered: 0\n\tPage size (bytes): 4096\n\tExit status: 0\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 10.950s\nCPU time consumed: 8.021s\nMemory peak: 256.0K\nMemory swap peak: 0B\n",
+      "measurement": {
+        "elapsed_ms": 10942.5,
+        "rows": 600037902,
+        "selected": 11421368,
+        "read_bytes": 5498732544,
+        "read_calls": 5244,
+        "io_buffers": 5242880,
+        "answer": "12330426888.4637"
+      },
+      "correct": true
+    }
+  ],
+  "note": "Single-reader direct SUM diagnostic. Includes loading/validation/compute, not the native Database interface. No cold/warm minima substitution."
+}
