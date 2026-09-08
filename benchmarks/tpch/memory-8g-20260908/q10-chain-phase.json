@@ -1,0 +1,47 @@
+{
+  "query": 10,
+  "purpose": "Locate retained-data versus chain execution memory; not a timing comparison",
+  "returncode": 1,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-direct-phase-q10-chain",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/tmp/pgaccel-direct-phase-probe",
+    "/home/hadi/projects/tpch-work/sf100/native",
+    "/home/hadi/projects/tpch-work/queries-duckdb-1.4.3/q10.sql",
+    "chain"
+  ],
+  "probe_sha256": "9ef387d56aebec00ad2edd05bd144d2c9decebf78670764562858998308dafce",
+  "phases": [
+    {
+      "phase": "prepared",
+      "current": 7603412992,
+      "peak": 7604465664,
+      "max": 8589934592,
+      "swap_max": 0
+    },
+    {
+      "table": "customer",
+      "rows": 15000000
+    },
+    {
+      "table": "lineitem",
+      "rows": 148067261
+    },
+    {
+      "table": "nation",
+      "rows": 25
+    },
+    {
+      "table": "orders",
+      "rows": 150000000
+    }
+  ],
+  "stderr": "Running as unit: pgaccel-direct-phase-q10-chain.service; invocation ID: 17266406a0d44a09a60c02fed90e4f72\nFinished with result: oom-kill\nMain processes terminated with: code=killed/status=KILL\nService runtime: 26.300s\nCPU time consumed: 22.374s\nMemory peak: 8.0G\nMemory swap peak: 0B\n",
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/q10-chain-phase.jsonl",
+  "raw_sha256": "a912234e25986512fd64f003685893651a4e436dab1cde4e443a29ec5f621eb1"
+}
