@@ -30,6 +30,7 @@ struct DirectScanStats {
     uint64_t rows = 0, groups = 0, bytesRead = 0, readCalls = 0;
     uint64_t ioBufferBytes = 0;
 };
+using RowSelector = std::function<Result<std::vector<uint16_t>>(const std::vector<ColumnDesc> &, const RowGroup &)>;
 using ScanConsumer = std::function<Result<bool>(const std::vector<ColumnDesc> &, const RowGroup &)>;
 
 class GlobalDictionary;
@@ -88,6 +89,10 @@ public:
 
     static Result<DirectScanStats> ScanDirect(const std::string &path,
         const std::set<std::string> &fields, const ScanConsumer &consumer);
+
+    static Result<ColumnarTableP> LoadDirectSelected(const std::string &name,
+        const std::string &path, const std::set<std::string> &fields,
+        const RowSelector &select, DirectScanStats *io = nullptr);
 
     Result<bool> Save(const std::string &path, bool aligned = false);
     Result<bool> Save(std::ostream& metadataStream,

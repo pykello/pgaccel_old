@@ -1,3 +1,4 @@
+#include "compact_column.hpp"
 #include "columnar_table.h"
 #include "util.h"
 #include "direct_input.hpp"
@@ -329,3 +330,38 @@ ColumnarTable::LoadImpl(const std::string &tableName,
 }
 
 };
+
+namespace pgaccel {
+Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name,
+    const std::string &path, const std::set<std::string> &fields,
+    const RowSelector &select, DirectScanStats *io) {
+    auto schema = LoadSchema(name, path); if (!schema.ok()) return schema.status();
+    auto result = ColumnarTableP(new ColumnarTable()); result->name_ = name;
+    std::set<std::string> normalized;
+    for (const auto &field:fields) normalized.insert(ToLower(field));
+    for (const auto &column:(*schema)->Schema())
+        if (normalized.count(column.name)) result->schema_.push_back(column);
+    if (result->schema_.size()!=normalized.size()) return Status::Invalid("Unknown selected column");
+    auto scan = ScanDirect(path, fields, [&](const auto &columns, const RowGroup &batch)->Result<bool> {
+        auto selected = select(columns, batch); if (!selected.ok()) return selected.status();
+        const auto &rows = *selected;
+        for (size_t i=0; i<rows.size(); ++i)
+            if (rows[i]>=batch.size || (i && rows[i]<=rows[i-1]))
+                return Status::Invalid("Selection needs ordered unique valid rows");
+        if (rows.empty()) return true;
+        RowGroup compact; compact.size = rows.size();
+        for (size_t c=0; c<columns.size(); ++c) {
+            if (rows.size()==size_t(batch.size)) compact.columns.push_back(batch.columns[c]);
+            else {
+                auto column = CompactNativeColumn(*batch.columns[c], *columns[c].type, rows);
+                if (!column.ok()) return column.status();
+                compact.columns.push_back(std::move(column).ValueUnsafe());
+            }
+        }
+        result->row_groups_.push_back(std::move(compact)); return true;
+    });
+    if (!scan.ok()) return scan.status();
+    if (io) *io = *scan;
+    return result;
+}
+}
