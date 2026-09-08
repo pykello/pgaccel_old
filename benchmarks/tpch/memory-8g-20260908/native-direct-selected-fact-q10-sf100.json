@@ -1,0 +1,26 @@
+{
+  "query": 10,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-10-1788909331190006818",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/pgaccel_old/build-python/pgaccel_native.cpython-312-x86_64-linux-gnu.so",
+    "10"
+  ],
+  "returncode": 1,
+  "stderr": "Running as unit: pgaccel-native-direct-10-1788909331190006818.service; invocation ID: 29d2792b1c5b4f2ab98dabcf10e37867\nTraceback (most recent call last):\n  File \"/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py\", line 27, in <module>\n    result = db.execute(sql)\n             ^^^^^^^^^^^^^^^\nRuntimeError: Query memory budget exceeded (exact results require more memory)\nFinished with result: exit-code\nMain processes terminated with: code=exited/status=1\nService runtime: 28.211s\nCPU time consumed: 23.849s\nMemory peak: 356.0K\nMemory swap peak: 0B\n",
+  "module_sha256": "13e940f9a5ace38b9d86354d7fc53a45dc68de90828665f9d0513a0e39215c39",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 1160.0660474941833,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-selected-fact-q10-sf100.json",
+  "raw_sha256": "3bbcba2930a77253e57eff15e1f33f724a507c12e7bbc37880bcb85a3375c7c1"
+}

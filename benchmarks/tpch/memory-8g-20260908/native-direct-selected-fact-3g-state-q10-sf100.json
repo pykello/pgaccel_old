@@ -1,0 +1,28 @@
+{
+  "query": 10,
+  "query_memory_mib": 3072,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-10-1788909469061884516",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/pgaccel_old/build-python/pgaccel_native.cpython-312-x86_64-linux-gnu.so",
+    "10",
+    "3072"
+  ],
+  "returncode": 1,
+  "stderr": "Running as unit: pgaccel-native-direct-10-1788909469061884516.service; invocation ID: e877d9569f2d4831a3e7795ddd9de922\nFinished with result: oom-kill\nMain processes terminated with: code=killed/status=KILL\nService runtime: 26.546s\nCPU time consumed: 22.538s\nMemory peak: 8.0G\nMemory swap peak: 0B\n",
+  "module_sha256": "13e940f9a5ace38b9d86354d7fc53a45dc68de90828665f9d0513a0e39215c39",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 1160.0660474941833,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-selected-fact-3g-state-q10-sf100.json",
+  "raw_sha256": "19c19b603f8f94828a97e0e271d10cc035ad37ab5db8eac5644bb3966c46551e"
+}
