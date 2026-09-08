@@ -4,6 +4,7 @@
 #include <vector>
 #include <optional>
 #include <ostream>
+#include <functional>
 #include "types.hpp"
 #include "column_data.hpp"
 #include "result_type.hpp"
@@ -24,6 +25,12 @@ struct RowGroup {
     std::unique_ptr<std::array<uint8_t, BITMAP_SIZE>> selectionBitmap;
     int selectedSize = 0;
 };
+
+struct DirectScanStats {
+    uint64_t rows = 0, groups = 0, bytesRead = 0, readCalls = 0;
+    uint64_t ioBufferBytes = 0;
+};
+using ScanConsumer = std::function<Result<bool>(const std::vector<ColumnDesc> &, const RowGroup &)>;
 
 class GlobalDictionary;
 struct DictionaryColumnStats {
@@ -70,6 +77,12 @@ public:
     // Explicit construction before concurrent readers; no SQL is consulted.
     Result<DictionaryBuildStats> BuildDictionaries(uint64_t memoryLimit);
 
+    // Synchronous projected scan. Each callback borrows one owned stripe;
+    // retaining its column shared_ptrs deliberately extends their lifetime.
+    // A false callback value stops early; an error aborts the scan.
+    static Result<DirectScanStats> ScanDirect(const std::string &path,
+        const std::set<std::string> &fields, const ScanConsumer &consumer);
+
     Result<bool> Save(const std::string &path, bool aligned = false);
     Result<bool> Save(std::ostream& metadataStream,
                       std::ostream& dataStream, bool aligned = false) const;
@@ -99,6 +112,11 @@ public:
 
 private:
     ColumnarTable() {}
+    static Result<ColumnarTableP> LoadImpl(const std::string &tableName,
+        std::istream &metadata, std::istream &data,
+        std::optional<std::set<std::string>> fields,
+        const std::string *directPath = nullptr,
+        const ScanConsumer &consumer = {}, DirectScanStats *stats = nullptr);
 
     std::vector<ColumnDesc> schema_;
     std::vector<RowGroup> row_groups_;

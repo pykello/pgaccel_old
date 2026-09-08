@@ -1,5 +1,6 @@
 #include "columnar_table.h"
 #include "util.h"
+#include "direct_input.hpp"
 
 #include <execution>
 #include <iostream>
@@ -100,11 +101,35 @@ ColumnarTable::Load(const std::string &tableName,
     return Load(tableName, metadataStream, dataStream, fields);
 }
 
+Result<DirectScanStats>
+ColumnarTable::ScanDirect(const std::string &path, const std::set<std::string> &fields,
+                         const ScanConsumer &consumer) {
+    if (!consumer || fields.empty()) return Status::Invalid("Direct scan needs columns and a consumer");
+    try {
+        DirectInput data(path);
+        std::ifstream metadata(path + ".metadata");
+        DirectScanStats stats;
+        auto result = LoadImpl("scan", metadata, data, fields, &path, consumer, &stats);
+        if (!result.ok()) return result.status();
+        stats.bytesRead += data.bytesRead(); stats.readCalls += data.readCalls();
+        stats.ioBufferBytes += 1 << 20;
+        return stats;
+    } catch (const std::exception &e) { return Status::Invalid(e.what()); }
+}
+
 Result<ColumnarTableP>
-ColumnarTable::Load(const std::string &tableName,
+ColumnarTable::Load(const std::string &tableName, std::istream &metadata,
+                   std::istream &data, std::optional<std::set<std::string>> fields) {
+    return LoadImpl(tableName, metadata, data, fields);
+}
+
+Result<ColumnarTableP>
+ColumnarTable::LoadImpl(const std::string &tableName,
                     std::istream& metadataStream,
                     std::istream& dataStream,
-                    std::optional<std::set<std::string>> maybeFields)
+                    std::optional<std::set<std::string>> maybeFields,
+                    const std::string *directPath, const ScanConsumer &consumer,
+                    DirectScanStats *stats)
 {
     auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
     result->name_ = tableName;
@@ -203,6 +228,42 @@ ColumnarTable::Load(const std::string &tableName,
         column_positions.push_back(position);
         column_groups.push_back(groupCount);
         column_descs.push_back(std::move(columnDesc));
+    }
+
+    if (directPath) {
+        std::vector<std::unique_ptr<DirectInput>> streams;
+        for (int c = 0; c < numCols; ++c) {
+            if (!fieldsToLoad.count(column_descs[c].name)) continue;
+            auto stream = std::make_unique<DirectInput>(*directPath);
+            stream->seekg(column_positions[c]);
+            if (!*stream) return Status::Invalid("Invalid native column offset");
+            auto desc = column_descs[c];
+            desc.layout = desc.type->type_num() == STRING_TYPE || desc.type->type_num() == DATE_TYPE
+                ? ColumnDataBase::DICT_COLUMN_DATA : ColumnDataBase::RAW_COLUMN_DATA;
+            result->schema_.push_back(std::move(desc));
+            streams.push_back(std::move(stream));
+        }
+        if (streams.size() != fieldsToLoad.size()) return Status::Invalid("Unknown direct scan column");
+        stats->ioBufferBytes = streams.size() * (1 << 20);
+        for (int g = 0; g < column_groups[0]; ++g) {
+            RowGroup batch;
+            for (size_t c = 0; c < streams.size(); ++c) {
+                auto loaded = ColumnDataBase::Load(*streams[c], result->schema_[c].type.get(), aligned);
+                if (!loaded.ok()) return loaded.status();
+                if (c && batch.size != (*loaded)->size)
+                    return Status::Invalid("Inconsistent native column lengths");
+                batch.size = (*loaded)->size;
+                batch.columns.push_back(std::move(loaded).ValueUnsafe());
+            }
+            stats->rows += batch.size; ++stats->groups;
+            auto accepted = consumer(result->schema_, batch);
+            if (!accepted.ok()) return accepted.status();
+            if (!*accepted) break;
+        }
+        for (const auto &stream : streams) {
+            stats->bytesRead += stream->bytesRead(); stats->readCalls += stream->readCalls();
+        }
+        return result;
     }
 
     for (int colIdx = 0; colIdx < numCols; colIdx++)
