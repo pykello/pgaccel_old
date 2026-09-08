@@ -1,0 +1,184 @@
+{
+  "query": 7,
+  "query_memory_mib": 512,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-7-1788909963302131922",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/pgaccel_old/build-python/pgaccel_native.cpython-312-x86_64-linux-gnu.so",
+    "7",
+    "512"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-native-direct-7-1788909963302131922.service; invocation ID: b23be0b53e704e3f8c3e7f53bc5c5d96\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 23.690s\nCPU time consumed: 38.488s\nMemory peak: 356.0K\nMemory swap peak: 0B\n",
+  "module_sha256": "4c4f976af24c00630ef02d106f2ceeaba3d5049b0338c5ac32d556e779e03127",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 521.1005214951001,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "measurements": {
+    "trials": [
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 590.569175,
+        "prepare_ms": 18989.906336,
+        "direct_load_bytes": 10385099126,
+        "peak_memory_bytes": 426880446,
+        "spill_bytes": 0,
+        "client_ms": 19580.825299024582,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 524.694512,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 525.0327970134094,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 451.682404,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 451.93778997054324,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 447.9999,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 448.24050698662177,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 449.783591,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 450.0283859670162,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 445.761519,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 446.01532694650814,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 446.40838,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 446.6560630244203,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 450.248028,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 450.5111259641126,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      },
+      {
+        "columns": [
+          "supp_nation",
+          "cust_nation",
+          "l_year",
+          "revenue"
+        ],
+        "execution_ms": 445.925685,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 460434878,
+        "spill_bytes": 0,
+        "client_ms": 446.1937139858492,
+        "row_count": 4,
+        "rows_sha256": "a6ed187ecf9e95fa01b89b87f904312388b495905b80256364116c7db3c225c5"
+      }
+    ],
+    "cgroup_peak_bytes": 4686749696,
+    "memory_max": 8589934592,
+    "swap_max": 0
+  },
+  "correct": true,
+  "median_client_ms": 449.134446476819,
+  "first_client_ms": 19580.825299024582,
+  "memory_verified": true,
+  "reuse_verified": true,
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-aliased-dimension-q7-sf100.json",
+  "raw_sha256": "65268f7929c8eb22456b93d3f0c6f3f69c81dfa75a9dc6be82250a150d23525b"
+}
