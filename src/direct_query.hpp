@@ -35,8 +35,6 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         bool push = parsed->leftJoins.empty() && parsed->existenceJoins.empty() &&
             parsed->scalarQueries.empty() && parsed->membershipQueries.empty() &&
             parsed->materializedSources.empty();
-        std::set<const ColumnarTable *> unique;
-        for (auto table:parsed->tables) if (!unique.insert(table).second) push=false;
         // Preserve dimension key sequences used by the current join kernels.
         // For multiple tables, compact only the sole SUM-input table. Sparse
         // dimension materialization needs a different row-directory contract.
@@ -55,6 +53,10 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         if (parsed->tables.size()==1) measures={0};
         const ColumnarTable *compactTable = measures.size()==1 && *measures.begin()>=0 &&
             size_t(*measures.begin())<parsed->tables.size() ? parsed->tables[*measures.begin()] : nullptr;
+        // Other dimensions can have several aliases without sharing the
+        // candidate's rows. Only aliases of the compacted table prevent this
+        // scope-local selection from being applied to its physical storage.
+        if (std::count(parsed->tables.begin(),parsed->tables.end(),compactTable)!=1) push=false;
         PreparedDirectQuery result;
         for(const auto &[name,schema]:schemas) {
             auto fields=needed.find(schema.get());if(fields==needed.end())continue;
