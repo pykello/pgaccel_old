@@ -44,7 +44,11 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         auto measure = [&](auto &&self, const std::shared_ptr<Expression> &e)->void {
             if (!e) return;
             if (e->column) measures.insert(e->column->tableIdx);
-            self(self,e->left); self(self,e->right); self(self,e->condition);
+            self(self,e->left); self(self,e->right);
+            // A CASE condition may read a dimension while both contributed
+            // values come from one fact table. Only its values identify the
+            // candidate; the original WHERE predicates still govern removal.
+            if (e->kind!=Expression::CASE) self(self,e->condition);
         };
         for (const auto &a:parsed->aggregateClauses)
             if (a.type==AggregateClause::AGGREGATE_SUM) measure(measure,a.expression);
