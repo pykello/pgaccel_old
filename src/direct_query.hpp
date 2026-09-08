@@ -4,6 +4,8 @@
 #include "util.h"
 #include "executor.h"
 #include "predicate_columns.hpp"
+#include "date_predicate_columns.hpp"
+#include "compact_column.hpp"
 #include <filesystem>
 #include <cstring>
 #include <numeric>
@@ -33,6 +35,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         auto parsed=ParseSelect(sql,schemas);if(!parsed.ok())return parsed.status();
         auto needed=RequiredQueryColumns(*parsed);
         auto predicateColumns=PredicateOnlyColumns(*parsed);
+        auto datePredicates=DatePredicateOnlyColumns(*parsed);
         // A physical table may serve several aliases/scopes. Until selections
         // are owned per scope, only push filters in an ordinary inner query.
         bool push = parsed->leftJoins.empty() && parsed->existenceJoins.empty() &&
@@ -68,7 +71,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
             if (push && schema.get()==compactTable) for (const auto &filter:parsed->filterClauses)
                 if (parsed->tables[filter.columnRef.tableIdx]==schema.get()) filters.push_back(filter);
             FilterNodeP node;
-            auto select = [&](const auto &columns, const RowGroup &batch)->Result<std::vector<uint16_t>> {
+            auto selectRows = [&](const auto &columns, const RowGroup &batch)->Result<std::vector<uint16_t>> {
                 if(filters.empty()) {
                     std::vector<uint16_t> rows(batch.size);std::iota(rows.begin(),rows.end(),0);return rows;
                 }
@@ -96,9 +99,28 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 if (rows.size()!=size_t(count)) return Status::Invalid("Inconsistent direct selection count");
                 return rows;
             };
+            auto dates=datePredicates.find(schema.get());
+            std::map<std::string,ColumnDataP> dateColumns;
+            std::vector<uint16_t> selectedRows;
+            auto select=[&](const auto &columns,const RowGroup &batch)->Result<std::vector<uint16_t>> {
+                dateColumns.clear();
+                if(dates!=datePredicates.end()) {
+                    auto encoded=DatePredicateDictionaries(columns,batch,dates->second);
+                    if(!encoded.ok())return encoded.status();dateColumns=std::move(encoded).ValueUnsafe();
+                }
+                auto rows=selectRows(columns,batch);if(!rows.ok())return rows.status();
+                if(dates!=datePredicates.end())selectedRows=*rows;
+                return rows;
+            };
             auto predicates=predicateColumns.find(schema.get());
             ColumnTransform transform;
-            if(predicates!=predicateColumns.end())transform=[&](const ColumnDesc &column,const ColumnDataP &data)->Result<ColumnDataP> {
+            if(predicates!=predicateColumns.end() || dates!=datePredicates.end())transform=[&](const ColumnDesc &column,const ColumnDataP &data)->Result<ColumnDataP> {
+                auto date=dateColumns.find(column.name);
+                if(date!=dateColumns.end()) {
+                    if(date->second->size!=data->size)return CompactNativeColumn(*date->second,*column.type,selectedRows);
+                    return ColumnDataP(date->second);
+                }
+                if(predicates==predicateColumns.end())return ColumnDataP(data);
                 auto found=predicates->second.find(column.name);
                 return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx);
             };
