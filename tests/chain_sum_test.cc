@@ -44,3 +44,27 @@ TEST(ChainSum, EnforcesQueryBudget) {
     auto q=std::move(parsed).ValueUnsafe();q.memoryBudgetBytes=1;q.allowSpill=false;
     auto actual=ExecuteChainSum(q,true,true);ASSERT_TRUE(actual.has_value());EXPECT_FALSE(actual->ok());
 }
+TEST(ChainSum, NarrowStateAndWidePrefixesRemainExact) {
+    auto tables=test::ConvergentTables();
+    uint64_t narrowPeak=0,widePeak=0;
+    for(const auto &values:std::vector<std::vector<int64_t>>{
+            {1,-2,3}, {INT64_MAX,INT64_MAX,-INT64_MAX},
+            {INT64_MIN,INT64_MIN,INT64_MAX}, {INT64_MIN,0,0},
+            {INT64_MAX,INT64_MAX,-INT64_MAX,-INT64_MAX}}) {
+        auto fact=test::Table({{test::Raw(std::vector<int64_t>(values.size(),100)),test::Raw(values)},
+                              {test::Raw(std::vector<int64_t>(values.size(),100)),test::Raw(values)}},
+                             {{"o",std::make_shared<Int64Type>()},{"x",std::make_shared<Int64Type>()}});
+        tables["t"]=std::move(fact.at("t"));
+        auto parsed=ParseSelect("SELECT c.k,SUM(t.x) FROM t,o,c WHERE t.o=o.k AND o.c=c.k GROUP BY c.k",tables);
+        ASSERT_TRUE(parsed.ok());auto expected=ExecuteRelational(*parsed,false,false);ASSERT_TRUE(expected.ok());
+        for(bool avx:{false,true})for(bool parallel:{false,true}) {
+            auto actual=ExecuteChainSum(*parsed,avx,parallel);ASSERT_TRUE(actual.has_value());
+            ASSERT_TRUE(actual->ok())<<actual->status().Message();EXPECT_EQ((**actual).values,expected->values);
+            if(avx && parallel) {
+                if(values[0]==1)narrowPeak=(**actual).peakMemoryBytes;
+                if(values[0]==INT64_MAX)widePeak=(**actual).peakMemoryBytes;
+            }
+        }
+    }
+    EXPECT_GT(widePeak,narrowPeak);
+}

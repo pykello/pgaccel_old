@@ -59,57 +59,73 @@ std::optional<Result<QueryOutput>> ExecuteChainSum(const QueryDesc &q,bool avx,b
             std::vector<const uint8_t *>(tables,nullptr),filters,budget,avx,parallel);
         const auto &edge=plan.outgoing[fact].front();const auto &payload=*payloads[edge.target];auto domain=payload.domain();
         const auto &table=*q.tables[fact];int workers=parallel?std::min(8,std::max(1,table.RowGroupCount())):1;
-        struct Partial {std::pmr::vector<Wide> sums;std::pmr::vector<uint8_t> seen;
-            Partial(size_t n,Budget &b):sums(n,0,&b),seen(n,0,&b) {}};
-        auto parts=RunTasks(workers,[&](int worker) {
-            ScopedValueResource memory(budget);Scratch scratch(budget,32*Block*8+RowGroupSize/8+4096);
-            Partial part(countGroups,budget);uint8_t bitmap[RowGroupSize/8];alignas(64)int64_t buffers[32*Block];
-            uint32_t selected[Block],ids[Block];
-            for(int g=worker;g<table.RowGroupCount();g+=workers) {
-                const auto &rg=table.GetRowGroup(g);int count=filters[fact]?filters[fact]->ExecuteSet(rg,bitmap):rg.size;
-                if(!count)continue;const auto &foreign=IdentityRaw(rg,edge.source);
-                Program program;int root=program.compile(*q.aggregateClauses[sum].expression,rg);
-                for(int begin=0;begin<rg.size;begin+=Block) {
-                    int size=std::min(Block,rg.size-begin),n=0;
-                    if(avx && foreign.bytesPerValue==4 && domain.first>=0 && domain.last<=INT32_MAX)
-                        n=BitmapSelectRange32(domain,reinterpret_cast<const int32_t *>(foreign.values),begin,size,count==rg.size?nullptr:bitmap,selected);
-                    else for(int row=begin;row<begin+size;++row)
-                        if((count==rg.size || (bitmap[row/8]>>(row%8)&1)) && domain.contains(IdentityRead(foreign,row)))selected[n++]=row;
-                    if(!n)continue;
-                    for(int i=0;i<n;++i) {
-                        auto id=payload.lookup(IdentityRead(foreign,selected[i]));
-                        if(!id || id>countGroups)throw NotDense{};ids[i]=id-1;
-                    }
-                    program.evaluate<true>(0,n,buffers,avx,selected);
-                    for(int i=0;i<n;++i){part.sums[ids[i]]+=buffers[root*Block+i];part.seen[ids[i]]=1;}
-                }
-            }
-            return part;
-        });
-        QueryResults results(q,budget);
-        for(uint32_t id=0;id<countGroups;++id) {
-            Wide sumValue=0;bool seen=false;for(const auto &part:parts){sumValue=Add(sumValue,part.sums[id]);seen|=part.seen[id];}
-            if(!seen)continue;
-            // Grouping includes the proved unique center key. Every other
-            // grouping field is functionally determined along its key chain.
-            auto read=[&](const ColumnRef &column)->Cell {
-                int t=center;auto row=plan.keys[center]->sequence.lookup(plan.keys[center]->sequence.minimum()+int64_t(id));
-                if(!row)throw NotDense{};
-                while(t!=column.tableIdx) {
-                    const auto &join=plan.outgoing[t].front();const auto &rg=q.tables[t]->GetRowGroup(*row>>32);
-                    int64_t key=IdentityRead(IdentityRaw(rg,join.source),uint32_t(*row));t=join.target;
-                    row=plan.keys[t]->sequence.active()?plan.keys[t]->sequence.lookup(key):plan.keys[t]->sorted.lookup(key);
-                    if(!row)throw NotDense{};
-                }
-                return Read(q.tables[t]->GetRowGroup(*row>>32),column,uint32_t(*row));
-            };
-            results.addLazy([&](size_t i) {
-                const auto &a=q.aggregateClauses[i];FinalCell cell;cell.type=a.expression->type.get();
-                if(int(i)==sum)cell.value.number=sumValue;else cell.value=read(*a.expression->column);
-                return cell;
-            });
+        // Bound positive and negative contributions separately: cancellation
+        // in the final result must not hide overflow of a worker/group prefix.
+        Wide lowest=0,highest=0;
+        bool narrow=true;
+        for(int g=0;g<table.RowGroupCount();++g) {
+            const auto &rg=table.GetRowGroup(g);if(!rg.size)continue;
+            Program program;int root=program.compile(*q.aggregateClauses[sum].expression,rg);
+            const auto &op=program.ops[root];
+            lowest+=std::min(Wide(0),op.low)*rg.size;
+            highest+=std::max(Wide(0),op.high)*rg.size;
+            if(lowest<INT64_MIN || highest>INT64_MAX){narrow=false;break;}
         }
-        return results.finish();
+        auto execute=[&]<class Sum>()->Result<QueryOutput> {
+            struct Partial {std::pmr::vector<Sum> sums;std::pmr::vector<uint8_t> seen;
+                Partial(size_t n,Budget &b):sums(n,0,&b),seen(n,0,&b) {}};
+            auto parts=RunTasks(workers,[&](int worker) {
+                ScopedValueResource memory(budget);Scratch scratch(budget,32*Block*8+RowGroupSize/8+4096);
+                Partial part(countGroups,budget);uint8_t bitmap[RowGroupSize/8];alignas(64)int64_t buffers[32*Block];
+                uint32_t selected[Block],ids[Block];
+                for(int g=worker;g<table.RowGroupCount();g+=workers) {
+                    const auto &rg=table.GetRowGroup(g);int count=filters[fact]?filters[fact]->ExecuteSet(rg,bitmap):rg.size;
+                    if(!count)continue;const auto &foreign=IdentityRaw(rg,edge.source);
+                    Program program;int root=program.compile(*q.aggregateClauses[sum].expression,rg);
+                    for(int begin=0;begin<rg.size;begin+=Block) {
+                        int size=std::min(Block,rg.size-begin),n=0;
+                        if(avx && foreign.bytesPerValue==4 && domain.first>=0 && domain.last<=INT32_MAX)
+                            n=BitmapSelectRange32(domain,reinterpret_cast<const int32_t *>(foreign.values),begin,size,count==rg.size?nullptr:bitmap,selected);
+                        else for(int row=begin;row<begin+size;++row)
+                            if((count==rg.size || (bitmap[row/8]>>(row%8)&1)) && domain.contains(IdentityRead(foreign,row)))selected[n++]=row;
+                        if(!n)continue;
+                        for(int i=0;i<n;++i) {
+                            auto id=payload.lookup(IdentityRead(foreign,selected[i]));
+                            if(!id || id>countGroups)throw NotDense{};ids[i]=id-1;
+                        }
+                        program.evaluate<true>(0,n,buffers,avx,selected);
+                        for(int i=0;i<n;++i){part.sums[ids[i]]+=buffers[root*Block+i];part.seen[ids[i]]=1;}
+                    }
+                }
+                return part;
+            });
+            QueryResults results(q,budget);
+            for(uint32_t id=0;id<countGroups;++id) {
+                Wide sumValue=0;bool seen=false;for(const auto &part:parts){sumValue=Add(sumValue,part.sums[id]);seen|=part.seen[id];}
+                if(!seen)continue;
+                // Grouping includes the proved unique center key. Every other
+                // grouping field is functionally determined along its key chain.
+                auto read=[&](const ColumnRef &column)->Cell {
+                    int t=center;auto row=plan.keys[center]->sequence.lookup(plan.keys[center]->sequence.minimum()+int64_t(id));
+                    if(!row)throw NotDense{};
+                    while(t!=column.tableIdx) {
+                        const auto &join=plan.outgoing[t].front();const auto &rg=q.tables[t]->GetRowGroup(*row>>32);
+                        int64_t key=IdentityRead(IdentityRaw(rg,join.source),uint32_t(*row));t=join.target;
+                        row=plan.keys[t]->sequence.active()?plan.keys[t]->sequence.lookup(key):plan.keys[t]->sorted.lookup(key);
+                        if(!row)throw NotDense{};
+                    }
+                    return Read(q.tables[t]->GetRowGroup(*row>>32),column,uint32_t(*row));
+                };
+                results.addLazy([&](size_t i) {
+                    const auto &a=q.aggregateClauses[i];FinalCell cell;cell.type=a.expression->type.get();
+                    if(int(i)==sum)cell.value.number=sumValue;else cell.value=read(*a.expression->column);
+                    return cell;
+                });
+            }
+            return results.finish();
+        };
+        return narrow ? execute.template operator()<int64_t>()
+                      : execute.template operator()<Wide>();
     } catch(const NotDense &) {return {};}
     catch(const std::exception &e) {return Status::Invalid(e.what());}
 }
