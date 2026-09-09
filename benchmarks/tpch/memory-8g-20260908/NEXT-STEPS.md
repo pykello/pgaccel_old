@@ -5,7 +5,10 @@ The [latest complete sweep](TRANSITION-RUNS.md) passes all 198 answers at
 Q11 alone exceeds its saved warm median: 30.581 versus 30.496 ms. Do not
 rerun merely to select a favorable sample; create more actual headroom.
 
-Investigate preparation of a shared join domain for Q11-like scalar subqueries.
+The [shared-domain proof](SHARED-DOMAIN-PREPARATION.md) is now retained and
+passes 285 tests plus all SF1 answers. Next implement bounded membership
+propagation across different dimension keys; that is still needed for Q11.
+Preparation of a shared join domain for Q11-like scalar subqueries follows:
 The executor already proves that parent and scalar child share the same fact,
 filters and joins. The preparer currently excludes such multi-scope inputs
 from fact membership pruning. A reusable scope-equivalence proof could allow

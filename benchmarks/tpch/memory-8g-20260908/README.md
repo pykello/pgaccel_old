@@ -33,6 +33,13 @@ and contiguous-run reduction. It passes all 284 native tests, all 22 SF1 answers
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
+## Q11 preparation: shared scalar domain proof
+
+[Shared-domain preparation](SHARED-DOMAIN-PREPARATION.md) now proves when
+uncorrelated scalar scopes require the same inner-join rows. All 285 tests and
+SF1 checks pass. Q11 still needs different-key dimension-chain propagation;
+this stage does not yet claim a new SF100 speedup.
+
 ## Q17 follow-up: two-level bitmap probing
 
 [Q17 and Q18 profiling](Q17-Q18-PROFILE.md) identifies their dominant scans.
