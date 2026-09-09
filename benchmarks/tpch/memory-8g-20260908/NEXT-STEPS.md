@@ -1,9 +1,9 @@
 # Remaining work toward the 8 GiB performance goal
 
-The [latest complete sweep](TRANSITION-READ-AHEAD.md) passes all 198 answers at
-6.968 GiB peak. **Every prepared-input warm median meets its saved pgaccel
+The [latest complete sweep](TRANSITION-STRINGS.md) passes all 198 answers at
+6.954 GiB peak. **Every prepared-input warm median meets its saved pgaccel
 time.** Preserve that complete milestone; do not rerun to improve its numbers.
-All 289 tests, 22 SF1 answers and Python integration pass for this module.
+All 295 tests, 22 SF1 answers and Python integration pass for this module.
 
 The original fully resident database and this statement-specific working set
 have different preparation behavior. New SQL still releases old input and
@@ -111,10 +111,13 @@ word-disjoint label bitmaps for large ordered multi-literal patterns only;
 decoding remains serial. Broader parallel matching slightly regressed Q9 and
 was narrowed. All 295 tests, Python integration and 22 SF1 answers pass.
 
-**Run the complete frozen-build SF100 sweep next.** Header, allocation reuse,
-stream-guard and ordered-literal matching changes postdate the current full
-report. Verify all 198 answers, warm margins, first-call times and total peak
-memory in one database before selecting another preparation optimization.
+**The complete frozen-build sweep now passes all 198 answers at 6.954 GiB.**
+All warm medians meet the original saved pgaccel times. Combined first calls
+fall from 168.749 to 146.768 seconds versus the previous complete sweep.
+Use [the input-volume gap](READ-VOLUME-GAP.md) to guide the next investigation:
+inventory original per-query column inputs and distinguish reusable snapshot
+data from query-specific transformations. Measure lower-transfer formats or
+safe byte-admitted cross-query reuse before returning to small loop changes.
 
 Q13 still prepares predicate-only strings on every changed statement.
 `PredicateOnlyColumns` proves when every use observes the same predicate,

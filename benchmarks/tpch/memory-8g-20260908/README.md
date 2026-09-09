@@ -4,33 +4,32 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
-[TRANSITION-READ-AHEAD.md](TRANSITION-READ-AHEAD.md) is the latest complete
-comparison against saved pgaccel, ClickHouse and DuckDB times. It uses one
-frozen module and one long-lived database, Q1 through Q22, nine calls each.
-All **198 answers pass** at **6.968 GiB** peak total memory, with zero sampled
-file-cache charge, zero swap and no memory-limit events. Every warm median
-is below its saved pgaccel, ClickHouse and DuckDB time.
+[TRANSITION-STRINGS.md](TRANSITION-STRINGS.md) is the latest complete comparison
+against saved pgaccel, ClickHouse and DuckDB times. One frozen module executes
+Q1 through Q22 in one database, nine calls each. All **198 answers pass** at
+**6.954 GiB** total peak, with zero sampled file-cache charge, zero swap and
+no memory-limit events. Every warm median meets the saved pgaccel time and
+is below the saved ClickHouse and DuckDB times.
 
-First calls take **1.191–28.888 seconds** and include SQL-specific preparation.
-Their sum falls from 256.221 to 168.749 seconds versus the preceding complete
-chain-domain sweep, combining dense retention, byte dictionary flags and
-read-ahead. This is not an isolated I/O comparison. Warm reuse is not
-equivalent to executing changing SQL at the old fully resident latency.
-Internal admission for arbitrary workloads is also unfinished.
+First calls take **1.044–15.964 seconds** and include SQL-specific preparation.
+Their sum falls from 168.749 to 146.768 seconds versus the preceding complete
+read-ahead sweep. Q13 falls from 28.888 to 12.953 seconds in these sequences.
+The change combines small header buffers, string allocation reuse, amortized
+stream setup and parallel ordered-literal matching. Some warm values are
+slower than the preceding sweep; every sample remains recorded unchanged.
 
-The reader now overlaps O_DIRECT reads using two bounded 8 MiB buffers per
-stream while decoding remains serial. It uses a background pread; io_uring
-has not been added. All 289 native tests, 22 SF1 answers and Python integration
-pass for this module. [Next steps](NEXT-STEPS.md) track the remaining gap.
+The build passes all 295 native tests, Python integration and all 22 SF1
+checks. Payload input uses bounded O_DIRECT read-ahead with two 8 MiB buffers
+per stream; header validation uses 4 KiB without read-ahead. Decoding remains
+serial, while the selected expensive label-matching path uses eight workers.
+No io_uring dependency has been added.
 
-The earlier [chain-domain sweep](TRANSITION-CHAINS.md),
-[1 MiB reader sweep](TRANSITION-SWEEP.md),
-[8 MiB sweep](TRANSITION-NARROW.md),
-[dense-group sweep](TRANSITION-DENSE.md),
-[preparation sweep](TRANSITION-COMPACTION.md),
-[HAVING sweep](TRANSITION-HAVING.md) and
-[run-reduction sweep](TRANSITION-RUNS.md) remain separate evidence. No faster
-individual measurement replaces a slower value in a complete sweep.
+The [remaining input-volume gap](READ-VOLUME-GAP.md) explains why prepared-input
+warm success does not prove resident latency for changing SQL. [Next steps](NEXT-STEPS.md)
+now prioritize lower read volume and safe reuse of original snapshot data.
+The complete [read-ahead sweep](TRANSITION-READ-AHEAD.md) and older reports
+remain separate evidence; no faster individual measurement replaces a slower
+value in a complete sweep.
 
 ## Latest follow-up: parallel ordered-literal matching
 
@@ -38,8 +37,7 @@ individual measurement replaces a slower value in a complete sweep.
 workers for large ordered multi-literal LIKE dictionaries, keeping decoding
 serial. Q13 first-call time falls from 15.281 to 13.019 seconds. All 295 native
 tests, Python integration and all 22 SF1 answers pass. A broader candidate's
-slower Q9 measurement is preserved separately. The next step is a full SF100
-sweep of the final build; the complete comparison above predates this work.
+slower Q9 measurement is preserved separately. The complete comparison above now includes this work.
 
 ## Matching profile and rejected follow-up
 
