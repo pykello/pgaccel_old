@@ -130,8 +130,12 @@ std::optional<Result<QueryOutput>> ExecutePrefixAntiJoin(const QueryDesc &q,bool
                 const auto &rg=table.GetRowGroup(g);auto &frame=frames[g];frame.labels.reserve(frame.phone->dict.size());
                 for(const auto &word:frame.phone->dict) {
                     if(!IsAscii(word) && !IsValidUtf8(word))throw NotDense{};
-                    auto prefix=EvaluateWith(*slice,[&](const ColumnRef &)->Cell{return {0,word,true};});
-                    uint8_t code=0;if(prefix.text.size()==2 && IsAscii(prefix.text))code=lookup[uint8_t(prefix.text[0])|(uint32_t(uint8_t(prefix.text[1]))<<8)];
+                    // The plan proves a two-character leading slice and
+                    // two-byte ASCII literals. A match therefore requires
+                    // two leading ASCII bytes, even with a UTF-8 suffix.
+                    uint8_t code=0;
+                    if(word.size()>=2 && (uint8_t(word[0])|uint8_t(word[1]))<128)
+                        code=lookup[uint8_t(word[0])|(uint32_t(uint8_t(word[1]))<<8)];
                     frame.labels.push_back(code);
                 }
                 auto bytes=reinterpret_cast<uint8_t *>(scratch.data());innerFilters.evaluate(rg,bytes,counts);

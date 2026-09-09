@@ -79,3 +79,14 @@ TEST(PrefixAntiJoin, PreservesRoundedScalarAverageAtFineDecimalBoundaries) {
     auto actual=ExecutePrefixAntiJoin(*q,true,true);ASSERT_TRUE(actual.has_value());ASSERT_TRUE(actual->ok());
     EXPECT_EQ((**actual).values,expected->values);ASSERT_EQ(expected->values.size(),1);EXPECT_EQ(expected->values[0][1],"3");
 }
+
+TEST(PrefixAntiJoin, AsciiPrefixDoesNotHideInvalidUtf8Suffix) {
+    auto integer=std::make_shared<Int64Type>();auto decimal=std::make_shared<DecimalType>();decimal->scale=2;
+    auto tables=test::Table({{test::Raw({1,2,3}),test::Raw({100,200,300}),
+        test::Dict<StringType>({std::string("13")+char(0x80),"31a","13b"})}},
+        {{"k",integer},{"balance",decimal},{"phone",std::make_shared<StringType>()}});
+    auto orders=test::Table({{test::Raw({999})}},{{"c",integer}});
+    tables.emplace("o",std::move(orders.at("t")));
+    auto q=ParseSelect(PrefixSQL(),tables);ASSERT_TRUE(q.ok());
+    EXPECT_FALSE(ExecutePrefixAntiJoin(*q,true,true).has_value());
+}
