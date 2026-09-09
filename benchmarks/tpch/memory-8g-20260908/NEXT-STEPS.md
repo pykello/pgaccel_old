@@ -1,24 +1,26 @@
 # Remaining work toward the 8 GiB performance goal
 
-The [latest complete sweep](TRANSITION-HAVING.md) passes all 198 answers at
-6.882 GiB peak. Q11 now meets its saved warm time (29.873 versus 30.496 ms).
-Q17 and Q18 exceed theirs: 277.730 versus 272.281 ms, and 768.500 versus
-733.755 ms. Preserve the complete run instead of replacing these values with
-faster earlier samples. Their previous narrow margins were insufficient.
+The [latest complete sweep](TRANSITION-RUNS.md) passes all 198 answers at
+6.960 GiB peak. Q17 and Q18 have clear margins at 214.448 and 573.199 ms.
+Q11 alone exceeds its saved warm median: 30.581 versus 30.496 ms. Do not
+rerun merely to select a favorable sample; create more actual headroom.
 
-[Phase profiling](Q17-Q18-PROFILE.md) now identifies Q17 fact probing and
-Q18 sorted aggregation as dominant. A budgeted two-level membership bitmap
-reduces Q17 from 275.683 to 209.781 ms in paired SF100 runs, with all answers
-correct. Contiguous-run reduction then lowers Q18 from 751.764 to 581.259 ms;
-Q11 passes at 27.782 ms. Next, validate both retained changes in one complete
-workload.
-For Q17, investigate whether the filtered part-key domain can safely restrict
-both outer and correlated lineitem uses. Every alias and correlation must
-require the same domain; a single unfiltered use must prevent physical-table
-pruning. This needs a planner proof, not a query-name special case. For Q18,
-measure its grouped membership scan before selecting a segmented-reduction
-or allocation change. Both answers and total transition memory must remain
-verified under the same eight-worker and 8 GiB limits.
+Investigate preparation of a shared join domain for Q11-like scalar subqueries.
+The executor already proves that parent and scalar child share the same fact,
+filters and joins. The preparer currently excludes such multi-scope inputs
+from fact membership pruning. A reusable scope-equivalence proof could allow
+pruning only when every physical-table use requires that same inner-join
+domain. Mismatched predicates, unfiltered uses, correlations, outer joins and
+unsupported scopes must retain the current preparation. This is a proof-driven
+planner improvement, not a query-ID rule. Validate nonempty answers and cases
+where only one scope applies a filter, then measure both preparation and warm
+execution under the total cap.
+
+For preparation latency, also investigate retaining original stripe buffers
+when a necessary filter discards very few rows. This belongs in the query
+preparer, where original predicates still run, not in the public selected-load
+API whose contract requires exact selection. Measure the extra residency and
+warm scan cost; do not assume a density threshold alone guarantees 8 GiB.
 
 1. **Improve preparation and preserve execution margin.** The
    [phase profile](PREPARATION-PROFILE.md) measures Q1 compaction at about
@@ -49,7 +51,7 @@ verified under the same eight-worker and 8 GiB limits.
 
 3. **Reduce preparation without hiding it.** Current warm calls reuse
    SQL-specific projected and filtered input. Changing SQL rereads and
-   reconstructs that input; the latest first calls take 1.5–33.2 seconds.
+   reconstructs that input; the latest first calls take 1.5–32.6 seconds.
    Investigate which retained physical columns or immutable blocks can be
    reused safely across different queries, with explicit byte admission and
    eviction. A representation transformed for one query cannot be treated as

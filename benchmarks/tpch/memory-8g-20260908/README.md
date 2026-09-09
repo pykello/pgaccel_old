@@ -4,17 +4,17 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
-[TRANSITION-HAVING.md](TRANSITION-HAVING.md) is the latest complete comparison
+[TRANSITION-RUNS.md](TRANSITION-RUNS.md) is the latest complete comparison
 against saved pgaccel, ClickHouse and DuckDB times. It includes the
 [8 MiB direct reads](LARGER-READS.md) and [warm-execution changes](WARM-RECOVERY.md).
 The reader remains synchronous `O_DIRECT`; `io_uring` has not been added.
 
 One frozen build executed Q1 through Q22 in one long-lived database, nine
-calls each. All 198 answers pass; cumulative memory peak is **6.882 GiB**, with
-zero sampled file-cache charge, zero swap and no memory-limit events. Q11 now runs in 29.873 ms versus its saved 30.496 ms. Q17 and Q18
-exceed their saved warm times: 277.730 versus 272.281 ms, and 768.500 versus
-733.755 ms. All 22 warm medians are below the saved ClickHouse and DuckDB times.
-First calls take **1.5–33.2 seconds** and include SQL-specific preparation.
+calls each. All 198 answers pass; cumulative memory peak is **6.960 GiB**, with
+zero sampled file-cache charge, zero swap and no memory-limit events. Q17 and Q18 now run in 214.448 and 573.199 ms, below their saved
+272.281 and 733.755 ms. Q11 alone exceeds its saved median: 30.581 versus
+30.496 ms (0.3%). All 22 warm medians are below the saved ClickHouse and DuckDB times.
+First calls take **1.5–32.6 seconds** and include SQL-specific preparation.
 Warm reuse is not equivalent to executing changing SQL from NVMe at the old
 fully resident latency. Internal admission for arbitrary workloads is also
 unfinished. The full goal remains open.
@@ -22,12 +22,14 @@ unfinished. The full goal remains open.
 The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) and
 [previous 8 MiB sweep](TRANSITION-NARROW.md) and
 [dense-group sweep](TRANSITION-DENSE.md), and
-[preparation sweep](TRANSITION-COMPACTION.md) remain separate. No faster
+[preparation sweep](TRANSITION-COMPACTION.md) and
+[HAVING sweep](TRANSITION-HAVING.md) remain separate. No faster
 individual measurement replaces a slower value in a complete sweep.
 The latest module includes the Q22 prefix, Q12 conditional-count preparation,
 scoped arithmetic gathers, and Q1 observed dictionary-pair reductions. It
 also includes parallel compaction, final-slot dictionary decoding and
-fixed-width compaction, and adaptive HAVING pruning. It passes all 282 native tests, all 22 SF1 answers and Python integration.
+fixed-width compaction, adaptive HAVING pruning, hierarchical membership
+and contiguous-run reduction. It passes all 284 native tests, all 22 SF1 answers and Python integration.
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
@@ -37,7 +39,7 @@ cross-query residency and measured asynchronous-I/O experiments.
 A budgeted summary of nonempty membership words reduces Q17 warm time from
 275.683 to 209.781 ms in paired SF100 runs. Both pass nine answers under
 8 GiB; all 283 tests, 22 SF1 answers and Python integration pass. This
-follow-up is not yet included in the complete comparison above. Subsequent
+change is included in the complete comparison above. Subsequent
 contiguous-run reduction improves Q18 from 751.764 to 581.259 ms, and Q11
 passes at 27.782 ms. All 284 tests and SF1 checks pass for that final module.
 
@@ -47,8 +49,8 @@ passes at 27.782 ms. All 284 tests and SF1 checks pass for that final module.
 from 49.4 to 1.68 MiB by proving that completed groups cannot pass the final
 threshold. The paired SF100 warm result improves modestly from 28.571 to
 28.181 ms. All 282 tests, 22 SF1 answers and Python integration pass. This
-change is included in the complete comparison above; Q11 now meets its
-saved warm time, while Q17 and Q18 need work.
+change is included in the complete comparison above. Its remaining Q11
+margin is insufficient; the full run retains that slight regression.
 
 ## Preparation profiling and parallel compaction
 

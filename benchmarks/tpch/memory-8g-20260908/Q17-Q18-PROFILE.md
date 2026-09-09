@@ -100,3 +100,12 @@ Evidence: [Q18 control](native-direct-sorted-runs-control-q18-sf100.json),
 [Q18 candidate](native-direct-sorted-runs-q18-sf100.json),
 [Q11 check](native-direct-sorted-runs-q11-sf100.json),
 [SF1 gate](auto-projection-sf1-sorted-runs-gate.json).
+
+
+## Complete combined workload
+
+[TRANSITION-RUNS.md](TRANSITION-RUNS.md) confirms all 198 SF100 answers at
+6.960 GiB peak with zero swap and no memory-limit events. Q17 is 214.448 ms;
+Q18 is 573.199 ms. Both gains hold in the complete workload. Q11 is slightly
+above its saved median at 30.581 versus 30.496 ms, so the full warm target
+remains open. First preparation still takes seconds and remains explicit.
