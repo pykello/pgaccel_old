@@ -104,12 +104,17 @@ filter construction is 56 ms, matching 5884 ms and remapping 440 ms across
 size/type metadata lookups was tested and reverted: Q13 improves only 0.7%
 while Q9 becomes 0.5% slower in the recorded samples.
 
-Next separate literal-byte matching from row-code bitmap application. For a
-parallel matching experiment, retain immutable predicate state, assign whole
-output words to workers, and keep string decoding on the caller. Do not repeat
-the rejected concurrent column-loading design. Preserve literal matching,
-escaping, UTF-8 and negation semantics, and the existing proof that original
-spellings are unused. Record the full costs rather than timing only matching.
+A second profile attributes 5.943 seconds to label matching and only 0.112
+seconds to row-code application. [Parallel ordered-literal matching](PARALLEL-LABELS.md)
+now reduces Q13 first-call time to 13.019 seconds. It uses eight workers and
+word-disjoint label bitmaps for large ordered multi-literal patterns only;
+decoding remains serial. Broader parallel matching slightly regressed Q9 and
+was narrowed. All 295 tests, Python integration and 22 SF1 answers pass.
+
+**Run the complete frozen-build SF100 sweep next.** Header, allocation reuse,
+stream-guard and ordered-literal matching changes postdate the current full
+report. Verify all 198 answers, warm margins, first-call times and total peak
+memory in one database before selecting another preparation optimization.
 
 Q13 still prepares predicate-only strings on every changed statement.
 `PredicateOnlyColumns` proves when every use observes the same predicate,

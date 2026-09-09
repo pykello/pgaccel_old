@@ -32,6 +32,15 @@ The earlier [chain-domain sweep](TRANSITION-CHAINS.md),
 [run-reduction sweep](TRANSITION-RUNS.md) remain separate evidence. No faster
 individual measurement replaces a slower value in a complete sweep.
 
+## Latest follow-up: parallel ordered-literal matching
+
+[The retained preparation path](PARALLEL-LABELS.md) uses the existing eight
+workers for large ordered multi-literal LIKE dictionaries, keeping decoding
+serial. Q13 first-call time falls from 15.281 to 13.019 seconds. All 295 native
+tests, Python integration and all 22 SF1 answers pass. A broader candidate's
+slower Q9 measurement is preserved separately. The next step is a full SF100
+sweep of the final build; the complete comparison above predates this work.
+
 ## Matching profile and rejected follow-up
 
 [Predicate profiling](PREDICATE-PREPARATION.md) attributes 5.884 seconds to
