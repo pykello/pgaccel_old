@@ -48,7 +48,7 @@ ReadValues<StringType>(std::istream &in, int count, std::string *out)
 
 template<class AccelTy>
 static Result<ColumnDataP>
-LoadDictColumnData(std::istream &in, bool aligned)
+LoadDictColumnData(std::istream &in, bool aligned, std::vector<std::string> *scratch = nullptr)
 {
     int dictSize = 0;
     auto result = std::make_shared<DictColumnData<AccelTy>>();
@@ -59,6 +59,8 @@ LoadDictColumnData(std::istream &in, bool aligned)
     // The validated count fixes storage before decoding. Construct strings
     // directly in their final slots, avoiding temporary heap allocations and
     // copies; numeric dictionaries can be read as one contiguous block.
+    if constexpr(std::is_same_v<AccelTy,StringType>)
+        if (scratch) result->dict.swap(*scratch);
     result->dict.resize(dictSize);
     ReadValues<AccelTy>(in, dictSize, result->dict.data());
 
@@ -90,7 +92,7 @@ LoadDictColumnData(std::istream &in, bool aligned)
 }
 
 static Result<ColumnDataP>
-LoadDictColumnData(std::istream &in, AccelType *dataType, bool aligned)
+LoadDictColumnData(std::istream &in, AccelType *dataType, bool aligned, std::vector<std::string> *scratch)
 {
     switch (dataType->type_num())
     {
@@ -99,7 +101,7 @@ LoadDictColumnData(std::istream &in, AccelType *dataType, bool aligned)
         case TypeNum::INT64_TYPE:
             return LoadDictColumnData<Int64Type>(in, aligned);
         case TypeNum::STRING_TYPE:
-            return LoadDictColumnData<StringType>(in, aligned);
+            return LoadDictColumnData<StringType>(in, aligned, scratch);
         case TypeNum::DATE_TYPE:
             return LoadDictColumnData<DateType>(in, aligned);
         case TypeNum::DECIMAL_TYPE:
@@ -182,24 +184,33 @@ LoadRawColumnData(std::istream &in, AccelType *dataType, bool aligned)
     return Status::Invalid("Invalid type for RawColumnDate: ", dataType->type_num());
 }
 
-Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *dataType, bool aligned)
+static Result<ColumnDataP> LoadNativeColumn(std::istream &in, AccelType *dataType, bool aligned,
+                                          std::vector<std::string> *scratch)
 {
     ColumnDataBase::Type type = ColumnDataBase::Type(-1);
     in.read((char *) &type, sizeof(type));
 
     if (!in) return Status::Invalid("Truncated column header");
     bool dictionary = dataType->type_num() == STRING_TYPE || dataType->type_num() == DATE_TYPE;
-    if (type != (dictionary ? DICT_COLUMN_DATA : RAW_COLUMN_DATA))
+    if (type != (dictionary ? ColumnDataBase::DICT_COLUMN_DATA : ColumnDataBase::RAW_COLUMN_DATA))
         return Status::Invalid("Unsupported native layout for logical type");
     switch (type)
     {
         case ColumnDataBase::DICT_COLUMN_DATA:
-            return LoadDictColumnData(in, dataType, aligned);
+            return LoadDictColumnData(in, dataType, aligned, scratch);
         case ColumnDataBase::RAW_COLUMN_DATA:
             return LoadRawColumnData(in, dataType, aligned);
         default:
             return Status::Invalid("Unknown column data type: ", type);
     }
+}
+
+Result<ColumnDataP> ColumnDataBase::Load(std::istream &in, AccelType *type, bool aligned) {
+    return LoadNativeColumn(in,type,aligned,nullptr);
+}
+Result<ColumnDataP> ColumnDataBase::LoadReusingStrings(std::istream &in, AccelType *type,
+                                                    std::vector<std::string> &scratch, bool aligned) {
+    return LoadNativeColumn(in,type,aligned,&scratch);
 }
 
 void

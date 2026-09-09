@@ -98,3 +98,23 @@ TEST(NativeValidation, DictionaryCoverageAtCodeWidthBoundaries) {
         }
     }
 }
+
+TEST(NativeValidation, ReusedStringSlotsStillValidateDictionary) {
+    StringType logical;
+    auto input=test::Dict<StringType>({std::string(100,'a'),std::string(100,'b')});
+    auto *dictionary=static_cast<DictColumnData<StringType>*>(input.get());
+    std::vector<std::string> scratch{std::string(200,'z'),std::string(200,'y')};
+    auto load=[&] {
+        std::stringstream stream;EXPECT_TRUE(dictionary->Save(stream).ok());
+        return ColumnDataBase::LoadReusingStrings(stream,&logical,scratch);
+    };
+    auto valid=load();ASSERT_TRUE(valid.ok());
+    auto *loaded=static_cast<DictColumnData<StringType>*>((*valid).get());
+    EXPECT_EQ(loaded->dict,dictionary->dict);
+    loaded->dict.swap(scratch);
+    dictionary->dict[1]=dictionary->dict[0];
+    EXPECT_FALSE(load().ok());
+    dictionary->dict[1]=std::string(100,'b');
+    dictionary->values[1]=0;EXPECT_FALSE(load().ok());
+    dictionary->values[1]=2;EXPECT_FALSE(load().ok());
+}

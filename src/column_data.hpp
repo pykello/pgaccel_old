@@ -48,6 +48,8 @@ struct ColumnDataBase {
     virtual ~ColumnDataBase() {};
 
     static Result<ColumnDataP> Load(std::istream &in, AccelType *type, bool aligned = false);
+    static Result<ColumnDataP> LoadReusingStrings(std::istream &in, AccelType *type,
+        std::vector<std::string> &scratch, bool aligned = false);
 };
 
 struct DictColumnDataBase: public ColumnDataBase {

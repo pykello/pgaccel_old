@@ -270,10 +270,11 @@ ColumnarTable::LoadImpl(const std::string &tableName,
         }
         if (streams.size() != fieldsToLoad.size()) return Status::Invalid("Unknown direct scan column");
         stats->ioBufferBytes = streams.size() * DirectInput::BufferBytes;
+        std::vector<std::vector<std::string>> stringScratch(streams.size());
         for (int g = 0; g < column_groups[0]; ++g) {
             RowGroup batch;
             for (size_t c = 0; c < streams.size(); ++c) {
-                auto loaded = ColumnDataBase::Load(*streams[c], result->schema_[c].type.get(), aligned);
+                auto loaded = ColumnDataBase::LoadReusingStrings(*streams[c], result->schema_[c].type.get(), stringScratch[c], aligned);
                 if (!loaded.ok()) return loaded.status();
                 if (c && batch.size != (*loaded)->size)
                     return Status::Invalid("Inconsistent native column lengths");
@@ -284,6 +285,11 @@ ColumnarTable::LoadImpl(const std::string &tableName,
             auto accepted = consumer(result->schema_, batch);
             if (!accepted.ok()) return accepted.status();
             if (!*accepted) break;
+            // Only recycle dictionaries released by the consumer. Retained
+            // column pointers keep their original labels and code space.
+            for (size_t c=0;c<batch.columns.size();++c)
+                if (result->schema_[c].type->type_num()==STRING_TYPE && batch.columns[c].use_count()==1)
+                    static_cast<DictColumnData<StringType>&>(*batch.columns[c]).dict.swap(stringScratch[c]);
         }
         for (const auto &stream : streams) {
             stats->bytesRead += stream->bytesRead(); stats->readCalls += stream->readCalls();

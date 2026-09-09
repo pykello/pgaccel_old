@@ -43,3 +43,31 @@ TEST(DirectScan, HeaderModeRejectsCorruptAndTruncatedIdentity) {
     EXPECT_FALSE(ColumnarTable::ScanDirect(path,{"v"},
         [](const auto &,const auto &)->Result<bool>{return true;}).ok());
 }
+
+TEST(DirectScan, RecycledStringsDoNotChangeRetainedColumns) {
+    char path[]="/tmp/pgaccel-string-reuse-XXXXXX";
+    int fd=mkstemp(path);ASSERT_GE(fd,0);close(fd);
+    struct Cleanup {const char *p;~Cleanup(){std::filesystem::remove(p);std::filesystem::remove(std::string(p)+".metadata");}} cleanup{path};
+    std::vector<std::vector<std::string>> labels{
+        {std::string(90,'a'),std::string(90,'b')},
+        {std::string(80,'c'),std::string(80,'d'),std::string(80,'e')},
+        {std::string(70,'f'),std::string(70,'g')},
+        {std::string(150,'h')}};
+    std::vector<std::vector<ColumnDataP>> groups;
+    for(const auto &values:labels)groups.push_back({test::Dict<StringType>(values)});
+    auto table=test::Table(std::move(groups),{{"s",std::make_shared<StringType>()}});
+    for(bool aligned:{false,true}) {
+        ASSERT_TRUE(table.at("t")->Save(path,aligned).ok());
+        ColumnDataP retained;int group=0;
+        auto result=ColumnarTable::ScanDirect(path,{"s"},
+            [&](const auto &,const RowGroup &batch)->Result<bool>{
+                auto &column=static_cast<const DictColumnData<StringType>&>(*batch.columns[0]);
+                EXPECT_EQ(column.dict,labels[group]);
+                if(group==0)retained=batch.columns[0];
+                ++group;return true;
+            });
+        ASSERT_TRUE(result.ok());EXPECT_EQ(group,labels.size());
+        ASSERT_TRUE(retained);
+        EXPECT_EQ(static_cast<const DictColumnData<StringType>&>(*retained).dict,labels[0]);
+    }
+}
