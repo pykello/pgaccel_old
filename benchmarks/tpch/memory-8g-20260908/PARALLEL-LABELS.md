@@ -39,3 +39,40 @@ The broader implementation is saved as a
 [SF1 gate](auto-projection-sf1-parallel-labels-gate.json).
 It is not the final dispatch policy; its timings must not be substituted for
 the narrowed build's results.
+
+## Retained ordered-sequence path
+
+Commit `d2d8dd5` requires the existing ordered-literal sequence fast path in
+addition to the dictionary-size and parallel-preparation gates. That path
+recognizes ASCII LIKE patterns containing at least two ordered literal pieces
+between percent wildcards, without underscore or escape syntax. Non-ASCII
+candidate strings retain the existing exact regex fallback. NOT LIKE keeps
+its existing negation semantics. No query number or specific literal is
+hard-coded in dispatch.
+
+All 295 native tests, Python integration and all 22 SF1 answers pass.
+The added test compares every predicate bit at row and task boundaries,
+including 8191/8192/8193 and 65536 labels, scalar and AVX execution, negation,
+non-ASCII data and fallback predicates.
+
+| Query/final build | First call s | Warm median ms | Total peak GiB |
+|---|---:|---:|---:|
+| Q13 | 13.019 | 545.600 | 1.792 |
+| Q9 | 15.663 | 1582.993 | 2.759 |
+
+Both final runs use nine calls in fresh processes under the same 8 GiB cap
+with zero permitted swap; all 18 typed answers pass. Relative to the recorded
+string-guard controls, Q13 first-call time improves about 14.8%. Q9 uses the
+previous single-substring path; its 15.663-second first call and slower warm
+sample are recorded as observed, not attributed to parallel sequence matching.
+These are individual runs without confidence intervals.
+
+Evidence: [Q13](native-direct-parallel-sequence-q13-sf100.json),
+[Q9](native-direct-parallel-sequence-q9-sf100.json),
+[SF1 gate](auto-projection-sf1-parallel-sequence-gate.json).
+
+The next required check is a complete frozen-build SF100 sweep after the
+retained header and string-preparation changes. The existing
+[complete read-ahead report](TRANSITION-READ-AHEAD.md) remains intact and
+predates them. First-call times still include statement-specific preparation;
+these gains do not establish general cross-query residency within 8 GiB.
