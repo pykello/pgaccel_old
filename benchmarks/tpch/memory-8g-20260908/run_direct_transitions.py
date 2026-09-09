@@ -21,8 +21,13 @@ if len(sys.argv) > 1 and sys.argv[1] == '--worker':
     spec.loader.exec_module(native)
     group = Path('/sys/fs/cgroup') / Path('/proc/self/cgroup').read_text().strip().split('::', 1)[1].lstrip('/')
     def memory():
-        return {key: int((group / ('memory.' + key)).read_text())
-                for key in ['current', 'peak', 'max', 'swap.max']}
+        result = {key: int((group / ('memory.' + key)).read_text())
+                  for key in ['current', 'peak', 'max', 'swap.max']}
+        stats = dict(line.split() for line in (group / 'memory.stat').read_text().splitlines())
+        result.update({key: int(stats[key]) for key in ['anon', 'file', 'kernel']})
+        result['events'] = {key: int(value) for key, value in
+                            (line.split() for line in (group / 'memory.events').read_text().splitlines())}
+        return result
     with native.Database(str(work / 'sf100/native'), direct=True,
                          memory_bytes=768 * 2**20) as db:
         for step, query in enumerate(queries):
@@ -74,6 +79,10 @@ report['correct'] = all(equivalent(t['rows'], oracles[t['query']]['trials'][0]['
 report['memory_verified'] = bool(trials) and all(
     m['max'] == 8 * 2**30 and m['swap.max'] == 0 and m['peak'] <= 8 * 2**30
     for t in trials for m in [t['before'], t['after']])
+report['reuse_verified'] = all(
+    (t['direct_load_bytes'] > 0) == (t['trial'] == 0 and
+        (t['step'] == 0 or args.queries[t['step']] != args.queries[t['step'] - 1]))
+    for t in trials)
 report['steps'] = []
 for step, query in enumerate(args.queries):
     ts = [t for t in trials if t['step'] == step]
@@ -82,5 +91,5 @@ for step, query in enumerate(args.queries):
         warm_client_ms=statistics.median(t['client_ms'] for t in ts[1:]) if len(ts)>1 else None))
 save_report(root, f'native-transitions-{args.tag}-sf100.json', report)
 print(json.dumps({k: v for k, v in report.items() if k not in ['measurements', 'command', 'stderr']}, indent=2))
-if not all(report[k] for k in ['complete', 'correct', 'memory_verified']):
+if not all(report[k] for k in ['complete', 'correct', 'memory_verified', 'reuse_verified']):
     raise SystemExit('Transition validation failed; partial evidence retained')
