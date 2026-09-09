@@ -65,3 +65,25 @@ preparation improvement; these few observations do not establish a stable
 percentage gain. Q12's highly selective stripes largely retain the serial
 policy. These isolated measurements do not replace the complete-sweep table.
 The next check covers allocator retention across different SQL statements.
+
+## Query transitions after parallel compaction
+
+The [five-step transition run](native-transitions-parallel-compact-sf100.json)
+executes Q1, Q9, Q12, Q21, then Q1 again in one long-lived database. All 45
+answers pass; every SQL change rereads input and every repeated call reuses
+only prepared columns. The cumulative live cgroup peak is **6.890 GiB**,
+with zero sampled file charge, zero swap and no memory-limit or OOM events.
+
+| Step | Query | First call s | Warm median ms |
+|---|---|---:|---:|
+| 1 | Q1 | 25.845 | 356.755 |
+| 2 | Q9 | 20.191 | 1565.388 |
+| 3 | Q12 | 11.150 | 171.459 |
+| 4 | Q21 | 17.089 | 640.237 |
+| 5 | Q1 | 26.170 | 369.369 |
+
+This proves bounded residency for this transition sequence, not every query
+or arbitrary input. Q9 and Q21 warm times are slower than the previous full
+sweep but remain below the saved fully resident pgaccel medians. Keep these
+observations intact. The complete 22-query report still refers to the earlier
+module; a later complete sweep must use one final build after further work.
