@@ -1,0 +1,2623 @@
+{
+  "runner_sha256": "6e6224508d55b07ccb012ebb4829fbd8dead63f98f2c46ec18443ff17f13eec4",
+  "snapshot": "/home/hadi/projects/tpch-work/sf100/native",
+  "snapshots": [
+    {
+      "table": "customer",
+      "bytes": 2463898622,
+      "mtime_ns": 1788645514841316008,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 1137144600710405353 17127765399689851036",
+      "metadata_sha256": "9fbd7143830b5f986f536b578a6df14304d214dedb9a88dc46559d768b668ebf"
+    },
+    {
+      "table": "lineitem",
+      "bytes": 38047511101,
+      "mtime_ns": 1788646381587107658,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 6696079501164452753 10250962498703962458",
+      "metadata_sha256": "0acf8c7d196da0670b9ee6628c16e5df13734937e42d132015f34396b49bbdf3"
+    },
+    {
+      "table": "nation",
+      "bytes": 2422,
+      "mtime_ns": 1788645472250773700,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 14226546034852733962 9102772736082260493",
+      "metadata_sha256": "3f2507cbb4dae5e7b74cf50db1b62a6eb38c7fdec0e18f3fd79e298590dbb665"
+    },
+    {
+      "table": "orders",
+      "bytes": 13112482867,
+      "mtime_ns": 1788645836636419150,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 403967603828949374 7675066056931383360",
+      "metadata_sha256": "2be9fc338c0099605a45a03a8fd29eafb67d0739baf60fb4b6160d027955d90b"
+    },
+    {
+      "table": "part",
+      "bytes": 1367679676,
+      "mtime_ns": 1788645552548796314,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 14769595935535237896 9211728238504215948",
+      "metadata_sha256": "ea2c7eac7739acc59986626b311b249a0b3ff2b0ac5f41698cca9fb45b5514f5"
+    },
+    {
+      "table": "partsupp",
+      "bytes": 11451007975,
+      "mtime_ns": 1788645642842947053,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 2687152299376363317 12476207738402605923",
+      "metadata_sha256": "68ec2f5a65a20526f9c67f536ee368522f59ee4213f3fac4eb7ad4f254d9bc84"
+    },
+    {
+      "table": "region",
+      "bytes": 487,
+      "mtime_ns": 1788645472229773433,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 7951814244225289277 9698513884100733044",
+      "metadata_sha256": "3bf0c4086ebcd8b034bc5195fa3ea029fa465d21d5e337404fc1c7e7fe5ff450"
+    },
+    {
+      "table": "supplier",
+      "bytes": 153306136,
+      "mtime_ns": 1788645474356800511,
+      "identity_header": "PGACCEL_SNAPSHOT 1 little 4 8 4 65536 14971369464186002300 5042280112599171920",
+      "metadata_sha256": "036bab9be87de769b53eb3cb21b5ac8105d8c1d622cd1fe08b0e049ac652b43c"
+    }
+  ],
+  "sql_sha256": {
+    "1": "f5b91004137e609374a73cceaf9226598e93c937bc38aa61d8a22f5088ff62d9",
+    "2": "d415d2eb7966c704b3bd9b5a252bfaec207643ed593c83151c9213cabd862383",
+    "3": "73f486ad51a065b1fb449c90edc1563fa3865a617681970f5de2f52e6c68ac69",
+    "4": "545bf448a444ef759afbc6e3a6f838b620a38136ec28d4bda858d1e59d0b37cc",
+    "5": "f6e3336d1a1a11269321792dd6c276fa7c9e0ed0998895fb76098b1aa89775b3",
+    "6": "98b88b193d427f818f0f923acffe73c4d82cd2587a5ec7ecca0ac81d51a52d90",
+    "7": "6919da657163855aab8273d6ca0b38ed6259b04b75b298b7a826741f3d59c5b4",
+    "8": "12f6fd5f30dbdc284d4779eecef6383c7bc89598c29106729e3ee4672502e9ce",
+    "9": "ffb470c5b7cac40c3465dba9ae055bf0722dd4e6bdea007f4261f269711db564",
+    "10": "22db5599906505c498cb713756e7cdc556dd913146cdcef4d407b80e0ace43d7",
+    "11": "0bc64cd9111c0b616240bc6afaa9beced976593dc2489460e57f5329bda9d8a4",
+    "12": "9232f1080af42ef57af2a9f759536537bd2701b773b345760aa77976cb094efe",
+    "13": "584921edb3d7d10ca7a6a31b6cb0e6164b2bf71b2d2b8eced002ed2b61e04611",
+    "14": "070949acfd4aca6551be98f4a9bb46d8093a4c6142051b94ada58092302b8f68",
+    "15": "3f6c85d74d04a0df389d8cdb9fe8310c02bbe76a9e37b4bef8eab2b6a8544da6",
+    "16": "8e7a5d035d60df3dc0dfb01aea92afdbdb742c3d6f83c585850680390d9a8b12",
+    "17": "da436e2736a6c1f71667e2e20464c00ed5c23c6d895fe5be63a3521e6eaea326",
+    "18": "b295647dde893ee7e6bc4ed9fa3fa135db2988a82f2d397211a4a222e2bcd46e",
+    "19": "de453db653139252224b52af97486efe04515f6d628aa0ec6cf2dd5619c0afa4",
+    "20": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+    "21": "7218fbe354d0b9e0e6bef8309fa16ae13a11919dfebb91ad078adb774bcd25fa",
+    "22": "8f246df348430afa43f64e9942bcaad736dd57318820d517b1a3bead0de19775"
+  },
+  "queries": [
+    {
+      "query": 1,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_linestatus",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600239334
+        },
+        {
+          "table": "lineitem",
+          "column": "l_quantity",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1200332172
+        },
+        {
+          "table": "lineitem",
+          "column": "l_returnflag",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600285114
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        },
+        {
+          "table": "lineitem",
+          "column": "l_tax",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        }
+      ],
+      "full_column_bytes": 7294256100,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 2,
+      "columns": [
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "nation",
+          "column": "n_regionkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "part",
+          "column": "p_mfgr",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 20031212
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        },
+        {
+          "table": "part",
+          "column": "p_size",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 20006120
+        },
+        {
+          "table": "part",
+          "column": "p_type",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 21132812
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 319903116
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_supplycost",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "region",
+          "column": "r_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 71
+        },
+        {
+          "table": "region",
+          "column": "r_regionkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 25
+        },
+        {
+          "table": "supplier",
+          "column": "s_acctbal",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        },
+        {
+          "table": "supplier",
+          "column": "s_address",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 30997472
+        },
+        {
+          "table": "supplier",
+          "column": "s_comment",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 68307040
+        },
+        {
+          "table": "supplier",
+          "column": "s_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 24000192
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_phone",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 21000192
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 1254456816,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 3,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_mktsegment",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 15017633
+        },
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 322056804
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_shippriority",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 150045780
+        }
+      ],
+      "full_column_bytes": 8440767999,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 4,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_commitdate",
+          "string_predicate_only": false,
+          "date_predicate_only": true,
+          "native_bytes": 1290365008
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_receiptdate",
+          "string_predicate_only": false,
+          "date_predicate_only": true,
+          "native_bytes": 1292767388
+        },
+        {
+          "table": "orders",
+          "column": "o_orderdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 322056804
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderpriority",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 150169386
+        }
+      ],
+      "full_column_bytes": 6055830654,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 5,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 15004580
+        },
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "nation",
+          "column": "n_regionkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 322056804
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "region",
+          "column": "r_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 71
+        },
+        {
+          "table": "region",
+          "column": "r_regionkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 25
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 9403715446,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 6,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_quantity",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1200332172
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        }
+      ],
+      "full_column_bytes": 5493437382,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 7,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 15004580
+        },
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        },
+        {
+          "table": "lineitem",
+          "column": "l_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 10374061465,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 8,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 15004580
+        },
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "nation",
+          "column": "n_regionkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 322056804
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        },
+        {
+          "table": "part",
+          "column": "p_type",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 21132812
+        },
+        {
+          "table": "region",
+          "column": "r_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 71
+        },
+        {
+          "table": "region",
+          "column": "r_regionkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 25
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 11905264802,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 9,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_quantity",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1200332172
+        },
+        {
+          "table": "lineitem",
+          "column": "l_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "orders",
+          "column": "o_orderdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 322056804
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "part",
+          "column": "p_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 774985535
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 319903116
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_supplycost",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 14144345964,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 10,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_acctbal",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_address",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 464973679
+        },
+        {
+          "table": "customer",
+          "column": "c_comment",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1173884576
+        },
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 360002748
+        },
+        {
+          "table": "customer",
+          "column": "c_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 15004580
+        },
+        {
+          "table": "customer",
+          "column": "c_phone",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 315002558
+        },
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_returnflag",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 600285114
+        },
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 322056804
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        }
+      ],
+      "full_column_bytes": 9972461648,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 11,
+      "columns": [
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_availqty",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 160034188
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 319903116
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_supplycost",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 1125006807,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 12,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_commitdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1290365008
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_receiptdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292767388
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipmode",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600678822
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderpriority",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 150169386
+        }
+      ],
+      "full_column_bytes": 7626855636,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 13,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "orders",
+          "column": "o_comment",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 8149130661
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        }
+      ],
+      "full_column_bytes": 9409265257,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 14,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        },
+        {
+          "table": "part",
+          "column": "p_type",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 21132812
+        }
+      ],
+      "full_column_bytes": 6794654566,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 15,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        },
+        {
+          "table": "lineitem",
+          "column": "l_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "supplier",
+          "column": "s_address",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 30997472
+        },
+        {
+          "table": "supplier",
+          "column": "s_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 24000192
+        },
+        {
+          "table": "supplier",
+          "column": "s_phone",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 21000192
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 6773511490,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 16,
+      "columns": [
+        {
+          "table": "part",
+          "column": "p_brand",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 20095472
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        },
+        {
+          "table": "part",
+          "column": "p_size",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 20006120
+        },
+        {
+          "table": "part",
+          "column": "p_type",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 21132812
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 319903116
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "supplier",
+          "column": "s_comment",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 68307040
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 853487764,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 17,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_quantity",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1200332172
+        },
+        {
+          "table": "part",
+          "column": "p_brand",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 20095472
+        },
+        {
+          "table": "part",
+          "column": "p_container",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 20145350
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        }
+      ],
+      "full_column_bytes": 6121397514,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 18,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 360002748
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_quantity",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1200332172
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 322056804
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_totalprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        }
+      ],
+      "full_column_bytes": 6142998388,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 19,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_discount",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600294270
+        },
+        {
+          "table": "lineitem",
+          "column": "l_extendedprice",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_quantity",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1200332172
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipinstruct",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 600733758
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipmode",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600678822
+        },
+        {
+          "table": "part",
+          "column": "p_brand",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 20095472
+        },
+        {
+          "table": "part",
+          "column": "p_container",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 20145350
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        },
+        {
+          "table": "part",
+          "column": "p_size",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 20006120
+        }
+      ],
+      "full_column_bytes": 7943110484,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 20,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_quantity",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1200332172
+        },
+        {
+          "table": "lineitem",
+          "column": "l_shipdate",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1292402964
+        },
+        {
+          "table": "lineitem",
+          "column": "l_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "part",
+          "column": "p_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 774985535
+        },
+        {
+          "table": "part",
+          "column": "p_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 80008568
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_availqty",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 160034188
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_partkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 319903116
+        },
+        {
+          "table": "partsupp",
+          "column": "ps_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 320034188
+        },
+        {
+          "table": "supplier",
+          "column": "s_address",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 30997472
+        },
+        {
+          "table": "supplier",
+          "column": "s_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 24000192
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 9008515474,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 21,
+      "columns": [
+        {
+          "table": "lineitem",
+          "column": "l_commitdate",
+          "string_predicate_only": false,
+          "date_predicate_only": true,
+          "native_bytes": 1290365008
+        },
+        {
+          "table": "lineitem",
+          "column": "l_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "lineitem",
+          "column": "l_receiptdate",
+          "string_predicate_only": false,
+          "date_predicate_only": true,
+          "native_bytes": 1292767388
+        },
+        {
+          "table": "lineitem",
+          "column": "l_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 2400407976
+        },
+        {
+          "table": "nation",
+          "column": "n_name",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 314
+        },
+        {
+          "table": "nation",
+          "column": "n_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 45
+        },
+        {
+          "table": "orders",
+          "column": "o_orderkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        },
+        {
+          "table": "orders",
+          "column": "o_orderstatus",
+          "string_predicate_only": true,
+          "date_predicate_only": false,
+          "native_bytes": 150061803
+        },
+        {
+          "table": "supplier",
+          "column": "s_name",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 24000192
+        },
+        {
+          "table": "supplier",
+          "column": "s_nationkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 1000320
+        },
+        {
+          "table": "supplier",
+          "column": "s_suppkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 4000448
+        }
+      ],
+      "full_column_bytes": 8163075562,
+      "row_set": "not inferred; preparation may compact rows"
+    },
+    {
+      "query": 22,
+      "columns": [
+        {
+          "table": "customer",
+          "column": "c_acctbal",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 60006412
+        },
+        {
+          "table": "customer",
+          "column": "c_phone",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 315002558
+        },
+        {
+          "table": "orders",
+          "column": "o_custkey",
+          "string_predicate_only": false,
+          "date_predicate_only": false,
+          "native_bytes": 600064092
+        }
+      ],
+      "full_column_bytes": 1035079474,
+      "row_set": "not inferred; preparation may compact rows"
+    }
+  ],
+  "columns": [
+    {
+      "table": "customer",
+      "column": "c_custkey",
+      "offset": 24,
+      "bytes": 60006412,
+      "groups": 229,
+      "type_num": 2,
+      "queries": [
+        3,
+        5,
+        7,
+        8,
+        10,
+        13,
+        18,
+        22
+      ]
+    },
+    {
+      "table": "customer",
+      "column": "c_name",
+      "offset": 60006436,
+      "bytes": 360002748,
+      "groups": 229,
+      "type_num": 0,
+      "queries": [
+        10,
+        18
+      ]
+    },
+    {
+      "table": "customer",
+      "column": "c_address",
+      "offset": 420009184,
+      "bytes": 464973679,
+      "groups": 229,
+      "type_num": 0,
+      "queries": [
+        10
+      ]
+    },
+    {
+      "table": "customer",
+      "column": "c_nationkey",
+      "offset": 884982863,
+      "bytes": 15004580,
+      "groups": 229,
+      "type_num": 1,
+      "queries": [
+        5,
+        7,
+        8,
+        10
+      ]
+    },
+    {
+      "table": "customer",
+      "column": "c_phone",
+      "offset": 899987443,
+      "bytes": 315002558,
+      "groups": 229,
+      "type_num": 0,
+      "queries": [
+        10,
+        22
+      ]
+    },
+    {
+      "table": "customer",
+      "column": "c_acctbal",
+      "offset": 1214990001,
+      "bytes": 60006412,
+      "groups": 229,
+      "type_num": 3,
+      "queries": [
+        10,
+        22
+      ]
+    },
+    {
+      "table": "customer",
+      "column": "c_mktsegment",
+      "offset": 1274996413,
+      "bytes": 15017633,
+      "groups": 229,
+      "type_num": 0,
+      "queries": [
+        3
+      ]
+    },
+    {
+      "table": "customer",
+      "column": "c_comment",
+      "offset": 1290014046,
+      "bytes": 1173884576,
+      "groups": 229,
+      "type_num": 0,
+      "queries": [
+        10
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_orderkey",
+      "offset": 24,
+      "bytes": 2400407976,
+      "groups": 9156,
+      "type_num": 2,
+      "queries": [
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10,
+        12,
+        18,
+        21
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_partkey",
+      "offset": 2400408000,
+      "bytes": 2400407976,
+      "groups": 9156,
+      "type_num": 2,
+      "queries": [
+        8,
+        9,
+        14,
+        17,
+        19,
+        20
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_suppkey",
+      "offset": 4800815976,
+      "bytes": 2400407976,
+      "groups": 9156,
+      "type_num": 2,
+      "queries": [
+        5,
+        7,
+        8,
+        9,
+        15,
+        20,
+        21
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_linenumber",
+      "offset": 7201223952,
+      "bytes": 600294270,
+      "groups": 9156,
+      "type_num": 2,
+      "queries": []
+    },
+    {
+      "table": "lineitem",
+      "column": "l_quantity",
+      "offset": 7801518222,
+      "bytes": 1200332172,
+      "groups": 9156,
+      "type_num": 3,
+      "queries": [
+        1,
+        6,
+        9,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_extendedprice",
+      "offset": 9001850394,
+      "bytes": 2400407976,
+      "groups": 9156,
+      "type_num": 3,
+      "queries": [
+        1,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        14,
+        15,
+        17,
+        19
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_discount",
+      "offset": 11402258370,
+      "bytes": 600294270,
+      "groups": 9156,
+      "type_num": 3,
+      "queries": [
+        1,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        14,
+        15,
+        19
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_tax",
+      "offset": 12002552640,
+      "bytes": 600294270,
+      "groups": 9156,
+      "type_num": 3,
+      "queries": [
+        1
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_returnflag",
+      "offset": 12602846910,
+      "bytes": 600285114,
+      "groups": 9156,
+      "type_num": 0,
+      "queries": [
+        1,
+        10
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_linestatus",
+      "offset": 13203132024,
+      "bytes": 600239334,
+      "groups": 9156,
+      "type_num": 0,
+      "queries": [
+        1
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_shipdate",
+      "offset": 13803371358,
+      "bytes": 1292402964,
+      "groups": 9156,
+      "type_num": 4,
+      "queries": [
+        1,
+        3,
+        6,
+        7,
+        12,
+        14,
+        15,
+        20
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_commitdate",
+      "offset": 15095774322,
+      "bytes": 1290365008,
+      "groups": 9156,
+      "type_num": 4,
+      "queries": [
+        4,
+        12,
+        21
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_receiptdate",
+      "offset": 16386139330,
+      "bytes": 1292767388,
+      "groups": 9156,
+      "type_num": 4,
+      "queries": [
+        4,
+        12,
+        21
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_shipinstruct",
+      "offset": 17678906718,
+      "bytes": 600733758,
+      "groups": 9156,
+      "type_num": 0,
+      "queries": [
+        19
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_shipmode",
+      "offset": 18279640476,
+      "bytes": 600678822,
+      "groups": 9156,
+      "type_num": 0,
+      "queries": [
+        12,
+        19
+      ]
+    },
+    {
+      "table": "lineitem",
+      "column": "l_comment",
+      "offset": 18880319298,
+      "bytes": 19167191803,
+      "groups": 9156,
+      "type_num": 0,
+      "queries": []
+    },
+    {
+      "table": "nation",
+      "column": "n_nationkey",
+      "offset": 24,
+      "bytes": 45,
+      "groups": 1,
+      "type_num": 1,
+      "queries": [
+        2,
+        5,
+        7,
+        8,
+        9,
+        10,
+        11,
+        20,
+        21
+      ]
+    },
+    {
+      "table": "nation",
+      "column": "n_name",
+      "offset": 69,
+      "bytes": 314,
+      "groups": 1,
+      "type_num": 0,
+      "queries": [
+        2,
+        5,
+        7,
+        8,
+        9,
+        10,
+        11,
+        20,
+        21
+      ]
+    },
+    {
+      "table": "nation",
+      "column": "n_regionkey",
+      "offset": 383,
+      "bytes": 45,
+      "groups": 1,
+      "type_num": 1,
+      "queries": [
+        2,
+        5,
+        8
+      ]
+    },
+    {
+      "table": "nation",
+      "column": "n_comment",
+      "offset": 428,
+      "bytes": 1994,
+      "groups": 1,
+      "type_num": 0,
+      "queries": []
+    },
+    {
+      "table": "orders",
+      "column": "o_orderkey",
+      "offset": 24,
+      "bytes": 600064092,
+      "groups": 2289,
+      "type_num": 2,
+      "queries": [
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        18,
+        21
+      ]
+    },
+    {
+      "table": "orders",
+      "column": "o_custkey",
+      "offset": 600064116,
+      "bytes": 600064092,
+      "groups": 2289,
+      "type_num": 2,
+      "queries": [
+        3,
+        5,
+        7,
+        8,
+        10,
+        13,
+        18,
+        22
+      ]
+    },
+    {
+      "table": "orders",
+      "column": "o_orderstatus",
+      "offset": 1200128208,
+      "bytes": 150061803,
+      "groups": 2289,
+      "type_num": 0,
+      "queries": [
+        21
+      ]
+    },
+    {
+      "table": "orders",
+      "column": "o_totalprice",
+      "offset": 1350190011,
+      "bytes": 600064092,
+      "groups": 2289,
+      "type_num": 3,
+      "queries": [
+        18
+      ]
+    },
+    {
+      "table": "orders",
+      "column": "o_orderdate",
+      "offset": 1950254103,
+      "bytes": 322056804,
+      "groups": 2289,
+      "type_num": 4,
+      "queries": [
+        3,
+        4,
+        5,
+        8,
+        9,
+        10,
+        18
+      ]
+    },
+    {
+      "table": "orders",
+      "column": "o_orderpriority",
+      "offset": 2272310907,
+      "bytes": 150169386,
+      "groups": 2289,
+      "type_num": 0,
+      "queries": [
+        4,
+        12
+      ]
+    },
+    {
+      "table": "orders",
+      "column": "o_clerk",
+      "offset": 2422480293,
+      "bytes": 2390826133,
+      "groups": 2289,
+      "type_num": 0,
+      "queries": []
+    },
+    {
+      "table": "orders",
+      "column": "o_shippriority",
+      "offset": 4813306426,
+      "bytes": 150045780,
+      "groups": 2289,
+      "type_num": 1,
+      "queries": [
+        3
+      ]
+    },
+    {
+      "table": "orders",
+      "column": "o_comment",
+      "offset": 4963352206,
+      "bytes": 8149130661,
+      "groups": 2289,
+      "type_num": 0,
+      "queries": [
+        13
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_partkey",
+      "offset": 24,
+      "bytes": 80008568,
+      "groups": 306,
+      "type_num": 2,
+      "queries": [
+        2,
+        8,
+        9,
+        14,
+        16,
+        17,
+        19,
+        20
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_name",
+      "offset": 80008592,
+      "bytes": 774985535,
+      "groups": 306,
+      "type_num": 0,
+      "queries": [
+        9,
+        20
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_mfgr",
+      "offset": 854994127,
+      "bytes": 20031212,
+      "groups": 306,
+      "type_num": 0,
+      "queries": [
+        2
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_brand",
+      "offset": 875025339,
+      "bytes": 20095472,
+      "groups": 306,
+      "type_num": 0,
+      "queries": [
+        16,
+        17,
+        19
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_type",
+      "offset": 895120811,
+      "bytes": 21132812,
+      "groups": 306,
+      "type_num": 0,
+      "queries": [
+        2,
+        8,
+        14,
+        16
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_size",
+      "offset": 916253623,
+      "bytes": 20006120,
+      "groups": 306,
+      "type_num": 1,
+      "queries": [
+        2,
+        16,
+        19
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_container",
+      "offset": 936259743,
+      "bytes": 20145350,
+      "groups": 306,
+      "type_num": 0,
+      "queries": [
+        17,
+        19
+      ]
+    },
+    {
+      "table": "part",
+      "column": "p_retailprice",
+      "offset": 956405093,
+      "bytes": 80008568,
+      "groups": 306,
+      "type_num": 3,
+      "queries": []
+    },
+    {
+      "table": "part",
+      "column": "p_comment",
+      "offset": 1036413661,
+      "bytes": 331266015,
+      "groups": 306,
+      "type_num": 0,
+      "queries": []
+    },
+    {
+      "table": "partsupp",
+      "column": "ps_partkey",
+      "offset": 24,
+      "bytes": 319903116,
+      "groups": 1221,
+      "type_num": 2,
+      "queries": [
+        2,
+        9,
+        11,
+        16,
+        20
+      ]
+    },
+    {
+      "table": "partsupp",
+      "column": "ps_suppkey",
+      "offset": 319903140,
+      "bytes": 320034188,
+      "groups": 1221,
+      "type_num": 2,
+      "queries": [
+        2,
+        9,
+        11,
+        16,
+        20
+      ]
+    },
+    {
+      "table": "partsupp",
+      "column": "ps_availqty",
+      "offset": 639937328,
+      "bytes": 160034188,
+      "groups": 1221,
+      "type_num": 2,
+      "queries": [
+        11,
+        20
+      ]
+    },
+    {
+      "table": "partsupp",
+      "column": "ps_supplycost",
+      "offset": 799971516,
+      "bytes": 320034188,
+      "groups": 1221,
+      "type_num": 3,
+      "queries": [
+        2,
+        9,
+        11
+      ]
+    },
+    {
+      "table": "partsupp",
+      "column": "ps_comment",
+      "offset": 1120005704,
+      "bytes": 10331002271,
+      "groups": 1221,
+      "type_num": 0,
+      "queries": []
+    },
+    {
+      "table": "region",
+      "column": "r_regionkey",
+      "offset": 24,
+      "bytes": 25,
+      "groups": 1,
+      "type_num": 1,
+      "queries": [
+        2,
+        5,
+        8
+      ]
+    },
+    {
+      "table": "region",
+      "column": "r_name",
+      "offset": 49,
+      "bytes": 71,
+      "groups": 1,
+      "type_num": 0,
+      "queries": [
+        2,
+        5,
+        8
+      ]
+    },
+    {
+      "table": "region",
+      "column": "r_comment",
+      "offset": 120,
+      "bytes": 367,
+      "groups": 1,
+      "type_num": 0,
+      "queries": []
+    },
+    {
+      "table": "supplier",
+      "column": "s_suppkey",
+      "offset": 24,
+      "bytes": 4000448,
+      "groups": 16,
+      "type_num": 2,
+      "queries": [
+        2,
+        5,
+        7,
+        8,
+        9,
+        11,
+        15,
+        16,
+        20,
+        21
+      ]
+    },
+    {
+      "table": "supplier",
+      "column": "s_name",
+      "offset": 4000472,
+      "bytes": 24000192,
+      "groups": 16,
+      "type_num": 0,
+      "queries": [
+        2,
+        15,
+        20,
+        21
+      ]
+    },
+    {
+      "table": "supplier",
+      "column": "s_address",
+      "offset": 28000664,
+      "bytes": 30997472,
+      "groups": 16,
+      "type_num": 0,
+      "queries": [
+        2,
+        15,
+        20
+      ]
+    },
+    {
+      "table": "supplier",
+      "column": "s_nationkey",
+      "offset": 58998136,
+      "bytes": 1000320,
+      "groups": 16,
+      "type_num": 1,
+      "queries": [
+        2,
+        5,
+        7,
+        8,
+        9,
+        11,
+        20,
+        21
+      ]
+    },
+    {
+      "table": "supplier",
+      "column": "s_phone",
+      "offset": 59998456,
+      "bytes": 21000192,
+      "groups": 16,
+      "type_num": 0,
+      "queries": [
+        2,
+        15
+      ]
+    },
+    {
+      "table": "supplier",
+      "column": "s_acctbal",
+      "offset": 80998648,
+      "bytes": 4000448,
+      "groups": 16,
+      "type_num": 3,
+      "queries": [
+        2
+      ]
+    },
+    {
+      "table": "supplier",
+      "column": "s_comment",
+      "offset": 84999096,
+      "bytes": 68307040,
+      "groups": 16,
+      "type_num": 0,
+      "queries": [
+        2,
+        16
+      ]
+    }
+  ],
+  "note": "Original physical column spans, not decoded RSS, actual I/O, cache eligibility or query-plan selection. Predicate flags use existing binding proofs; row pruning is not inferred."
+}
