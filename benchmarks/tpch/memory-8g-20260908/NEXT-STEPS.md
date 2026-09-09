@@ -183,3 +183,17 @@ or whole-column reuse; separately opened payload descriptors must agree with
 the validated identity. Keep cached sources immutable, expose hit/read counts,
 and measure combined query/cache memory on transitions. No runtime cache is
 active yet; the SF100 report is unchanged.
+
+## Original-block cache integrated and measured
+
+[CACHE-SCANS.md](CACHE-SCANS.md) records the optional cache and same-build
+zero-cache control. Both pass all 198 SF100 answers below 8 GiB. Enabling the
+512 MiB cache increases first-call sum from 148.678 to 153.500 seconds and
+peak memory from 6.988 to 7.385 GiB, saving only 0.60% of direct reads.
+Keep it disabled. It is a validated ownership mechanism, not a retained speedup.
+
+The next work should target substantial preparation cost. Small-column reuse
+alone has insufficient read savings. Any further cache change needs to avoid
+additional miss read-ahead and mutable-output copies. For first-use costs,
+continue the compact/searchable comments investigation described above rather
+than claiming the input cache solves Q13 or the changed-SQL timing gap.

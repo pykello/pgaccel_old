@@ -2,9 +2,22 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
-## Latest: all 22 queries pass in one 8 GiB database
+## Latest: cache comparison completed
 
-[TRANSITION-STRINGS.md](TRANSITION-STRINGS.md) is the latest complete comparison
+[TRANSITION-CACHE-CONTROL.md](TRANSITION-CACHE-CONTROL.md) is the latest full
+comparison for the default configuration: all 198 answers pass at **6.988 GiB**
+peak, and every warm median meets the saved pgaccel baseline. First calls total
+148.678 seconds and still include SQL-specific preparation.
+
+The optional 512 MiB original-block cache also passes all answers under 8 GiB,
+but raises first-call time to 153.500 seconds and peak memory to 7.385 GiB while
+saving only 0.60% of direct reads. It remains disabled by default. The
+[CACHE-SCANS.md](CACHE-SCANS.md) experiment records the implementation, both
+complete runs, and the decision. All 299 native tests and Python integration pass.
+
+## Preceding retained string-preparation sweep
+
+[TRANSITION-STRINGS.md](TRANSITION-STRINGS.md) is the preceding complete comparison
 against saved pgaccel, ClickHouse and DuckDB times. One frozen module executes
 Q1 through Q22 in one database, nine calls each. All **198 answers pass** at
 **6.954 GiB** total peak, with zero sampled file-cache charge, zero swap and

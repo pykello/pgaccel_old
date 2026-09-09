@@ -1,5 +1,8 @@
 # Bounded original-block cache foundation
 
+Later integration and measurements: [CACHE-SCANS.md](CACHE-SCANS.md). The
+statements below describe the earlier foundation checkpoint.
+
 This checkpoint adds snapshot identities and cache ownership. **The cache is
 not connected to direct scans or query execution.** It changes neither the
 measured SQL preparation boundary nor the latest SF100 performance results.
