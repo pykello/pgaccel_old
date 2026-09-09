@@ -17,7 +17,7 @@ public:
     };
     using Block=std::shared_ptr<const ColumnDataBase>;
 private:
-    struct Entry { Key key; Block block; uint64_t charge; };
+    struct Entry { Key key; Block block; uint64_t charge, endOffset; };
     using Queue=std::list<Entry>;
     using Index=std::map<Key,Queue::iterator>;
     Queue entries_;
@@ -38,20 +38,22 @@ public:
         if(*block>UINT64_MAX-overhead)return {};
         return *block+overhead;
     }
-    Block Find(const Key &key) {
+    Block Find(const Key &key, uint64_t *endOffset = nullptr) {
         if(!key.snapshot)return {};
         auto found=index_.find(key);if(found==index_.end())return {};
         entries_.splice(entries_.begin(),entries_,found->second);
+        if(endOffset)*endOffset=found->second->endOffset;
         return found->second->block;
     }
-    bool Insert(const Key &key,const ColumnDataP &block,const AccelType &type) {
+    bool Insert(const Key &key,const ColumnDataP &block,const AccelType &type,
+                uint64_t endOffset = 0) {
         if(!key.snapshot || !block || key.type!=type.type_num())return false;
         auto charge=Charge(*block,type);if(!charge || *charge>limit_)return false;
         // An identity/offset/stripe names immutable content. Do not replace a
         // live entry using caller-provided data for the same source location.
         if(Find(key))return true;
         while(bytes_>limit_-*charge)evict();
-        entries_.push_front({key,block,*charge});
+        entries_.push_front({key,block,*charge,endOffset});
         try { index_.emplace(key,entries_.begin()); }
         catch (...) { entries_.pop_front();throw; }
         bytes_+=*charge;return true;

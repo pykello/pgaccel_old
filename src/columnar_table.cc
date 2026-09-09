@@ -3,6 +3,8 @@
 #include "columnar_table.h"
 #include "util.h"
 #include "direct_input.hpp"
+#include "native_block_cache.hpp"
+#include <numeric>
 
 #include <execution>
 #include <iostream>
@@ -114,13 +116,13 @@ ColumnarTable::LoadSchema(const std::string &name, const std::string &path) {
 
 Result<DirectScanStats>
 ColumnarTable::ScanDirect(const std::string &path, const std::set<std::string> &fields,
-                         const ScanConsumer &consumer) {
+                         const ScanConsumer &consumer, NativeBlockCache *cache) {
     if (!consumer || fields.empty()) return Status::Invalid("Direct scan needs columns and a consumer");
     try {
         DirectInput data(path,DirectInput::Mode::Header);
         std::ifstream metadata(path + ".metadata");
         DirectScanStats stats;
-        auto result = LoadImpl("scan", metadata, data, fields, &path, consumer, &stats);
+        auto result = LoadImpl("scan", metadata, data, fields, &path, consumer, &stats, false, cache);
         if (!result.ok()) return result.status();
         stats.bytesRead += data.bytesRead(); stats.readCalls += data.readCalls();
         stats.ioBufferBytes += data.bufferBytes();
@@ -140,7 +142,7 @@ ColumnarTable::LoadImpl(const std::string &tableName,
                     std::istream& dataStream,
                     std::optional<std::set<std::string>> maybeFields,
                     const std::string *directPath, const ScanConsumer &consumer,
-                    DirectScanStats *stats, bool schemaOnly)
+                    DirectScanStats *stats, bool schemaOnly, NativeBlockCache *cache)
 {
     auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
     result->name_ = tableName;
@@ -259,9 +261,18 @@ ColumnarTable::LoadImpl(const std::string &tableName,
 
     if (directPath) {
         std::vector<std::unique_ptr<DirectInput>> streams;
+        std::vector<uint64_t> sourceOffsets;
+        std::vector<bool> cacheable;
         for (int c = 0; c < numCols; ++c) {
             if (!fieldsToLoad.count(column_descs[c].name)) continue;
             auto stream = std::make_unique<DirectInput>(*directPath);
+            if (result->snapshot_identity_ && stream->fileStamp()!=result->snapshot_identity_->file)
+                return Status::Invalid("Snapshot changed while opening direct scan");
+            sourceOffsets.push_back(column_positions[c]);
+            auto end = c+1<numCols ? column_positions[c+1] : stream->fileStamp()[2];
+            cacheable.push_back(cache && result->snapshot_identity_ &&
+                end>=column_positions[c] && end<=stream->fileStamp()[2] &&
+                end-column_positions[c]<=(64ULL<<20));
             stream->seekg(column_positions[c]);
             if (!*stream) return Status::Invalid("Invalid native column offset");
             auto desc = column_descs[c];
@@ -276,8 +287,37 @@ ColumnarTable::LoadImpl(const std::string &tableName,
         for (int g = 0; g < column_groups[0]; ++g) {
             RowGroup batch;
             for (size_t c = 0; c < streams.size(); ++c) {
-                auto loaded = ColumnDataBase::LoadReusingStrings(*streams[c], result->schema_[c].type.get(), stringScratch[c], aligned);
-                if (!loaded.ok()) return loaded.status();
+                auto &logical = *result->schema_[c].type;
+                NativeBlockCache::Key key{result->snapshot_identity_, sourceOffsets[c], uint32_t(g), logical.type_num()};
+                uint64_t endOffset = 0;
+                auto hit = cacheable[c] ? cache->Find(key, &endOffset) : NativeBlockCache::Block{};
+                ColumnDataP owned;
+                if (hit) {
+                    if (endOffset<=uint64_t(streams[c]->tellg()) || endOffset>streams[c]->fileStamp()[2])
+                        return Status::Invalid("Invalid cached native stripe offset");
+                    streams[c]->seekg(endOffset);
+                    ++stats->cacheHits;
+                } else {
+                    if(cacheable[c])++stats->cacheMisses;
+                    auto loaded = ColumnDataBase::LoadReusingStrings(*streams[c], &logical, stringScratch[c], aligned);
+                    if (!loaded.ok()) return loaded.status();
+                    owned = std::move(loaded).ValueUnsafe();
+                    if(cacheable[c]) {
+                        auto end = streams[c]->tellg();
+                        if(end<0)return Status::Invalid("Invalid native stripe end");
+                        if(cache->Insert(key, owned, logical, uint64_t(end)))hit=owned;
+                    }
+                }
+                // The public consumer owns mutable columns. Never expose a
+                // cached source through that API, including on first admission.
+                if(hit) {
+                    std::vector<uint16_t> rows(hit->size);
+                    std::iota(rows.begin(),rows.end(),uint16_t(0));
+                    auto copied=CompactNativeColumn(*hit,logical,rows);
+                    if(!copied.ok())return copied.status();
+                    owned=std::move(copied).ValueUnsafe();
+                }
+                Result<ColumnDataP> loaded(std::move(owned));
                 if (c && batch.size != (*loaded)->size)
                     return Status::Invalid("Inconsistent native column lengths");
                 batch.size = (*loaded)->size;
@@ -344,7 +384,8 @@ ColumnarTable::LoadImpl(const std::string &tableName,
 namespace pgaccel {
 Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name,
     const std::string &path, const std::set<std::string> &fields,
-    const RowSelector &select, DirectScanStats *io, const ColumnTransform &transform, bool parallel) {
+    const RowSelector &select, DirectScanStats *io, const ColumnTransform &transform, bool parallel,
+    NativeBlockCache *cache) {
     auto schema = LoadSchema(name, path); if (!schema.ok()) return schema.status();
     auto result = ColumnarTableP(new ColumnarTable()); result->name_ = name;
     std::set<std::string> normalized;
@@ -386,7 +427,7 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
             compact.columns[c]=std::move(column).ValueUnsafe();
         }
         result->row_groups_.push_back(std::move(compact)); return true;
-    });
+    }, cache);
     if (!scan.ok()) return scan.status();
     if (io) *io = *scan;
     return result;

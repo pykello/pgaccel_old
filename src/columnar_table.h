@@ -30,12 +30,14 @@ struct RowGroup {
 struct DirectScanStats {
     uint64_t rows = 0, groups = 0, bytesRead = 0, readCalls = 0;
     uint64_t ioBufferBytes = 0;
+    uint64_t cacheHits = 0, cacheMisses = 0;
 };
 using ColumnTransform = std::function<Result<ColumnDataP>(const ColumnDesc &,const ColumnDataP &)>;
 using RowSelector = std::function<Result<std::vector<uint16_t>>(const std::vector<ColumnDesc> &, const RowGroup &)>;
 using ScanConsumer = std::function<Result<bool>(const std::vector<ColumnDesc> &, const RowGroup &)>;
 
 class GlobalDictionary;
+class NativeBlockCache;
 struct DictionaryColumnStats {
     int column;
     uint64_t values, bytes, peakBytes;
@@ -94,12 +96,14 @@ public:
     static Result<ColumnarTableP> LoadSchema(const std::string &name, const std::string &path);
 
     static Result<DirectScanStats> ScanDirect(const std::string &path,
-        const std::set<std::string> &fields, const ScanConsumer &consumer);
+        const std::set<std::string> &fields, const ScanConsumer &consumer,
+        NativeBlockCache *cache = nullptr);
 
     static Result<ColumnarTableP> LoadDirectSelected(const std::string &name,
         const std::string &path, const std::set<std::string> &fields,
         const RowSelector &select, DirectScanStats *io = nullptr,
-        const ColumnTransform &transform = {}, bool parallel = false);
+        const ColumnTransform &transform = {}, bool parallel = false,
+        NativeBlockCache *cache = nullptr);
 
     Result<bool> Save(const std::string &path, bool aligned = false);
     Result<bool> Save(std::ostream& metadataStream,
@@ -135,7 +139,7 @@ private:
         std::optional<std::set<std::string>> fields,
         const std::string *directPath = nullptr,
         const ScanConsumer &consumer = {}, DirectScanStats *stats = nullptr,
-        bool schemaOnly = false);
+        bool schemaOnly = false, NativeBlockCache *cache = nullptr);
 
     std::vector<ColumnDesc> schema_;
     std::vector<RowGroup> row_groups_;

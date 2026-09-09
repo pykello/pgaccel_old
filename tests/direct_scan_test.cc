@@ -1,5 +1,6 @@
 #include "test_table.hpp"
 #include "direct_input.hpp"
+#include "native_block_cache.hpp"
 #include <gtest/gtest.h>
 #include <chrono>
 #include <filesystem>
@@ -98,4 +99,47 @@ TEST(DirectScan, CacheIdentityRequiresValidatedVersionedDirectInput) {
      meta<<"1\n0 1 v "<<INT64_TYPE<<'\n';ASSERT_TRUE(test::Raw({4})->Save(data).ok());}
     auto legacy=ColumnarTable::LoadSchema("t",path);ASSERT_TRUE(legacy.ok());
     EXPECT_FALSE((*legacy)->SnapshotIdentity());
+}
+
+TEST(DirectScan, CacheSkipsVariableStripesAndIsolatesMutableConsumers) {
+    char path[]="/tmp/pgaccel-cache-scan-XXXXXX";
+    int fd=mkstemp(path);ASSERT_GE(fd,0);close(fd);
+    struct Cleanup {const char *p;~Cleanup(){std::filesystem::remove(p);std::filesystem::remove(std::string(p)+".metadata");}} cleanup{path};
+    std::vector<std::vector<std::string>> labels{{"a",std::string(100,'z')},{"bb"},{"ccc","dddd","eee"}};
+    auto table=test::Table({{test::Raw({1,2}),test::Dict<StringType>(labels[0])},
+                           {test::Raw({3}),test::Dict<StringType>(labels[1])},
+                           {test::Raw({4,5,6}),test::Dict<StringType>(labels[2])}},
+                          {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    for(bool aligned:{false,true}) {
+        ASSERT_TRUE(table.at("t")->Save(path,aligned).ok());
+        NativeBlockCache cache(1<<20);
+        int group=0;bool early=true;
+        auto scan=[&] {
+            group=0;
+            return ColumnarTable::ScanDirect(path,{"v","s"},[&](const auto &,const RowGroup &batch)->Result<bool>{
+                EXPECT_EQ(batch.size,labels[group].size());
+                auto &strings=static_cast<DictColumnData<StringType>&>(*batch.columns[1]);
+                EXPECT_EQ(strings.dict,labels[group]);
+                // Deliberately mutate consumer data. Subsequent hits must
+                // still contain the original source labels and row codes.
+                strings.dict[0]="changed";
+                strings.values[0]=255;
+                ++group;return !early;
+            },&cache);
+        };
+        auto first=scan();ASSERT_TRUE(first.ok());EXPECT_EQ(group,1);
+        EXPECT_EQ(first->cacheMisses,2);EXPECT_EQ(first->cacheHits,0);
+        early=false;
+        auto mixed=scan();ASSERT_TRUE(mixed.ok());EXPECT_EQ(group,3);
+        EXPECT_EQ(mixed->cacheHits,2);EXPECT_EQ(mixed->cacheMisses,4);
+        auto warm=scan();ASSERT_TRUE(warm.ok());EXPECT_EQ(group,3);
+        EXPECT_EQ(warm->cacheHits,6);EXPECT_EQ(warm->cacheMisses,0);
+        EXPECT_LT(warm->bytesRead,mixed->bytesRead);
+        ASSERT_TRUE(table.at("t")->Save(path,aligned).ok());
+        auto replaced=scan();ASSERT_TRUE(replaced.ok());
+        EXPECT_EQ(replaced->cacheHits,0);EXPECT_EQ(replaced->cacheMisses,6);
+        cache.SetLimit(0);
+        auto disabled=scan();ASSERT_TRUE(disabled.ok());
+        EXPECT_EQ(disabled->cacheHits,0);EXPECT_EQ(cache.Size(),0);
+    }
 }
