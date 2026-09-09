@@ -96,3 +96,27 @@ TEST(DirectJoinMembership, ConditionalCountsPruneGroupedInputAndPreserveDimensio
         EXPECT_EQ(p->tables.at("d")->GetRowGroup(0).size,3);
     }
 }
+
+TEST(DirectJoinMembership, SharedScalarScopesRequireIdenticalDomains) {
+    char directory[]="/tmp/pgaccel-shared-domain-XXXXXX";ASSERT_NE(mkdtemp(directory),nullptr);
+    struct Cleanup{const char *p;~Cleanup(){std::filesystem::remove_all(p);}}cleanup{directory};
+    auto tables=test::Table({{test::Raw({1,2,3}),test::Raw({5,7,11})},
+        {test::Raw({1,2,3}),test::Raw({13,17,19})}},
+        {{"k",std::make_shared<Int64Type>()},{"v",std::make_shared<Int64Type>()}});
+    auto d=test::Table({{test::Raw({1,2,3}),test::Raw({1,0,0})}},
+        {{"k",std::make_shared<Int64Type>()},{"keep",std::make_shared<Int64Type>()}});
+    tables.emplace("d",std::move(d.at("t")));
+    for(const auto &[name,table]:tables)ASSERT_TRUE(table->Save(std::string(directory)+"/"+name+".pgaccel").ok());
+    for(const std::string inner:{" AND d.keep=1"," AND d.keep=0",""}) {
+        auto sql="SELECT t.k,sum(t.v) FROM t,d WHERE t.k=d.k AND d.keep=1 GROUP BY t.k HAVING sum(t.v)>"
+            "(SELECT sum(t.v)*0.1 FROM t,d WHERE t.k=d.k"+inner+") ORDER BY t.k";
+        auto q=ParseSelect(sql,tables);ASSERT_TRUE(q.ok())<<q.status().Message();
+        EXPECT_EQ(DirectSharedJoinScopes(*q),inner==" AND d.keep=1");
+        auto expected=ExecuteQuery(*q,true,true);ASSERT_TRUE(expected.ok());
+        auto prepared=PrepareDirectQuery(directory,sql);ASSERT_TRUE(prepared.ok())<<prepared.status().Message();
+        auto actual=ExecuteQuery(prepared->query,true,true);ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,expected->values);
+        int rows=0;for(int g=0;g<prepared->tables.at("t")->RowGroupCount();++g)rows+=prepared->tables.at("t")->GetRowGroup(g).size;
+        EXPECT_EQ(rows,inner==" AND d.keep=1"?2:6);
+        EXPECT_EQ(prepared->tables.at("d")->GetRowGroup(0).size,3);
+    }
+}

@@ -42,11 +42,14 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         auto predicateColumns=PredicateOnlyColumns(*parsed);
         auto datePredicates=DatePredicateOnlyColumns(*parsed);
         auto scopeFilters=DirectSingleTableFilters(*parsed);
-        // Join-membership pruning is scope-local. Separate single-table
-        // filters above must be necessary across every physical-table use.
-        bool push = parsed->leftJoins.empty() && parsed->existenceJoins.empty() &&
-            parsed->scalarQueries.empty() && parsed->membershipQueries.empty() &&
-            parsed->materializedSources.empty();
+        // Scalar scopes may share physical pruning only after every use is
+        // proved to require the same inner-join domain. Execution keeps the
+        // original scalar queries and recomputes their results each time.
+        bool push = parsed->scalarQueries.empty()
+            ? parsed->leftJoins.empty() && parsed->existenceJoins.empty() &&
+              parsed->membershipQueries.empty() && parsed->materializedSources.empty()
+            : DirectSharedJoinScopes(*parsed);
+        if(push)preparation.scalarQueries.clear();
         // Preserve dimension key sequences used by the current join kernels.
         // For multiple tables, compact only one SUM-input table. Sparse
         // dimension materialization needs a different row-directory contract.
