@@ -50,6 +50,12 @@ tests, Python integration, 22 SF1 answers and the SF100 checks pass.
 Warm medians and controls are preserved in the report; this does not
 replace the complete warm sweep or establish changing-query latency.
 
+## Rejected follow-up: concurrent column loading
+
+[The experiment](PARALLEL-LOAD-EXPERIMENT.md) passes correctness and memory
+checks but increases Q13 first-call latency from 29.776 to 76.008 seconds.
+It was reverted; the implementation patch and slower measurements are saved.
+
 ## Q11 preparation: shared scalar domain proof
 
 [Shared-domain preparation](SHARED-DOMAIN-PREPARATION.md) now proves when

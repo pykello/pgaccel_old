@@ -15,11 +15,16 @@ with any later implementation checked against the preserved warm baseline.
 [Dense retention](DENSE-RETENTION.md) now retains original stripe buffers
 when a necessary filter discards very few rows. Q1 first-call time improves
 from 20.505 to 12.444 seconds, with a warm-time increase to 407.976 ms.
-Validate transition memory, then profile the remaining native loading and
-validation costs before choosing another preparation optimization. This belongs in the query
-preparer, where original predicates still run, not in the public selected-load
-API whose contract requires exact selection. Measure the extra residency and
-warm scan cost; do not assume a density threshold alone guarantees 8 GiB.
+The Q1 → Q21 → Q1 transition check passes all 27 answers at 6.907 GiB.
+[Byte dictionary flags](NATIVE-VALIDATION.md) further reduce Q1 first-call
+time to 11.465 seconds and Q13 to 29.776 seconds. All 288 native tests,
+Python integration and all 22 SF1 answers pass for the retained build.
+
+[Concurrent column loading](PARALLEL-LOAD-EXPERIMENT.md) was tested and
+rejected: Q1 improves only to 11.240 seconds while Q13 regresses to 76.008
+seconds. Its source and test patch are preserved, not enabled. Keep decoding
+on the caller in a future bounded asynchronous-read experiment; this result
+does not isolate I/O from allocator and scheduling effects.
 
 1. **Improve preparation and preserve execution margin.** The
    [phase profile](PREPARATION-PROFILE.md) measures Q1 compaction at about
