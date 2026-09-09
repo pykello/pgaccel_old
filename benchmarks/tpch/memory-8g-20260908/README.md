@@ -31,6 +31,14 @@ The complete [read-ahead sweep](TRANSITION-READ-AHEAD.md) and older reports
 remain separate evidence; no faster individual measurement replaces a slower
 value in a complete sweep.
 
+## Original input inventory
+
+[The parser-backed inventory](INPUT-INVENTORY.md) identifies 53 required
+columns occupying 31.381 GiB on disk. Seventeen repeatedly used columns below
+64 MiB each total 283.619 MiB; decoded cache admission still needs measurement.
+Q13 alone requires the 7.589 GiB orders comments column. The inventory and
+cross-scale checks are committed; no runtime cache is claimed yet.
+
 ## Latest follow-up: parallel ordered-literal matching
 
 [The retained preparation path](PARALLEL-LABELS.md) uses the existing eight

@@ -137,3 +137,23 @@ Measure Q13 end-to-end and a second predicate-only query, then verify the
 all-query correctness gate and total memory. This is preparation work;
 statement-specific transformed columns still do not provide cross-query
 residency. Internal byte admission and safe reuse remain separate open work.
+
+## Original-column inventory completed
+
+[INPUT-INVENTORY.md](INPUT-INVENTORY.md) now records all 22 parser-bound
+requirements and original native spans. SF1 and SF100 dependency/proof sets
+agree. The required union is 31.381 GiB on disk; 17 repeatedly used columns
+smaller than 64 MiB each total 283.619 MiB. These are not decoded-memory sizes
+or proof that selected/compact outputs can be reused.
+
+The next implementation is a byte-admitted cache of original snapshot column
+blocks, beginning with small repeated dimensions. Establish owned-memory
+accounting and snapshot identity first, then supply hits before selection and
+transformation in the scan/load paths. Do not cache statement-specific prepared
+tables. Test retention, eviction, identity changes and cross-query row alignment,
+then measure actual bytes avoided and total 8 GiB memory on SQL transitions.
+
+Also investigate a compact/searchable comments representation: o_comment is
+7.589 GiB and appears only in Q13. A small-dimension cache cannot remove that
+query's dominant first-use input cost. Keep index verification, decompression,
+and original query execution inside the appropriate measured boundary.
