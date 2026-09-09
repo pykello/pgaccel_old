@@ -36,7 +36,8 @@ ColumnDataP CompactDictionary(const ColumnDataBase &source, const std::vector<ui
     auto output = std::make_shared<DictColumnData<Logical>>();
     output->type = source.type; output->size = rows.size(); output->valueType = input.valueType;
     std::vector<int> remap(input.dict.size(), -1);
-    auto code = [&](uint16_t row) { return input.bytesPerValue()==1 ? input.values[row]
+    const bool narrowInput = input.bytesPerValue()==1;
+    auto code = [&](uint16_t row) { return narrowInput ? input.values[row]
         : reinterpret_cast<const uint16_t *>(input.values)[row]; };
     for (auto row: rows) {
         auto id = code(row);
@@ -46,10 +47,13 @@ ColumnDataP CompactDictionary(const ColumnDataBase &source, const std::vector<ui
     for (size_t i=0; i<remap.size(); ++i) if (remap[i]==0) {
         remap[i] = output->dict.size(); output->dict.push_back(input.dict[i]);
     }
-    output->values = static_cast<uint8_t *>(AllocateAligned(512, rows.size()*output->bytesPerValue()));
+    // Dictionary sizes are fixed throughout each copy pass. Resolve virtual
+    // width accessors once rather than for every selected row.
+    const int outputWidth = output->bytesPerValue();
+    output->values = static_cast<uint8_t *>(AllocateAligned(512, rows.size()*outputWidth));
     for (size_t i=0; i<rows.size(); ++i) {
         auto id = remap[code(rows[i])];
-        if (output->bytesPerValue()==1) output->values[i] = id;
+        if (outputWidth==1) output->values[i] = id;
         else reinterpret_cast<uint16_t *>(output->values)[i] = id;
     }
     return output;
