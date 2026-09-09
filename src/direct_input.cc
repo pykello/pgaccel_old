@@ -11,7 +11,7 @@
 
 namespace pgaccel {
 class DirectInput::Buffer final : public std::streambuf {
-    static constexpr size_t blockSize = 1 << 20;
+    static constexpr size_t blockSize = DirectInput::BufferBytes;
     int fd = -1;
     char *buffer = nullptr;
     uint64_t length = 0, start = 0, next = 0;
@@ -59,7 +59,7 @@ public:
             throw std::runtime_error("Direct input requires a regular snapshot file");
         }
         length = uint64_t(st.st_size);
-        // 4 KiB addresses and 1 MiB offsets/lengths meet this backend's
+        // 4 KiB addresses and 8 MiB offsets/lengths meet this backend's
         // alignment contract. Unsupported device/filesystem alignment fails
         // explicitly at pread; no cached descriptor is opened as a fallback.
         buffer = static_cast<char *>(std::aligned_alloc(4096, blockSize));

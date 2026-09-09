@@ -1,4 +1,5 @@
 #include "test_table.hpp"
+#include "direct_input.hpp"
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <unistd.h>
@@ -17,7 +18,7 @@ TEST(DirectScan, ProjectionOwnedBatchesAndEarlyStop) {
             if(!calls)retained=batch.columns[0];++calls;return true;
         });
         ASSERT_TRUE(result.ok())<<result.status().Message();EXPECT_EQ(result->rows,5);EXPECT_EQ(calls,2);
-        EXPECT_EQ(result->ioBufferBytes,2<<20);EXPECT_GT(result->bytesRead,0);
+        EXPECT_EQ(result->ioBufferBytes,2*DirectInput::BufferBytes);EXPECT_GT(result->bytesRead,0);
         EXPECT_EQ(reinterpret_cast<RawColumnDataBase *>(retained.get())->values[0],1);
         auto early=ColumnarTable::ScanDirect(path,{"s"},[](const auto &,const auto &)->Result<bool>{return false;});
         ASSERT_TRUE(early.ok());EXPECT_EQ(early->groups,1);EXPECT_EQ(early->rows,3);

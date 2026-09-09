@@ -24,7 +24,7 @@ inline Result<ColumnarTableP> LoadDirectTable(const std::string &name,
         if (io) {
             *io = {};
             io->bytesRead = data.bytesRead(); io->readCalls = data.readCalls();
-            io->ioBufferBytes = 1 << 20; io->groups = (*result)->RowGroupCount();
+            io->ioBufferBytes = DirectInput::BufferBytes; io->groups = (*result)->RowGroupCount();
             for (int g=0;g<(*result)->RowGroupCount();++g)io->rows+=(*result)->GetRowGroup(g).size;
         }
         return std::move(result).ValueUnsafe();

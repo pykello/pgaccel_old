@@ -122,7 +122,7 @@ ColumnarTable::ScanDirect(const std::string &path, const std::set<std::string> &
         auto result = LoadImpl("scan", metadata, data, fields, &path, consumer, &stats);
         if (!result.ok()) return result.status();
         stats.bytesRead += data.bytesRead(); stats.readCalls += data.readCalls();
-        stats.ioBufferBytes += 1 << 20;
+        stats.ioBufferBytes += DirectInput::BufferBytes;
         return stats;
     } catch (const std::exception &e) { return Status::Invalid(e.what()); }
 }
@@ -268,7 +268,7 @@ ColumnarTable::LoadImpl(const std::string &tableName,
             streams.push_back(std::move(stream));
         }
         if (streams.size() != fieldsToLoad.size()) return Status::Invalid("Unknown direct scan column");
-        stats->ioBufferBytes = streams.size() * (1 << 20);
+        stats->ioBufferBytes = streams.size() * DirectInput::BufferBytes;
         for (int g = 0; g < column_groups[0]; ++g) {
             RowGroup batch;
             for (size_t c = 0; c < streams.size(); ++c) {
