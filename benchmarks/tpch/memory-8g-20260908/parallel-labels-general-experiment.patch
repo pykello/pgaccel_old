@@ -1,0 +1,133 @@
+diff --git a/src/direct_query.hpp b/src/direct_query.hpp
+index d1b2b3d..78b4e55 100644
+--- a/src/direct_query.hpp
++++ b/src/direct_query.hpp
+@@ -176,7 +176,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
+                 }
+                 if(predicates==predicateColumns.end())return ColumnDataP(data);
+                 auto found=predicates->second.find(column.name);
+-                return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx);
++                return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx,parallel);
+             };
+             auto table=filters.empty() && memberships.empty() && !transform
+                 ? LoadDirectTable(name,paths.at(schema.get()).string(),fields->second,&io)
+diff --git a/src/executor_filter_values.cc b/src/executor_filter_values.cc
+index 6e19f24..34127ee 100644
+--- a/src/executor_filter_values.cc
++++ b/src/executor_filter_values.cc
+@@ -1,4 +1,5 @@
+ #include "executor_state.hpp"
++#include "executor_tasks.hpp"
+ #include <re2/re2.h>
+ #include <array>
+ #include <immintrin.h>
+@@ -12,6 +13,7 @@ class ValuePredicate : public FilterNodeImpl {
+   std::string needle;
+   std::vector<std::string> sequence;
+   bool substring = false, prefix = false, negate = false, avx;
++  bool parallelLabels=false;
+   StringSignature required;
+   bool compactIntegers=false;int64_t compactFirst=0;uint64_t compactBits=0;
+   std::unordered_set<Cell, Hash> members;
+@@ -117,6 +119,25 @@ class ValuePredicate : public FilterNodeImpl {
+           }
+         }
+         for (; i < size; ++i) if (signatures[i].mayContain(required)) exact(i);
++      } else if (parallelLabels && dict->dictSize()>=8192) {
++        const int size=dict->dictSize(),words=(size+31)/32;
++        const auto type=f.columnRef.Type()->type_num();
++        // Whole words belong to one task. Round task boundaries to cache
++        // lines and join all readers before applying the row-code bitmap.
++        const int wordsPerTask=((words+7)/8+15)/16*16;
++        RunTasks(8,[&](int task) {
++          int end=std::min(words,(task+1)*wordsPerTask);
++          for(int word=task*wordsPerTask;word<end;++word) {
++            uint32_t selected=0;
++            for(int i=word*32;i<std::min(size,(word+1)*32);++i) {
++              bool yes=!signatures.empty() && !signatures[i].mayContain(required)
++                  ? negate : matches(Label(dict,i,type));
++              if(yes)selected|=uint32_t(1)<<(i%32);
++            }
++            labels[word]=selected;
++          }
++          return 0;
++        });
+       } else {
+         for (int i = 0; i < dict->dictSize(); ++i) {
+           bool yes = !signatures.empty() && !signatures[i].mayContain(required)
+@@ -217,7 +238,7 @@ class ValuePredicate : public FilterNodeImpl {
+   }
+ 
+ public:
+-  explicit ValuePredicate(const FilterClause &clause, bool useAvx) : f(clause), avx(useAvx) {
++  explicit ValuePredicate(const FilterClause &clause, bool useAvx, bool parallel=false) : f(clause), avx(useAvx), parallelLabels(parallel) {
+     negate = f.op == FilterClause::FILTER_NOT_LIKE ||
+              f.op == FilterClause::FILTER_NOT_IN;
+     if (f.op == FilterClause::FILTER_LIKE ||
+@@ -305,4 +326,7 @@ public:
+ FilterNodeP CreateValuePredicate(const FilterClause &f, bool avx) {
+   return std::make_unique<ValuePredicate>(f, avx);
+ }
++FilterNodeP CreateParallelValuePredicate(const FilterClause &f, bool avx) {
++  return std::make_unique<ValuePredicate>(f,avx,true);
++}
+ } // namespace pgaccel
+diff --git a/src/predicate_columns.hpp b/src/predicate_columns.hpp
+index 6558a61..450f5ef 100644
+--- a/src/predicate_columns.hpp
++++ b/src/predicate_columns.hpp
+@@ -52,13 +52,15 @@ inline PredicateColumnMap PredicateOnlyColumns(const QueryDesc &root) {
+         if(!u.value && u.predicate)result[table].emplace(name,*u.predicate);
+     return result;
+ }
++FilterNodeP CreateParallelValuePredicate(const FilterClause &,bool avx);
+ inline Result<ColumnDataP> PredicateDictionary(const ColumnDataP &source,
+-                                             FilterClause filter,bool avx) {
++                                             FilterClause filter,bool avx,bool parallel=false) {
+     if(source->type!=ColumnDataBase::DICT_COLUMN_DATA || filter.columnRef.Type()->type_num()!=STRING_TYPE)
+         return Status::Invalid("Predicate dictionary needs native string data");
+     const auto &input=static_cast<const DictColumnData<StringType>&>(*source);
+     filter.columnRef.tableIdx=0;filter.columnRef.columnIdx=0;
+-    auto node=CreateFilterNode({filter},avx);
++    auto node=parallel && filter.op>=FilterClause::FILTER_LIKE && filter.op<=FilterClause::FILTER_NOT_IN
++        ? CreateParallelValuePredicate(filter,avx) : CreateFilterNode({filter},avx);
+     RowGroup batch;batch.columns={source};batch.size=source->size;
+     uint8_t bitmap[RowGroupSize/8]{};node->ExecuteSet(batch,bitmap);
+     auto output=std::make_shared<DictColumnData<StringType>>();
+diff --git a/tests/predicate_columns_test.cc b/tests/predicate_columns_test.cc
+index 1e20d5d..e920918 100644
+--- a/tests/predicate_columns_test.cc
++++ b/tests/predicate_columns_test.cc
+@@ -51,3 +51,32 @@ TEST(PredicateColumns, RepresentativeCodesPreserveEveryPredicateBit) {
+         EXPECT_EQ(static_cast<const DictColumnDataBase*>(input.get())->dictSize(),300);
+     }
+ }
++
++TEST(PredicateColumns, ParallelLabelsPreserveBitsAtWordAndTaskBoundaries) {
++    for(int count:{0,63,64,65,8191,8192,8193,65536}) {
++        std::vector<std::string> labels;
++        for(int i=0;i<count;++i) {
++            std::string suffix=i%3==0 ? "special requests" : i%3==1 ? "special_é requests" : "ordinary";
++            labels.push_back(std::to_string(100000+i)+" "+suffix);
++        }
++        auto input=test::Dict<StringType>(labels);
++        auto tables=test::Table({{input}},{{"s",std::make_shared<StringType>()}});
++        for(auto sql:{"SELECT count(*) FROM t WHERE s LIKE '%special%requests%'",
++                      "SELECT count(*) FROM t WHERE s NOT LIKE '%special%requests%'",
++                      "SELECT count(*) FROM t WHERE s LIKE '%é%'",
++                      "SELECT count(*) FROM t WHERE s NOT IN ('100000 special requests')"}) {
++            auto parsed=ParseSelect(sql,tables);ASSERT_TRUE(parsed.ok());ASSERT_EQ(parsed->filterClauses.size(),1);
++            auto filter=parsed->filterClauses[0];
++            RowGroup before;before.columns={input};before.size=count;
++            for(bool avx:{false,true}) {
++                auto node=CreateFilterNode({filter},avx);
++                uint8_t expected[RowGroupSize/8]{};int selected=node->ExecuteSet(before,expected);
++                auto compact=PredicateDictionary(input,filter,avx,true);ASSERT_TRUE(compact.ok());
++                RowGroup after;after.columns={*compact};after.size=count;
++                uint8_t actual[RowGroupSize/8]{};
++                EXPECT_EQ(node->ExecuteSet(after,actual),selected);
++                EXPECT_EQ(std::memcmp(expected,actual,(count+7)/8),0) << count << ':' << sql;
++            }
++        }
++    }
++}
