@@ -1,0 +1,31 @@
+diff --git a/src/executor_dense_arithmetic.cc b/src/executor_dense_arithmetic.cc
+index 185883f..3238716 100644
+--- a/src/executor_dense_arithmetic.cc
++++ b/src/executor_dense_arithmetic.cc
+@@ -56,12 +56,15 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
+                 };
+                 Program program;
+                 std::vector<int> roots(outputs,-1);
++                std::vector<int> sumRoots;
+                 for(size_t i=0;i<outputs;++i) {
+                     const auto &a=q.aggregateClauses[i];
+                     if(a.type==AggregateClause::AGGREGATE_SUM || a.type==AggregateClause::AGGREGATE_AVG) {
+                         roots[i]=program.compile(*a.expression,rg);
+                         const auto &p=program.ops[roots[i]];
+                         if(p.low*rg.size<INT64_MIN || p.high*rg.size>INT64_MAX) throw NotDense{};
++                        if(std::find(sumRoots.begin(),sumRoots.end(),roots[i])==sumRoots.end())
++                            sumRoots.push_back(roots[i]);
+                     }
+                 }
+                 uint8_t bitmap[RowGroupSize/8];
+@@ -109,9 +112,7 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
+                         for(int j=vectorEnd;j<n;++j) if(codes[j]==code) {++matches;representative=j;}
+                         if(!matches) continue;
+                         counts[code]+=matches; representatives[code]=begin+representative;
+-                        bool seen[32]{};
+-                        for(int root:roots) if(root>=0 && !seen[root]) {
+-                            seen[root]=true;
++                        for(int root:sumRoots) {
+                             auto values=buffers+root*Block;
+                             int j=0; int64_t sum=0;
+                             if(avx) {
