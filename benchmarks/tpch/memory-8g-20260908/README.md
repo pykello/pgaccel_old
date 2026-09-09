@@ -4,6 +4,11 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
+Subsequent [8 MiB direct-read follow-ups](LARGER-READS.md) reduce preparation
+time on Q6, Q12 and Q14, with all 27 answers under the cap. The complete sweep
+below used the preceding 1 MiB reader; keep those build boundaries distinct.
+The reader remains synchronous `O_DIRECT`; `io_uring` has not been added.
+
 [TRANSITION-SWEEP.md](TRANSITION-SWEEP.md) is the latest complete comparison
 against saved pgaccel, ClickHouse and DuckDB times. One frozen build executed
 Q1 through Q22 in one long-lived database, nine calls each. All 198 answers

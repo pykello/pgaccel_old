@@ -72,6 +72,9 @@ original predicate remains in execution. Membership construction is included
 in preparation time. Native payloads are read
 with Linux `O_DIRECT`; schema metadata uses ordinary small reads. Unsupported
 filesystems or alignment failures raise errors without a buffered fallback.
+Each direct reader owns an 8 MiB aligned buffer; a projected stripe scan uses
+one per selected column plus its header reader. These buffers count toward the
+total process limit in addition to retained columns and executor memory.
 Snapshots must remain immutable while the database is open.
 
 Single-table scopes can also discard rows inside subqueries or CTEs when
