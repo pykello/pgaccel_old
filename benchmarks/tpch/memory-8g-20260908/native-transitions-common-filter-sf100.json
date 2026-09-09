@@ -1,0 +1,1645 @@
+{
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-transitions-1788913412848381031",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_direct_transitions.py",
+    "--worker",
+    "/home/hadi/projects/tpch-work/checkpoints/direct-memory-20260908/pgaccel_native-common-filter.cpython-312-x86_64-linux-gnu.so",
+    "20",
+    "1",
+    "9",
+    "1",
+    "20"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-transitions-1788913412848381031.service; invocation ID: d82822577d674b57a8e03dab9d2a579b\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 2min 21.377s\nCPU time consumed: 4min 34.227s\nMemory peak: 352.0K\nMemory swap peak: 0B\n",
+  "sequence": [
+    20,
+    1,
+    9,
+    1,
+    20
+  ],
+  "module_sha256": "7f227f5ff24e2fced1c37ca8972926b1a484804ed0445f096c53d4b71f10750c",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "oracle_sha256": "82c7895ba916243dbe718ec67b334333b21483b4d8e6226367c364582e582d36",
+  "sql_sha256": {
+    "20": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+    "1": "f5b91004137e609374a73cceaf9226598e93c937bc38aa61d8a22f5088ff62d9",
+    "9": "ffb470c5b7cac40c3465dba9ae055bf0722dd4e6bdea007f4261f269711db564"
+  },
+  "starts": [
+    {
+      "event": "start",
+      "step": 0,
+      "query": 20,
+      "memory": {
+        "current": 8249344,
+        "peak": 9330688,
+        "max": 8589934592,
+        "swap.max": 0
+      }
+    },
+    {
+      "event": "start",
+      "step": 1,
+      "query": 1,
+      "memory": {
+        "current": 8435507200,
+        "peak": 8435564544,
+        "max": 8589934592,
+        "swap.max": 0
+      }
+    },
+    {
+      "event": "start",
+      "step": 2,
+      "query": 9,
+      "memory": {
+        "current": 8461148160,
+        "peak": 8461148160,
+        "max": 8589934592,
+        "swap.max": 0
+      }
+    },
+    {
+      "event": "start",
+      "step": 3,
+      "query": 1,
+      "memory": {
+        "current": 8460132352,
+        "peak": 8461148160,
+        "max": 8589934592,
+        "swap.max": 0
+      }
+    },
+    {
+      "event": "start",
+      "step": 4,
+      "query": 20,
+      "memory": {
+        "current": 8459931648,
+        "peak": 8461148160,
+        "max": 8589934592,
+        "swap.max": 0
+      }
+    }
+  ],
+  "measurements": {
+    "trials": [
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 0,
+        "before": {
+          "current": 8249344,
+          "peak": 9330688,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8421146624,
+          "peak": 8425648128,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 21222.21462696325,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 279.567987,
+        "prepare_ms": 20927.611156,
+        "direct_load_bytes": 9015663714,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 1,
+        "before": {
+          "current": 8418992128,
+          "peak": 8425648128,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8420876288,
+          "peak": 8431575040,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 271.8284910079092,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 260.667366,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 2,
+        "before": {
+          "current": 8419778560,
+          "peak": 8431575040,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8420904960,
+          "peak": 8433410048,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 246.98177399113774,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 237.959007,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 3,
+        "before": {
+          "current": 8420855808,
+          "peak": 8433410048,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8435015680,
+          "peak": 8435015680,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 253.43727704603225,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 245.012552,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 4,
+        "before": {
+          "current": 8435228672,
+          "peak": 8435290112,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8435228672,
+          "peak": 8435290112,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 246.37415498727933,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 238.51094,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 5,
+        "before": {
+          "current": 8435179520,
+          "peak": 8435298304,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8435179520,
+          "peak": 8435298304,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 238.12227201415226,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 229.585042,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 6,
+        "before": {
+          "current": 8435130368,
+          "peak": 8435302400,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8435392512,
+          "peak": 8435392512,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 234.89876301027834,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 227.062721,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 7,
+        "before": {
+          "current": 8435343360,
+          "peak": 8435548160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8435343360,
+          "peak": 8435548160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 238.73821401502937,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 230.881469,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 8,
+        "before": {
+          "current": 8435294208,
+          "peak": 8435556352,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8435294208,
+          "peak": 8435556352,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 233.27625100500882,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 225.402257,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 0,
+        "before": {
+          "current": 8435507200,
+          "peak": 8435564544,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 26790.08927900577,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 437.127876,
+        "prepare_ms": 26259.488823,
+        "direct_load_bytes": 7302283264,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 1,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 422.4252499989234,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 422.259425,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 2,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 417.3603809904307,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 417.215017,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 3,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 425.20672600949183,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 425.06608,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 4,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 427.7015479747206,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 427.528357,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 5,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 434.81254298239946,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 434.664019,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 6,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 436.5665320074186,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 436.405645,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 7,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 421.04891600320116,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 420.889827,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 8,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 423.96340903360397,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 423.817818,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 0,
+        "before": {
+          "current": 8461148160,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459894784,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 29150.070129020605,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1626.661614,
+        "prepare_ms": 27487.565329,
+        "direct_load_bytes": 14159972726,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 1,
+        "before": {
+          "current": 8459894784,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459890688,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1404.6343700028956,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1404.328994,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 2,
+        "before": {
+          "current": 8459890688,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459886592,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1425.2936280099675,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1425.021688,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 3,
+        "before": {
+          "current": 8459886592,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459882496,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1408.530571963638,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1408.242584,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 4,
+        "before": {
+          "current": 8460144640,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8460136448,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1439.9474039673805,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1439.669489,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 5,
+        "before": {
+          "current": 8460136448,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8460132352,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1403.5340300179087,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1403.22076,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 6,
+        "before": {
+          "current": 8460132352,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8460128256,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1398.8215120043606,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1398.508328,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 7,
+        "before": {
+          "current": 8460128256,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8460136448,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1429.5882679871283,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1429.31578,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 8,
+        "before": {
+          "current": 8460136448,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8460132352,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 1394.5235999999568,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1394.258354,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 0,
+        "before": {
+          "current": 8460128256,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 26553.604271961376,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 466.601587,
+        "prepare_ms": 26058.739114,
+        "direct_load_bytes": 7302283264,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 1,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 420.6778889638372,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 420.533479,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 2,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 438.74297000002116,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 438.600537,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 3,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 423.26282599242404,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 423.124168,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 4,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 425.10672501521185,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 424.967357,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 5,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 425.11227005161345,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 424.967007,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 6,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 436.1598480027169,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 435.978962,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 7,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 469.4157639751211,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 469.257607,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 8,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 429.1983469738625,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 429.055085,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 0,
+        "before": {
+          "current": 8459931648,
+          "peak": 8461148160,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461766656,
+          "peak": 8461766656,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 14757.353818044066,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 249.251183,
+        "prepare_ms": 14460.599703,
+        "direct_load_bytes": 9015663714,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 1,
+        "before": {
+          "current": 8461713408,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461713408,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 251.68973003746942,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 239.70138,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 2,
+        "before": {
+          "current": 8461611008,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461611008,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 229.85454398440197,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 221.73016,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 3,
+        "before": {
+          "current": 8461545472,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461291520,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 216.86535404296592,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 208.996404,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 4,
+        "before": {
+          "current": 8461504512,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461504512,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 213.1347010144964,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 205.276156,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 5,
+        "before": {
+          "current": 8461443072,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461443072,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 209.70673096599057,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 201.858074,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 6,
+        "before": {
+          "current": 8461385728,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461385728,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 212.5657420256175,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 204.016358,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 7,
+        "before": {
+          "current": 8461336576,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461336576,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 210.09415900334716,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 202.048317,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 8,
+        "before": {
+          "current": 8461549568,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "after": {
+          "current": 8461545472,
+          "peak": 8461856768,
+          "max": 8589934592,
+          "swap.max": 0
+        },
+        "client_ms": 213.70117599144578,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 205.665801,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      }
+    ]
+  },
+  "complete": true,
+  "note": "One long-lived Database, nine calls per step; first call includes re-preparation. Live memory peaks are cumulative across the sequence.",
+  "correct": true,
+  "memory_verified": true,
+  "steps": [
+    {
+      "step": 0,
+      "query": 20,
+      "trials": 9,
+      "first_client_ms": 21222.21462696325,
+      "warm_client_ms": 242.55618450115435
+    },
+    {
+      "step": 1,
+      "query": 1,
+      "trials": 9,
+      "first_client_ms": 26790.08927900577,
+      "warm_client_ms": 424.5850675215479
+    },
+    {
+      "step": 2,
+      "query": 9,
+      "trials": 9,
+      "first_client_ms": 29150.070129020605,
+      "warm_client_ms": 1406.5824709832668
+    },
+    {
+      "step": 3,
+      "query": 1,
+      "trials": 9,
+      "first_client_ms": 26553.604271961376,
+      "warm_client_ms": 427.155308512738
+    },
+    {
+      "step": 4,
+      "query": 20,
+      "trials": 9,
+      "first_client_ms": 14757.353818044066,
+      "warm_client_ms": 213.41793850297108
+    }
+  ],
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-transitions-common-filter-sf100.json",
+  "raw_sha256": "1e79a46a724c70954b86f91653581d875ef954ff186d03de3eae5126b9bf2a35"
+}
