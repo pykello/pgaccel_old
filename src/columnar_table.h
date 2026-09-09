@@ -1,4 +1,5 @@
 #pragma once
+#include "native_snapshot.hpp"
 
 #include <string>
 #include <vector>
@@ -64,6 +65,8 @@ public:
     const RowGroup &GetRowGroup(int idx) const {
         return row_groups_[idx];
     }
+
+    const std::optional<NativeSnapshotIdentity> &SnapshotIdentity() const { return snapshot_identity_; }
 
     bool IsSchemaOnly() const { return schema_only_; }
 
@@ -137,6 +140,7 @@ private:
     std::vector<ColumnDesc> schema_;
     std::vector<RowGroup> row_groups_;
     std::string name_;
+    std::optional<NativeSnapshotIdentity> snapshot_identity_;
     bool schema_only_ = false;
     int source_groups_ = 0;
     std::vector<std::shared_ptr<const GlobalDictionary>> dictionaries_;

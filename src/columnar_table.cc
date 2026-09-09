@@ -183,6 +183,8 @@ ColumnarTable::LoadImpl(const std::string &tableName,
         if (!dataStream || std::memcmp(magic, aligned ? "PGACCEL2" : "PGACCEL1", 8) ||
             actual[0] != expected[0] || actual[1] != expected[1])
             return Status::Invalid("Snapshot data and metadata do not match");
+        if(auto *direct=dynamic_cast<DirectInput*>(&dataStream))
+            result->snapshot_identity_=NativeSnapshotIdentity{{actual[0],actual[1]},direct->fileStamp()};
         metadataStream >> numCols;
     } else {
         // Compatibility reader for snapshots created before versioning.

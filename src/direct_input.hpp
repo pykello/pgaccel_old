@@ -1,4 +1,5 @@
 #pragma once
+#include "native_snapshot.hpp"
 #include <cstdint>
 #include <istream>
 #include <memory>
@@ -17,6 +18,7 @@ public:
     static constexpr size_t HeaderBytes = 4096;
     explicit DirectInput(const std::string &path, Mode mode = Mode::Payload);
     ~DirectInput();
+    NativeFileStamp fileStamp() const;
     uint64_t bufferBytes() const;
     uint64_t bytesRead() const;
     uint64_t readCalls() const;

@@ -74,6 +74,7 @@ protected:
         return seekoff(off_type(offset), std::ios_base::beg, mode);
     }
 public:
+    NativeFileStamp stamp{};
     uint64_t bytes = 0, calls = 0;
     void finishRead() {
         if (pending.valid()) {
@@ -94,6 +95,9 @@ public:
             throw std::runtime_error("Direct input requires a regular snapshot file");
         }
         length = uint64_t(st.st_size);
+        stamp={uint64_t(st.st_dev),uint64_t(st.st_ino),length,
+               uint64_t(st.st_mtim.tv_sec),uint64_t(st.st_mtim.tv_nsec),
+               uint64_t(st.st_ctim.tv_sec),uint64_t(st.st_ctim.tv_nsec)};
         // 4 KiB addresses and block-aligned offsets/lengths meet this backend's
         // alignment contract. Unsupported device/filesystem alignment fails
         // explicitly at pread; no cached descriptor is opened as a fallback.
@@ -114,6 +118,7 @@ DirectInput::DirectInput(const std::string &path, Mode mode) : std::istream(null
     exceptions(std::ios_base::badbit);
 }
 DirectInput::~DirectInput() = default;
+NativeFileStamp DirectInput::fileStamp() const { return buffer_->stamp; }
 uint64_t DirectInput::bufferBytes() const { return buffer_->bufferBytes(); }
 uint64_t DirectInput::bytesRead() const { buffer_->finishRead(); return buffer_->bytes; }
 uint64_t DirectInput::readCalls() const { buffer_->finishRead(); return buffer_->calls; }
