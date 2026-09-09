@@ -74,13 +74,22 @@ struct MembershipSet {
         if (avx && !bits.empty() && !adjustment && first >= INT32_MIN && last <= INT32_MAX &&
             (type == INT32_TYPE || type == INT64_TYPE) &&
             data->type == ColumnDataBase::RAW_COLUMN_DATA &&
-            static_cast<const RawColumnDataBase *>(data)->bytesPerValue == 4) {
-            auto keys = reinterpret_cast<const int32_t *>(static_cast<const RawColumnDataBase *>(data)->values);
+            (static_cast<const RawColumnDataBase *>(data)->bytesPerValue == 1 ||
+             static_cast<const RawColumnDataBase *>(data)->bytesPerValue == 2 ||
+             static_cast<const RawColumnDataBase *>(data)->bytesPerValue == 4)) {
+            const auto *raw=static_cast<const RawColumnDataBase *>(data);
+            auto keys=raw->values;int width=raw->bytesPerValue;
             auto lo = _mm512_set1_epi32(first), hi = _mm512_set1_epi32(last);
             for (; row + 16 <= rg.size; row += 16) {
                 uint16_t previous; memcpy(&previous, bitmap + row / 8, 2);
                 if (!previous) continue;
-                auto key = _mm512_loadu_si512(keys + row);
+                // Narrow native keys are signed, just like scalar decoding.
+                // Widen sixteen keys before the existing masked bitmap probe.
+                auto key = width==1 ? _mm512_cvtepi8_epi32(_mm_loadu_si128(
+                    reinterpret_cast<const __m128i *>(keys+row))) :
+                    width==2 ? _mm512_cvtepi16_epi32(_mm256_loadu_si256(
+                    reinterpret_cast<const __m256i *>(keys+2*row))) :
+                    _mm512_loadu_si512(keys+4*row);
                 auto delta = _mm512_sub_epi32(key, lo);
                 uint16_t valid = previous & _mm512_cmpge_epi32_mask(key, lo) & _mm512_cmple_epi32_mask(key, hi);
                 auto words = _mm512_mask_i32gather_epi32(_mm512_setzero_si512(), valid,

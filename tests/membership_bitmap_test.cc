@@ -2,6 +2,29 @@
 #include "../src/executor_membership.hpp"
 #include <gtest/gtest.h>
 using namespace pgaccel;
+TEST(MembershipBitmap, NarrowSignedKeysMasksAndTails) {
+    for(int width:{1,2}) for(int64_t start:{int64_t(-100),int64_t(20)}) {
+        Budget budget(1<<20);ScopedValueResource resource(budget);
+        MembershipSet set(budget,0);std::vector<Wide> members;
+        for(int i=0;i<90;i+=3)members.push_back(start+i);
+        set.assignNumbers(members,0,budget);ASSERT_FALSE(set.bits.empty());
+        std::vector<int64_t> keys;
+        for(int i=0;i<513;++i)keys.push_back(start+(i%90));
+        keys[5]=width==1?INT8_MIN:INT16_MIN;keys[6]=width==1?INT8_MAX:INT16_MAX;
+        auto registry=test::Table({{test::Raw(keys,width)}},{{"k",std::make_shared<Int64Type>()}});
+        auto q=ParseSelect("SELECT k FROM t",registry);ASSERT_TRUE(q.ok());
+        for(bool avx:{false,true})for(bool anti:{false,true}) {
+            std::array<uint8_t,65> bitmap{};
+            for(int i=0;i<513;++i)if(i%5)bitmap[i/8]|=1<<(i%8);
+            set.intersect(q->tables[0]->GetRowGroup(0),*q->aggregateClauses[0].columnRef,anti,avx,bitmap.data());
+            for(int i=0;i<513;++i) {
+                bool found=std::find(members.begin(),members.end(),Wide(keys[i]))!=members.end();
+                EXPECT_EQ(bool((bitmap[i/8]>>(i%8))&1),i%5 && (found!=anti));
+            }
+            EXPECT_EQ(bitmap.back()&0xfe,0);
+        }
+    }
+}
 TEST(MembershipBitmap, SignedDomainsMasksTailsAndAntiMembership) {
     for (int64_t start : {int64_t(-200), int64_t(0), INT64_MIN, INT64_MAX - 500}) {
         Budget budget(1 << 20); ScopedValueResource resource(budget);
