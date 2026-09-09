@@ -1,0 +1,44 @@
+diff --git a/src/predicate_columns.hpp b/src/predicate_columns.hpp
+index 6558a61..cbd47dd 100644
+--- a/src/predicate_columns.hpp
++++ b/src/predicate_columns.hpp
+@@ -1,7 +1,16 @@
+ #pragma once
++#include <atomic>
++#include <chrono>
++#include <cstdio>
+ #include "executor_literal_filter.hpp"
+ #include "executor.h"
+ namespace pgaccel {
++struct PredicatePreparationProfile {
++    std::atomic<uint64_t> build{0},match{0},remap{0},calls{0};
++    ~PredicatePreparationProfile(){std::fprintf(stderr,"PREDICATE_PROFILE build_ms=%.3f match_ms=%.3f remap_ms=%.3f calls=%llu\n",build.load()/1e6,match.load()/1e6,remap.load()/1e6,(unsigned long long)calls.load());}
++};
++inline PredicatePreparationProfile predicatePreparationProfile;
++
+ // A string can lose its original spelling only when every use in every scope
+ // observes the same literal predicate, never its value, ordering or identity.
+ using PredicateColumnMap = std::map<const ColumnarTable *,std::map<std::string,FilterClause>>;
+@@ -58,9 +67,14 @@ inline Result<ColumnDataP> PredicateDictionary(const ColumnDataP &source,
+         return Status::Invalid("Predicate dictionary needs native string data");
+     const auto &input=static_cast<const DictColumnData<StringType>&>(*source);
+     filter.columnRef.tableIdx=0;filter.columnRef.columnIdx=0;
++    using Clock=std::chrono::steady_clock;
++    auto elapsed=[](auto start){return std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now()-start).count();};
++    auto start=Clock::now();
+     auto node=CreateFilterNode({filter},avx);
++    predicatePreparationProfile.build+=elapsed(start);start=Clock::now();
+     RowGroup batch;batch.columns={source};batch.size=source->size;
+     uint8_t bitmap[RowGroupSize/8]{};node->ExecuteSet(batch,bitmap);
++    predicatePreparationProfile.match+=elapsed(start);start=Clock::now();
+     auto output=std::make_shared<DictColumnData<StringType>>();
+     output->type=ColumnDataBase::DICT_COLUMN_DATA;output->size=batch.size;output->valueType=input.valueType;
+     int representatives[2]{-1,-1};
+@@ -76,6 +90,7 @@ inline Result<ColumnDataP> PredicateDictionary(const ColumnDataP &source,
+         codes[i]=std::lower_bound(output->dict.begin(),output->dict.end(),input.dict[representatives[i]])-output->dict.begin();
+     output->values=static_cast<uint8_t *>(AllocateAligned(512,batch.size));
+     for(int row=0;row<batch.size;++row)output->values[row]=codes[(bitmap[row/8]>>(row%8))&1];
++    predicatePreparationProfile.remap+=elapsed(start);++predicatePreparationProfile.calls;
+     return ColumnDataP(output);
+ }
+ }
