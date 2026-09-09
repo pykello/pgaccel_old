@@ -1,0 +1,193 @@
+{
+  "query": 15,
+  "query_memory_mib": 768,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-15-1788913874850700348",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/tpch-work/checkpoints/direct-memory-20260908/pgaccel_native-scope-filter.cpython-312-x86_64-linux-gnu.so",
+    "15",
+    "768"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-native-direct-15-1788913874850700348.service; invocation ID: 697a71fe80894f6484b8a900a7d7ea6b\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 13.032s\nCPU time consumed: 13.269s\nMemory peak: 356.0K\nMemory swap peak: 0B\n",
+  "module_sha256": "8f8c8cb6adf7378f56a551774c3a264a3a6e1919bee7100395c8ba0e8d8541c2",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 146.97844100010116,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "measurements": {
+    "trials": [
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 103.009824,
+        "prepare_ms": 12202.046858,
+        "direct_load_bytes": 6781140992,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 12305.239428009372,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 85.964646,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 86.20340400375426,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 65.999094,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 66.23296003090218,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 66.069258,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 66.31909596035257,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 66.406753,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 66.61710201296955,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 66.295089,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 66.54088001232594,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 62.987884,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 63.188021013047546,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 62.565013,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 62.73097300436348,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      },
+      {
+        "columns": [
+          "s_suppkey ",
+          "s_name ",
+          "s_address ",
+          "s_phone ",
+          "total_revenue "
+        ],
+        "execution_ms": 62.523079,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 81125064,
+        "spill_bytes": 0,
+        "client_ms": 62.69490800332278,
+        "row_count": 1,
+        "rows_sha256": "f54c63b4b935308da3d4fde2c5a6f8bbdf685e487e54effa35eb7413c9c933f1"
+      }
+    ],
+    "cgroup_peak_bytes": 514686976,
+    "memory_max": 8589934592,
+    "swap_max": 0
+  },
+  "correct": true,
+  "median_client_ms": 66.27602799562737,
+  "first_client_ms": 12305.239428009372,
+  "memory_verified": true,
+  "reuse_verified": true,
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-scope-filter-q15-sf100.json",
+  "raw_sha256": "5242b928b846f24e5507c488f7d366ad1bb094d17177ffc23b8b1b1165361fe9"
+}
