@@ -1,0 +1,63 @@
+diff --git a/src/column_data.cc b/src/column_data.cc
+index 1d813eb..97d3fba 100644
+--- a/src/column_data.cc
++++ b/src/column_data.cc
+@@ -1,9 +1,22 @@
++#include <chrono>
++#include <cstdio>
++#include <atomic>
+ #include "column_data.hpp"
+ #include <limits>
+ 
+ namespace pgaccel
+ {
+ 
++namespace {
++struct NativeLoadProfile {
++    std::atomic<uint64_t> total{0},decode{0},validate{0};
++    ~NativeLoadProfile(){std::fprintf(stderr,"NATIVE_PROFILE dict_total_ms=%.3f dict_decode_ms=%.3f dict_codes_ms=%.3f\n",total.load()/1e6,decode.load()/1e6,validate.load()/1e6);}
++} nativeLoadProfile;
++using ProfileClock=std::chrono::steady_clock;
++uint64_t ProfileElapsed(ProfileClock::time_point start) {
++    return std::chrono::duration_cast<std::chrono::nanoseconds>(ProfileClock::now()-start).count();
++}
++}
+ template<>
+ Result<bool>
+ DictColumnData<StringType>::SaveValue(std::ostream &out,
+@@ -50,6 +63,7 @@ template<class AccelTy>
+ static Result<ColumnDataP>
+ LoadDictColumnData(std::istream &in, bool aligned)
+ {
++    auto totalStart=ProfileClock::now();
+     int dictSize = 0;
+     auto result = std::make_shared<DictColumnData<AccelTy>>();
+     result->type = ColumnDataBase::DICT_COLUMN_DATA;
+@@ -59,8 +73,10 @@ LoadDictColumnData(std::istream &in, bool aligned)
+     // The validated count fixes storage before decoding. Construct strings
+     // directly in their final slots, avoiding temporary heap allocations and
+     // copies; numeric dictionaries can be read as one contiguous block.
++    auto decodeStart=ProfileClock::now();
+     result->dict.resize(dictSize);
+     ReadValues<AccelTy>(in, dictSize, result->dict.data());
++    nativeLoadProfile.decode.fetch_add(ProfileElapsed(decodeStart),std::memory_order_relaxed);
+ 
+     in.read((char *) &result->size, sizeof(result->size));
+     if (!in || result->size < 0 || result->size > RowGroupSize || (result->size && !dictSize))
+@@ -75,6 +91,7 @@ LoadDictColumnData(std::istream &in, bool aligned)
+     if (aligned && !SkipNativePadding(in)) return Status::Invalid("Invalid native padding");
+ 
+     if (!in) return Status::Invalid("Truncated column data");
++    auto validateStart=ProfileClock::now();
+     std::vector<bool> used(dictSize,false);
+     for (int i = 0; i < result->size; ++i) {
+         int code = bytesPerValue == 1 ? result->values[i] : ((uint16_t*)result->values)[i];
+@@ -83,6 +100,8 @@ LoadDictColumnData(std::istream &in, bool aligned)
+     }
+     if (std::find(used.begin(),used.end(),false) != used.end())
+         return Status::Invalid("Native dictionary contains unused values");
++    nativeLoadProfile.validate.fetch_add(ProfileElapsed(validateStart),std::memory_order_relaxed);
++    nativeLoadProfile.total.fetch_add(ProfileElapsed(totalStart),std::memory_order_relaxed);
+     ColumnDataP resultCasted = std::move(result);
+     return resultCasted;
+ }
