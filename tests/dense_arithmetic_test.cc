@@ -18,6 +18,29 @@ TEST(ArithmeticGather, SignedExtremesOffsetsRepeatedIndicesAndTails) {
         }
     }
 }
+TEST(DenseArithmetic, MissingGroupPairsEmptySelectedBlocksAndTail) {
+    std::vector<std::string> a,b;std::vector<int64_t> value,position;
+    for(int i=0;i<1031;++i) {
+        a.push_back(i%2?"a":"b");b.push_back(i%2?"x":"y");
+        value.push_back(i%41-20);position.push_back(i);
+    }
+    auto tables=test::Table({{test::Dict<StringType>(a),test::Dict<StringType>(b),
+        test::Raw(value,4),test::Raw(position,4)}},{{"a",std::make_shared<StringType>()},
+        {"b",std::make_shared<StringType>()},{"v",std::make_shared<Int64Type>()},
+        {"pos",std::make_shared<Int64Type>()}});
+    auto q=ParseSelect("SELECT a,b,sum(v),sum(v*2),count(*) FROM t WHERE pos>700 GROUP BY a,b ORDER BY a,b",tables);
+    auto reference=ParseSelect("SELECT a,b,sum(v/1),sum((v*2)/1),count(*) FROM t WHERE pos>700 GROUP BY a,b ORDER BY a,b",tables);
+    ASSERT_TRUE(q.ok());ASSERT_TRUE(reference.ok());
+    auto expected=ExecuteQuery(*reference,false,false);ASSERT_TRUE(expected.ok());
+    for(bool avx:{false,true})for(bool parallel:{false,true}) {
+        auto actual=ExecuteQuery(*q,avx,parallel);ASSERT_TRUE(actual.ok());
+        ASSERT_EQ(actual->values.size(),expected->values.size());
+        for(size_t row=0;row<actual->values.size();++row)for(size_t col=0;col<5;++col) {
+            if(col==2 || col==3)EXPECT_EQ(std::stold(actual->values[row][col]),std::stold(expected->values[row][col]));
+            else EXPECT_EQ(actual->values[row][col],expected->values[row][col]);
+        }
+    }
+}
 TEST(DenseArithmetic, DecimalExpressionsAcrossStripesAndSelections) {
     auto decimal=std::make_shared<DecimalType>(); decimal->scale=2;
     std::vector<std::vector<ColumnDataP>> groups;

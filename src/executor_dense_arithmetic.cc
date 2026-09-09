@@ -51,6 +51,7 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                 const int width0=dicts[0]->bytesPerValue();
                 const int width1=dicts[1]?dicts[1]->bytesPerValue():0;
                 const int radix=dicts[1]?dicts[1]->dictSize():1;
+                const bool trackPairs=dicts[1] && product>2;
                 auto codeAt=[](const DictColumnDataBase *dict,int width,int row) {
                     return width==1?dict->values[row]:reinterpret_cast<const uint16_t *>(dict->values)[row];
                 };
@@ -72,8 +73,10 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                 std::vector<int64_t> sums(product*program.ops.size(),0);
                 for(int begin=0;begin<rg.size;begin+=Block) {
                     int n=std::min(Block,rg.size-begin);
+                    uint32_t active=trackPairs?0:(uint32_t(1)<<product)-1;
                     int r=0;
                     if(avx) {
+                        auto observed=_mm512_setzero_si512();
                         auto decode=[](const DictColumnDataBase *dict,int width,int row) {
                             return width==1?_mm512_cvtepu8_epi64(_mm_loadl_epi64(
                                 reinterpret_cast<const __m128i *>(dict->values+row))):
@@ -87,17 +90,23 @@ std::optional<Result<QueryOutput>> ExecuteDenseArithmetic(const QueryDesc &q, bo
                                 _mm512_mul_epu32(code,_mm512_set1_epi64(radix)),decode(dicts[1],width1,row));
                             if(count!=rg.size) code=_mm512_mask_mov_epi64(
                                 _mm512_set1_epi64(-1),bitmap[row/8],code);
+                            if(trackPairs)observed=_mm512_or_si512(observed,
+                                _mm512_sllv_epi64(_mm512_set1_epi64(1),code));
                             _mm512_store_si512(codes+r,code);
                         }
+                        if(trackPairs)active=uint32_t(_mm512_reduce_or_epi64(observed));
                     }
                     for(;r<n;++r) {
                         int row=begin+r;
                         int code=codeAt(dicts[0],width0,row);
                         if(dicts[1]) code=code*radix+codeAt(dicts[1],width1,row);
                         codes[r]=count==rg.size || IsBitSet(bitmap,row)?code:-1;
+                        if(trackPairs && codes[r]>=0)active|=uint32_t(1)<<code;
                     }
+                    if(!active)continue;
                     program.evaluate(begin,n,buffers,avx);
-                    for(int code=0;code<product;++code) {
+                    for(;active;active&=active-1) {
+                        int code=__builtin_ctz(active);
                         __mmask8 masks[Block/8];
                         const int vectorEnd=avx?n/8*8:0;
                         int matches=0, representative=-1;
