@@ -129,3 +129,30 @@ The new test checks selected fact rows, intact dimensions and exclusion of
 outer joins using the parser's supported aggregate shapes. All 279 tests and
 the [final 22-query SF1 gate](auto-projection-sf1-scoped-count-final-gate.json)
 pass. These follow-ups have not yet been incorporated into a complete sweep.
+
+## Q1: reduce only dictionary pairs present in each block
+
+A fresh [control](native-direct-dense-control-q1-sf100.json) measured Q1 at
+411.155 ms. Moving duplicate aggregate-root detection into a per-stripe vector
+did not help: [that trial](native-direct-dense-roots-q1-sf100.json) measured
+426.944 ms. The [root-list patch](dense-root-experiment.patch) and correctness
+gate are retained, but the executor change was removed. The earlier explicit
+multiply-width and mask-sharing experiments in `../simd-20260906/RESULTS.md`
+were also already rejected; they were not repeated here.
+
+`de36c0d` instead tracks observed joint dictionary codes when decoding a block
+with two grouping columns and a dictionary product larger than two. Each SIMD
+lane contributes a bit for its combined code. Filtered-out lanes contribute
+zero; scalar tails use the same selection rule. A 32-bit mask represents the
+at-most-16 possible group combinations. The executor builds reduction masks
+only for combinations present in selected rows and skips arithmetic for an
+entirely unselected block. Single-column and very small products retain the
+previous group policy. Every block is inspected on every execution; this is
+not a cached aggregate or a guessed correlation between dictionary labels.
+
+The [retained trial](native-direct-dense-active-q1-sf100.json) passes nine
+answers under 8 GiB at **360.227 ms warm**, versus 440.185 ms in the original
+saved baseline. First preparation is still 28.184 seconds. All 280 native
+tests, all 22 SF1 answers and Python integration pass. The new test covers
+absent Cartesian pairs, whole blocks excluded by filtering, and a short tail,
+using the general arithmetic interpreter as a reference.
