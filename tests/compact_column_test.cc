@@ -1,3 +1,4 @@
+#include <thread>
 #include "compact_column.hpp"
 #include "test_table.hpp"
 #include <gtest/gtest.h>
@@ -56,5 +57,42 @@ TEST(CompactColumn, DirectSelectionPreservesCrossColumnRowsAndEmptySchema) {
         auto query=ParseSelect("SELECT k,s FROM t ORDER BY k",registry);ASSERT_TRUE(query.ok());
         auto result=ExecuteQuery(*query,true,true);ASSERT_TRUE(result.ok());
         EXPECT_EQ(result->values,empty?Rows{}:Rows({{"3","a"},{"5","b"}}));
+    }
+}
+TEST(CompactColumn, ParallelLargeStripeMatchesSerialAndKeepsCallbacksLocal) {
+    char directory[]="/tmp/pgaccel-compact-parallel-XXXXXX";
+    ASSERT_NE(mkdtemp(directory),nullptr);
+    struct Cleanup { const char *p; ~Cleanup(){std::filesystem::remove_all(p);} } cleanup{directory};
+    std::vector<int64_t> numbers;
+    std::vector<std::string> labels;
+    for (int i=0;i<20003;++i) {
+        numbers.push_back(i-10000);
+        labels.push_back(std::to_string(i%300));
+    }
+    auto table=test::Table({{test::Raw(numbers),test::Dict<StringType>(labels)}},
+        {{"k",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    std::string path=std::string(directory)+"/t.pgaccel";
+    ASSERT_TRUE(table.at("t")->Save(path).ok());
+    auto caller=std::this_thread::get_id();
+    Rows expected;
+    for (int i=0;i<20003;i+=2) expected.push_back({std::to_string(i-10000),labels[i]});
+    for (bool parallel:{false,true}) {
+        int transforms=0;
+        auto loaded=ColumnarTable::LoadDirectSelected("t",path,{"k","s"},
+            [&](const auto &,const RowGroup &g)->Result<std::vector<uint16_t>> {
+                EXPECT_EQ(std::this_thread::get_id(),caller);
+                std::vector<uint16_t> rows;
+                for (int i=0;i<g.size;i+=2) rows.push_back(i);
+                return rows;
+            },nullptr,[&](const auto &,const ColumnDataP &column)->Result<ColumnDataP> {
+                EXPECT_EQ(std::this_thread::get_id(),caller);
+                ++transforms; return ColumnDataP(column);
+            },parallel);
+        ASSERT_TRUE(loaded.ok())<<loaded.status().Message();
+        EXPECT_EQ(transforms,2);
+        TableRegistry registry;registry.emplace("t",std::move(loaded).ValueUnsafe());
+        auto query=ParseSelect("SELECT k,s FROM t ORDER BY k",registry);ASSERT_TRUE(query.ok());
+        auto result=ExecuteQuery(*query,true,parallel);ASSERT_TRUE(result.ok());
+        EXPECT_EQ(result->values,expected);
     }
 }

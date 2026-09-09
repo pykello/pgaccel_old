@@ -72,7 +72,7 @@ public:
                 // include release cost in preparation, never in warm reuse.
                 malloc_trim(0);
 #endif
-                auto prepared = PrepareDirectQuery(directDirectory, sql, avx);
+                auto prepared = PrepareDirectQuery(directDirectory, sql, avx, parallel);
                 if (!prepared.ok())
                     throw std::invalid_argument(prepared.status().Message());
                 auto owned = std::move(prepared).ValueUnsafe();

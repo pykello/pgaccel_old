@@ -96,7 +96,7 @@ public:
     static Result<ColumnarTableP> LoadDirectSelected(const std::string &name,
         const std::string &path, const std::set<std::string> &fields,
         const RowSelector &select, DirectScanStats *io = nullptr,
-        const ColumnTransform &transform = {});
+        const ColumnTransform &transform = {}, bool parallel = false);
 
     Result<bool> Save(const std::string &path, bool aligned = false);
     Result<bool> Save(std::ostream& metadataStream,

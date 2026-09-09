@@ -1,3 +1,4 @@
+#include "executor_tasks.hpp"
 #include "compact_column.hpp"
 #include "columnar_table.h"
 #include "util.h"
@@ -335,7 +336,7 @@ ColumnarTable::LoadImpl(const std::string &tableName,
 namespace pgaccel {
 Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name,
     const std::string &path, const std::set<std::string> &fields,
-    const RowSelector &select, DirectScanStats *io, const ColumnTransform &transform) {
+    const RowSelector &select, DirectScanStats *io, const ColumnTransform &transform, bool parallel) {
     auto schema = LoadSchema(name, path); if (!schema.ok()) return schema.status();
     auto result = ColumnarTableP(new ColumnarTable()); result->name_ = name;
     std::set<std::string> normalized;
@@ -351,10 +352,22 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
                 return Status::Invalid("Selection needs ordered unique valid rows");
         if (rows.empty()) return true;
         RowGroup compact; compact.size = rows.size();
-        for (size_t c=0; c<columns.size(); ++c) {
-            if (rows.size()==size_t(batch.size)) compact.columns.push_back(batch.columns[c]);
-            else {
-                auto column = CompactNativeColumn(*batch.columns[c], *columns[c].type, rows);
+        if (rows.size()==size_t(batch.size)) compact.columns=batch.columns;
+        else {
+            auto copy = [&](int c) {
+                return CompactNativeColumn(*batch.columns[c], *columns[c].type, rows);
+            };
+            // Only independent column copies run concurrently. The selector
+            // and transforms may share mutable state and remain on the caller.
+            // Completion bounds live inputs and outputs to this one stripe.
+            if (parallel && rows.size()>=8192 && columns.size()>1) {
+                auto copied=RunTasks(int(columns.size()),copy);
+                for (auto &column:copied) {
+                    if (!column.ok()) return column.status();
+                    compact.columns.push_back(std::move(column).ValueUnsafe());
+                }
+            } else for (size_t c=0;c<columns.size();++c) {
+                auto column=copy(c);
                 if (!column.ok()) return column.status();
                 compact.columns.push_back(std::move(column).ValueUnsafe());
             }
