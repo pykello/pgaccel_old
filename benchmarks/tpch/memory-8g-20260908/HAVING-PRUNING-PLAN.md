@@ -88,3 +88,13 @@ latency and general admission remain separate unfinished work.
 Evidence: [control](native-direct-growing-bound-control-q11-sf100.json),
 [candidate](native-direct-growing-bound-q11-sf100.json),
 [SF1 gate](auto-projection-sf1-growing-bound-gate.json).
+
+
+## Complete workload validation
+
+[TRANSITION-HAVING.md](TRANSITION-HAVING.md) runs all 22 queries and 198 calls
+with the retained module in one database. Every answer passes at 6.882 GiB
+peak, with zero swap, zero sampled file charge and no memory-limit events.
+Q11 is 29.873 ms versus its saved 30.496 ms. Q17 and Q18 now exceed their
+saved times; this report retains those regressions. The full goal remains
+open, and the next execution work targets those queries.

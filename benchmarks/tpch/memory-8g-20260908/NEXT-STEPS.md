@@ -1,9 +1,19 @@
 # Remaining work toward the 8 GiB performance goal
 
-The [latest complete sweep](TRANSITION-COMPACTION.md) passes all 198 answers at
-6.914 GiB peak. Q11 alone exceeds the saved pgaccel warm median: 31.494 versus
-30.496 ms. Its faster individual results remain separate evidence. Q1, Q12
-and Q22 now have substantial margin in the complete workload.
+The [latest complete sweep](TRANSITION-HAVING.md) passes all 198 answers at
+6.882 GiB peak. Q11 now meets its saved warm time (29.873 versus 30.496 ms).
+Q17 and Q18 exceed theirs: 277.730 versus 272.281 ms, and 768.500 versus
+733.755 ms. Preserve the complete run instead of replacing these values with
+faster earlier samples. Their previous narrow margins were insufficient.
+
+Next, profile Q17 and Q18's timed execution phases on the current module.
+For Q17, investigate whether the filtered part-key domain can safely restrict
+both outer and correlated lineitem uses. Every alias and correlation must
+require the same domain; a single unfiltered use must prevent physical-table
+pruning. This needs a planner proof, not a query-name special case. For Q18,
+measure its grouped membership scan before selecting a segmented-reduction
+or allocation change. Both answers and total transition memory must remain
+verified under the same eight-worker and 8 GiB limits.
 
 1. **Improve preparation and preserve execution margin.** The
    [phase profile](PREPARATION-PROFILE.md) measures Q1 compaction at about
@@ -22,7 +32,7 @@ and Q22 now have substantial margin in the complete workload.
    Q11's grouped fact scan remains the measured warm bottleneck. The
    [adaptive HAVING implementation](HAVING-PRUNING-PLAN.md) reduces Q11
    query-state peak from 49.4 to 1.68 MiB, with paired warm times of 28.571
-   and 28.181 ms. These individual results still need full-workload validation. Preserve the
+   and 28.181 ms. The complete sweep now confirms Q11 at 29.873 ms. Preserve the
    eight-worker limit and do not select favorable repeats or relax thresholds.
 
 2. **Revalidate the complete workload after retained changes.** Use one frozen
@@ -34,7 +44,7 @@ and Q22 now have substantial margin in the complete workload.
 
 3. **Reduce preparation without hiding it.** Current warm calls reuse
    SQL-specific projected and filtered input. Changing SQL rereads and
-   reconstructs that input; the latest first calls take 1.5–32.9 seconds.
+   reconstructs that input; the latest first calls take 1.5–33.2 seconds.
    Investigate which retained physical columns or immutable blocks can be
    reused safely across different queries, with explicit byte admission and
    eviction. A representation transformed for one query cannot be treated as
