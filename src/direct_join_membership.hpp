@@ -23,8 +23,10 @@ inline int64_t DirectJoinKey(const RawColumnDataBase &data,int row) {
 }
 // Necessary membership tests only. The original join still expands duplicates
 // and evaluates every predicate; source tables retain their complete rows.
-inline std::vector<DirectJoinMembership> PrepareDirectMemberships(const QueryDesc &q,int fact,
-    const TableRegistry &loaded,bool avx,uint64_t byteLimit=uint64_t(256)<<20) {
+inline std::vector<DirectJoinMembership> PrepareDirectMembershipsAtDepth(const QueryDesc &q,int fact,
+    const TableRegistry &loaded,bool avx,uint64_t &byteLimit,std::vector<int> path) {
+    if(path.size()>=3 || std::find(path.begin(),path.end(),fact)!=path.end())return {};
+    path.push_back(fact);
     if(fact<0 || size_t(fact)>=q.tables.size() || !q.leftJoins.empty() || !q.existenceJoins.empty() ||
        !q.scalarQueries.empty() || !q.membershipQueries.empty() || !q.materializedSources.empty() ||
        std::count(q.tables.begin(),q.tables.end(),q.tables[fact])!=1)return {};
@@ -46,14 +48,27 @@ inline std::vector<DirectJoinMembership> PrepareDirectMemberships(const QueryDes
     for(size_t f=0;f<columns.size();++f)if(columns[f].tableIdx==fact) {
         for(size_t source=0;source<columns.size();++source) {
             const auto &key=columns[source];
-            if(key.tableIdx==fact || root(source)!=root(f) || q.tables[key.tableIdx]==q.tables[fact])continue;
+            if(std::find(path.begin(),path.end(),key.tableIdx)!=path.end() ||
+               root(source)!=root(f) || q.tables[key.tableIdx]==q.tables[fact])continue;
             auto found=loaded.find(q.tables[key.tableIdx]->Name());if(found==loaded.end())continue;
             const auto &table=*found->second;std::vector<FilterClause> filters;
             for(auto filter:q.filterClauses)if(filter.columnRef.tableIdx==key.tableIdx) {
                 auto col=table.ColumnIndex(filter.columnRef.Name());if(!col)throw std::invalid_argument("Missing membership filter column");
                 filter.columnRef.columnIdx=*col;filter.columnRef.tableIdx=0;filters.push_back(std::move(filter));
             }
-            if(filters.empty())continue;
+            auto constraints=PrepareDirectMembershipsAtDepth(q,key.tableIdx,loaded,avx,byteLimit,path);
+            // Returned child bitmaps share the parent's allowance while live.
+            // Release their charge on every exit from this iteration.
+            uint64_t childBytes=0;for(const auto &c:constraints)childBytes+=c.bits.size()*sizeof(uint64_t);
+            struct ReleaseChildCharge {uint64_t &remaining;uint64_t bytes;
+                ~ReleaseChildCharge(){remaining+=bytes;}} release{byteLimit,childBytes};
+            if(filters.empty() && constraints.empty())continue;
+            std::vector<size_t> constraintColumns;
+            for(const auto &c:constraints) {
+                auto column=table.ColumnIndex(c.column);
+                if(!column)throw std::invalid_argument("Missing chained membership column");
+                constraintColumns.push_back(*column);
+            }
             auto keyIndex=table.ColumnIndex(key.Name());if(!keyIndex)throw std::invalid_argument("Missing membership key");
             DirectJoinMembership membership;membership.column=columns[f].Name();
             int64_t low=INT64_MAX,high=INT64_MIN;
@@ -72,11 +87,21 @@ inline std::vector<DirectJoinMembership> PrepareDirectMemberships(const QueryDes
                 // Sparse/extreme domains simply decline this optional pruning.
                 if(words*8>byteLimit)continue;
                 membership.low=low;membership.high=high;membership.bits.resize(size_t(words));byteLimit-=size_t(words)*8;
-                auto filter=CreateFilterNode(filters,avx);uint8_t bitmap[RowGroupSize/8]{};
+                auto filter=filters.empty()?FilterNodeP{}:CreateFilterNode(filters,avx);uint8_t bitmap[RowGroupSize/8]{};
                 for(int g=0;g<table.RowGroupCount();++g) {
-                    const auto &batch=table.GetRowGroup(g);if(!filter->ExecuteSet(batch,bitmap))continue;
+                    const auto &batch=table.GetRowGroup(g);
+                    if(filter) {if(!filter->ExecuteSet(batch,bitmap))continue;}
+                    else memset(bitmap,0xff,(batch.size+7)/8);
+                    for(size_t c:constraintColumns)if(batch.columns[c]->type!=ColumnDataBase::RAW_COLUMN_DATA)
+                        throw std::invalid_argument("Invalid chained membership layout");
                     const auto &data=static_cast<const RawColumnDataBase&>(*batch.columns[*keyIndex]);
                     for(int row=0;row<batch.size;++row)if((bitmap[row/8]>>(row%8))&1) {
+                        bool accepted=true;
+                        for(size_t c=0;c<constraints.size();++c) {
+                            const auto &foreign=static_cast<const RawColumnDataBase&>(*batch.columns[constraintColumns[c]]);
+                            if(!constraints[c].contains(DirectJoinKey(foreign,row))) {accepted=false;break;}
+                        }
+                        if(!accepted)continue;
                         auto offset=uint64_t(DirectJoinKey(data,row))-uint64_t(low);
                         membership.bits[offset/64]|=uint64_t(1)<<(offset%64);
                     }
@@ -86,6 +111,10 @@ inline std::vector<DirectJoinMembership> PrepareDirectMemberships(const QueryDes
         }
     }
     return result;
+}
+inline std::vector<DirectJoinMembership> PrepareDirectMemberships(const QueryDesc &q,int fact,
+    const TableRegistry &loaded,bool avx,uint64_t byteLimit=uint64_t(256)<<20) {
+    return PrepareDirectMembershipsAtDepth(q,fact,loaded,avx,byteLimit,{});
 }
 inline void IntersectDirectMemberships(const std::vector<DirectJoinMembership> &memberships,
     const std::vector<ColumnDesc> &schema,const RowGroup &batch,std::vector<uint16_t> &rows) {

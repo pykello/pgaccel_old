@@ -120,3 +120,45 @@ TEST(DirectJoinMembership, SharedScalarScopesRequireIdenticalDomains) {
         EXPECT_EQ(prepared->tables.at("d")->GetRowGroup(0).size,3);
     }
 }
+TEST(DirectJoinMembership, DifferentKeyChainsSharedScopesAndBitmapAllowance) {
+    char directory[]="/tmp/pgaccel-chain-domain-XXXXXX";ASSERT_NE(mkdtemp(directory),nullptr);
+    struct Cleanup{const char *p;~Cleanup(){std::filesystem::remove_all(p);}}cleanup{directory};
+    auto tables=test::Table({{test::Raw({1,2,3}),test::Raw({5,7,11})},
+        {test::Raw({1,2,3}),test::Raw({13,17,19})}},
+        {{"k",std::make_shared<Int64Type>()},{"v",std::make_shared<Int64Type>()}});
+    auto d=test::Table({{test::Raw({1,1,2,3}),test::Raw({10,10,20,20})}},
+        {{"k",std::make_shared<Int64Type>()},{"nk",std::make_shared<Int64Type>()}});
+    auto n=test::Table({{test::Raw({10,20}),test::Raw({1,0})}},
+        {{"k",std::make_shared<Int64Type>()},{"keep",std::make_shared<Int64Type>()}});
+    tables.emplace("d",std::move(d.at("t")));tables.emplace("n",std::move(n.at("t")));
+    TableRegistry loaded;
+    for(const auto &[name,table]:tables) {
+        auto path=std::string(directory)+"/"+name+".pgaccel";ASSERT_TRUE(table->Save(path).ok());
+        auto copy=ColumnarTable::Load(name,path);ASSERT_TRUE(copy.ok());loaded.emplace(name,std::move(copy).ValueUnsafe());
+    }
+    for(const std::string outer:{"1","7"}) for(const std::string inner:{"1","7","0"}) {
+        auto from=[](const std::string &value){return " FROM t,d,n WHERE t.k=d.k AND d.nk=n.k AND n.keep="+value;};
+        auto sql="SELECT t.k,sum(t.v)"+from(outer)+" GROUP BY t.k HAVING sum(t.v)>"
+            "(SELECT sum(t.v)*0.1"+from(inner)+") ORDER BY t.k";
+        auto q=ParseSelect(sql,tables);ASSERT_TRUE(q.ok());auto expected=ExecuteQuery(*q,true,true);ASSERT_TRUE(expected.ok());
+        auto prepared=PrepareDirectQuery(directory,sql);ASSERT_TRUE(prepared.ok())<<prepared.status().Message();
+        auto actual=ExecuteQuery(prepared->query,true,true);ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,expected->values);
+        int rows=0;for(int g=0;g<prepared->tables.at("t")->RowGroupCount();++g)rows+=prepared->tables.at("t")->GetRowGroup(g).size;
+        EXPECT_EQ(rows,outer==inner?(outer=="1"?2:0):6);
+        EXPECT_EQ(prepared->tables.at("d")->GetRowGroup(0).size,4);
+    }
+    for(bool cycle:{false,true}) {
+        auto q=ParseSelect(std::string("SELECT sum(t.v) FROM t,d,n WHERE t.k=d.k AND d.nk=n.k AND n.keep=1")+
+            (cycle?" AND t.k=n.k":""),loaded);ASSERT_TRUE(q.ok());
+        auto preparation=DirectPreparationFilters(*q);
+        for(uint64_t limit:{0,8,16,64}) {
+            uint64_t remaining=limit;
+            auto domains=PrepareDirectMembershipsAtDepth(preparation,0,loaded,true,remaining,{});
+            uint64_t bytes=0;for(const auto &domain:domains)bytes+=domain.bits.size()*sizeof(uint64_t);
+            EXPECT_LE(bytes,limit);EXPECT_EQ(bytes+remaining,limit);
+            if(!cycle && limit>=16) {
+                ASSERT_FALSE(domains.empty());EXPECT_TRUE(domains[0].contains(1));EXPECT_FALSE(domains[0].contains(2));
+            }
+        }
+    }
+}
