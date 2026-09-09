@@ -61,6 +61,22 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         };
         for (const auto &a:parsed->aggregateClauses)
             if (a.type==AggregateClause::AGGREGATE_SUM) measure(measure,a.expression);
+        // Conditional counts have constant CASE values, so they contribute no
+        // measure column above. The grouped input is the probe of the grouped
+        // count join; only that input may lose rows, leaving dimensions intact.
+        if(measures.empty() && parsed->tables.size()==2 && parsed->groupExpressions.size()==1) {
+            const auto &group=parsed->groupExpressions[0];
+            bool conditional=false;
+            for(const auto &a:parsed->aggregateClauses) {
+                const auto &e=a.expression;
+                if(a.type==AggregateClause::AGGREGATE_SUM && e && e->kind==Expression::CASE &&
+                   e->left && e->right && e->left->kind==Expression::CONSTANT &&
+                   e->right->kind==Expression::CONSTANT)conditional=true;
+            }
+            if(conditional && group->kind==Expression::COLUMN && group->column &&
+               (group->type->type_num()==STRING_TYPE || group->type->type_num()==DATE_TYPE))
+                measures.insert(group->column->tableIdx);
+        }
         if (parsed->tables.size()==1) measures={0};
         // Use snapshot stripe counts to choose the largest aggregate input.
         // Only that table loses rows; dimension key sequences remain intact.

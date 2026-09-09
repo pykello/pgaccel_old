@@ -73,3 +73,26 @@ TEST(DirectScopeFilters, IntersectsRequirementsAcrossEveryPhysicalUse) {
     check("SELECT sum(a.v) FROM t a,t b WHERE a.k=b.k AND a.k>=3",4);
     check("WITH x AS (SELECT k,v FROM t WHERE k>=3) SELECT sum(v) FROM x WHERE v>(SELECT avg(v) FROM x)",2);
 }
+
+TEST(DirectJoinMembership, ConditionalCountsPruneGroupedInputAndPreserveDimension) {
+    char directory[]="/tmp/pgaccel-direct-counts-XXXXXX";ASSERT_NE(mkdtemp(directory),nullptr);
+    struct Cleanup{const char *p;~Cleanup(){std::filesystem::remove_all(p);}}cleanup{directory};
+    auto tables=test::Table({{test::Raw({1,1,2,3}),test::Dict<StringType>({"mail","mail","ship","mail"}),
+        test::Raw({1,0,1,1})}},{{"k",std::make_shared<Int64Type>()},{"mode",std::make_shared<StringType>()},
+        {"keep",std::make_shared<Int64Type>()}});
+    auto d=test::Table({{test::Raw({1,2,3}),test::Dict<StringType>({"high","low","high"})}},
+        {{"k",std::make_shared<Int64Type>()},{"priority",std::make_shared<StringType>()}});
+    tables.emplace("d",std::move(d.at("t")));
+    for(const auto &[name,table]:tables)ASSERT_TRUE(table->Save(std::string(directory)+"/"+name+".pgaccel").ok());
+    for(const std::string join:{"JOIN","LEFT JOIN"}) {
+        auto sql=std::string("SELECT t.mode,sum(CASE WHEN ")+(join=="JOIN"?"priority='high'":"t.keep=1")+
+            " THEN 1 ELSE 0 END) FROM t"+
+            (join=="JOIN"?",d WHERE t.k=d.k AND ":" LEFT JOIN d ON t.k=d.k WHERE ")+
+            "t.keep=1 GROUP BY t.mode ORDER BY t.mode";
+        auto q=ParseSelect(sql,tables);ASSERT_TRUE(q.ok())<<q.status().Message()<<" SQL: "<<sql;auto expected=ExecuteQuery(*q,true,true);ASSERT_TRUE(expected.ok());
+        auto p=PrepareDirectQuery(directory,sql);ASSERT_TRUE(p.ok())<<p.status().Message();
+        auto actual=ExecuteQuery(p->query,true,true);ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,expected->values);
+        EXPECT_EQ(p->tables.at("t")->GetRowGroup(0).size,join=="JOIN"?3:4);
+        EXPECT_EQ(p->tables.at("d")->GetRowGroup(0).size,3);
+    }
+}
