@@ -534,3 +534,10 @@ seconds for Q6's measured 5.50 GB scan, before decoding and execution. Matching 
 reads through indexing/pruning, or both. Asynchronous reads should be measured
 after reducing validation overhead and fixing batch ownership, with a fixed
 queue and buffer budget.
+
+## Cache identity and ownership foundation
+
+[CACHE-OWNERSHIP.md](CACHE-OWNERSHIP.md) records validated snapshot identities
+and a byte-charged LRU for original blocks. All 298 native tests, Python
+integration and all 22 SF1 answers pass. The cache is not connected to scans
+yet, so the latest SF100 timing and memory comparison remains unchanged.

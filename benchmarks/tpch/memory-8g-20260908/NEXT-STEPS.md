@@ -173,3 +173,13 @@ scans. Decline unsupported auxiliary ownership. Verify eviction while a query
 still holds references and test snapshot changes; measure real transitions
 before claiming the combined cache/query process remains within 8 GiB.
 The cache is not yet active in query execution.
+
+## Cache identity and eviction implemented
+
+[CACHE-OWNERSHIP.md](CACHE-OWNERSHIP.md) completes the identity/ownership
+foundation and its tests. Connect original-block reuse before selection and
+transformation next. Variable-length stripes require retained end offsets
+or whole-column reuse; separately opened payload descriptors must agree with
+the validated identity. Keep cached sources immutable, expose hit/read counts,
+and measure combined query/cache memory on transitions. No runtime cache is
+active yet; the SF100 report is unchanged.
