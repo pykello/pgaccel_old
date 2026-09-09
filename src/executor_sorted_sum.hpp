@@ -73,6 +73,21 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
             if (op.low*rg.size<INT64_MIN || op.high*rg.size>INT64_MAX) throw NotDense{};
             const auto raw=static_cast<const RawColumnDataBase *>(rg.columns[key.columnIdx].get());
             auto &stripe=result.stripes[f];int n=0;
+            // Avoid repeated tiny allocations when retaining complete groups.
+            // Keep the combined initial reservation below 1/8 of the query
+            // allowance; selective HAVING paths keep their existing growth.
+            if constexpr (std::is_same_v<Keep,KeepSortedSums>) {
+                constexpr size_t initial=4096;
+                if(result.frames.size()<=budget.limit/(8*initial*sizeof(SortedSumGroup))) {
+                    size_t selectedCount=0;
+                    for(int offset=0;offset<(rg.size+7)/8;offset+=8) {
+                        uint64_t bits=0;memcpy(&bits,bitmap+offset,std::min(8,(rg.size+7)/8-offset));
+                        selectedCount+=__builtin_popcountll(bits);
+                    }
+                    auto domain=Wide(result.frames[f].high)-result.frames[f].low+1;
+                    stripe.groups.reserve(size_t(std::min<Wide>(std::min(initial,selectedCount),domain)));
+                }
+            }
             auto consume=[&]<bool Gather>(int begin) {
                 switch (raw->bytesPerValue) {
                 case 1:DecodeNumbers<int8_t,Gather>(raw,begin,n,keys,avx,selected);break;
