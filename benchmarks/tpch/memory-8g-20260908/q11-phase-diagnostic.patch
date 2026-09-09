@@ -1,0 +1,47 @@
+diff --git a/src/executor_sorted_join_sum.cc b/src/executor_sorted_join_sum.cc
+index b521b75..13d5d71 100644
+--- a/src/executor_sorted_join_sum.cc
++++ b/src/executor_sorted_join_sum.cc
+@@ -1,4 +1,6 @@
+ #include "executor_sorted_sum.hpp"
++#include <chrono>
++#include <iostream>
+ #include "executor_literal_filter.hpp"
+ #include "executor_sequence_join.hpp"
+ #include "executor_membership.hpp"
+@@ -87,6 +89,8 @@ std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &q,bool
+         foreign[depth]=next->a;primary[depth]=next->b;dimensions[depth]=current=next->b.tableIdx;visited|=uint32_t(1)<<current;
+     }
+     try {
++        auto phaseStart=std::chrono::steady_clock::now();
++        auto phase=[&](const char *name){auto now=std::chrono::steady_clock::now();std::cerr<<"Q11_PHASE "<<name<<" "<<std::chrono::duration<double,std::milli>(now-phaseStart).count()<<"\n";phaseStart=now;};
+         Budget budget(q.memoryBudgetBytes);ScopedValueResource memory(budget);Scratch planning(budget,8192);
+         std::array<FilterNodeP,3> filters;
+         for (int table=0;table<3;++table) if (!clauses[table].empty()) filters[table]=CreateFilterNode(clauses[table],avx);
+@@ -114,7 +118,7 @@ std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &q,bool
+             for (const auto &part:partials) keys.insert(keys.end(),part.begin(),part.end());
+             MembershipSet result(budget,0);result.assignNumbers(keys,0,budget);return result;
+         };
+-        auto tail=domain(1,nullptr);auto bridge=domain(0,&tail);
++        phase("proof");auto tail=domain(1,nullptr);auto bridge=domain(0,&tail);phase("domains");
+         if (bridge.bits.empty() && bridge.values.empty()) { QueryResults result(q,budget);return result.finish(); }
+         auto scan=ScanSortedSums(*q.tables[fact],groupKey,*q.aggregateClauses[sum].expression,
+             [&](const RowGroup &rg,uint8_t *bitmap) {
+@@ -122,7 +126,7 @@ std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &q,bool
+                 else memset(bitmap,0xff,(rg.size+7)/8);
+                 bridge.intersect(rg,foreign[0],false,avx,bitmap);return true;
+             },budget,avx,parallel);
+-        QueryDesc effective=q;auto &bound=effective.having[0];bound.bound.reset();bound.nullBound=!scan.count;
++        phase("scan");QueryDesc effective=q;auto &bound=effective.having[0];bound.bound.reset();bound.nullBound=!scan.count;
+         if (scan.count) {
+             bound.value=childSum==0?scan.sum:EvaluateWith(*child.aggregateClauses[0].expression,
+                 [&](const ColumnRef &column) {
+@@ -131,7 +135,7 @@ std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &q,bool
+                 }).number;
+             bound.scale=Scale(scalar.resultType.get());
+         }
+-        return FinishSortedSums(effective,key,sum,scan,budget,parallel);
++        auto result=FinishSortedSums(effective,key,sum,scan,budget,parallel);phase("finish");return result;
+     } catch (const NotDense &) { return {}; }
+     catch (const std::exception &e) { return Status::Invalid(e.what()); }
+ }
