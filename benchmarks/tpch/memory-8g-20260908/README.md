@@ -41,6 +41,15 @@ to 12.444 seconds. Warm time rises from 358.502 to 407.976 ms, still below
 the saved baseline, with 6.904 GiB peak. All 287 tests and SF1 checks pass.
 This follow-up is separate from the completed all-query warm milestone.
 
+## Preparation follow-up: dictionary validation
+
+[Byte usage flags](NATIVE-VALIDATION.md) reduce first-call time from 12.444
+to 11.465 seconds for Q1 and from 30.724 to 29.776 seconds for Q13.
+The candidate peaks at 6.904 and 1.866 GiB respectively. All 288 native
+tests, Python integration, 22 SF1 answers and the SF100 checks pass.
+Warm medians and controls are preserved in the report; this does not
+replace the complete warm sweep or establish changing-query latency.
+
 ## Q11 preparation: shared scalar domain proof
 
 [Shared-domain preparation](SHARED-DOMAIN-PREPARATION.md) now proves when
