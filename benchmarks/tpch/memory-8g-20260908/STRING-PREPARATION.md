@@ -66,3 +66,19 @@ This follow-up does not replace the complete
 [read-ahead sweep](TRANSITION-READ-AHEAD.md). It changes transient preparation
 allocation, not the statement-specific residency policy. Q13 still needs
 18 seconds on a first call; the broader performance goal remains open.
+
+## Profile after allocation reuse
+
+The [reused-string profile](native-direct-reused-string-profile-q13-sf100.json)
+on `bbb1f96` takes 17.918 seconds for Q13's first call. Orders preparation
+is 17.314 seconds: selection 0.032, compaction 0.164 and transformation 6.406
+seconds. String loading totals 9.825 seconds, including 7.897 seconds of
+entry decoding and 0.230 seconds validating row codes. It decodes the same
+149459270 dictionary entries. These nested timings are not additive and
+include read waits within decoding; they do not isolate allocator CPU cost.
+
+All nine typed answers pass under the total cap; peak is 1.792 GiB and warm
+median 540.756 ms. The [instrumentation](reused-string-profile.patch) is
+preserved separately and absent from production. Remaining decoder overhead
+and predicate transformation both warrant investigation; the earlier
+pre-allocation profile is no longer a current phase breakdown.

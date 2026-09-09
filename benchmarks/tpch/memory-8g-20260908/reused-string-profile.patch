@@ -1,0 +1,110 @@
+diff --git a/src/column_data.cc b/src/column_data.cc
+index 5a8514e..0efad5a 100644
+--- a/src/column_data.cc
++++ b/src/column_data.cc
+@@ -1,9 +1,22 @@
++#include <chrono>
++#include <cstdio>
++#include <atomic>
+ #include "column_data.hpp"
+ #include <limits>
+ 
+ namespace pgaccel
+ {
+ 
++namespace {
++using ProfileClock=std::chrono::steady_clock;
++uint64_t ProfileElapsed(ProfileClock::time_point start) {
++    return std::chrono::duration_cast<std::chrono::nanoseconds>(ProfileClock::now()-start).count();
++}
++struct StringLoadProfile {
++    std::atomic<uint64_t> total{0},decode{0},codes{0},entries{0};
++    ~StringLoadProfile(){std::fprintf(stderr,"STRING_PROFILE total_ms=%.3f decode_ms=%.3f codes_ms=%.3f entries=%llu\n",total.load()/1e6,decode.load()/1e6,codes.load()/1e6,(unsigned long long)entries.load());}
++} stringLoadProfile;
++}
+ template<>
+ Result<bool>
+ DictColumnData<StringType>::SaveValue(std::ostream &out,
+@@ -50,6 +63,7 @@ template<class AccelTy>
+ static Result<ColumnDataP>
+ LoadDictColumnData(std::istream &in, bool aligned, std::vector<std::string> *scratch = nullptr)
+ {
++    auto totalStart=ProfileClock::now();
+     int dictSize = 0;
+     auto result = std::make_shared<DictColumnData<AccelTy>>();
+     result->type = ColumnDataBase::DICT_COLUMN_DATA;
+@@ -61,8 +75,13 @@ LoadDictColumnData(std::istream &in, bool aligned, std::vector<std::string> *scr
+     // copies; numeric dictionaries can be read as one contiguous block.
+     if constexpr(std::is_same_v<AccelTy,StringType>)
+         if (scratch) result->dict.swap(*scratch);
++    auto decodeStart=ProfileClock::now();
+     result->dict.resize(dictSize);
+     ReadValues<AccelTy>(in, dictSize, result->dict.data());
++    if constexpr(std::is_same_v<AccelTy,StringType>) {
++        stringLoadProfile.decode+=ProfileElapsed(decodeStart);
++        stringLoadProfile.entries+=dictSize;
++    }
+ 
+     in.read((char *) &result->size, sizeof(result->size));
+     if (!in || result->size < 0 || result->size > RowGroupSize || (result->size && !dictSize))
+@@ -79,6 +98,7 @@ LoadDictColumnData(std::istream &in, bool aligned, std::vector<std::string> *scr
+     if (!in) return Status::Invalid("Truncated column data");
+     // Byte stores avoid a dependent read/modify/write of a packed bit for
+     // every code. This scratch array is bounded by one stripe dictionary.
++    auto codesStart=ProfileClock::now();
+     std::vector<uint8_t> used(dictSize,0);
+     for (int i = 0; i < result->size; ++i) {
+         int code = bytesPerValue == 1 ? result->values[i] : ((uint16_t*)result->values)[i];
+@@ -87,6 +107,10 @@ LoadDictColumnData(std::istream &in, bool aligned, std::vector<std::string> *scr
+     }
+     if (std::find(used.begin(),used.end(),uint8_t(0)) != used.end())
+         return Status::Invalid("Native dictionary contains unused values");
++    if constexpr(std::is_same_v<AccelTy,StringType>) {
++        stringLoadProfile.codes+=ProfileElapsed(codesStart);
++        stringLoadProfile.total+=ProfileElapsed(totalStart);
++    }
+     ColumnDataP resultCasted = std::move(result);
+     return resultCasted;
+ }
+diff --git a/src/columnar_table.cc b/src/columnar_table.cc
+index aabc288..477736f 100644
+--- a/src/columnar_table.cc
++++ b/src/columnar_table.cc
+@@ -1,3 +1,5 @@
++#include <chrono>
++#include <cstdio>
+ #include "executor_tasks.hpp"
+ #include "compact_column.hpp"
+ #include "columnar_table.h"
+@@ -350,8 +352,13 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+     for (const auto &column:(*schema)->Schema())
+         if (normalized.count(column.name)) result->schema_.push_back(column);
+     if (result->schema_.size()!=normalized.size()) return Status::Invalid("Unknown selected column");
++    using Clock=std::chrono::steady_clock;
++    auto loadStart=Clock::now();double selectMs=0,compactMs=0,transformMs=0;
+     auto scan = ScanDirect(path, fields, [&](const auto &columns, const RowGroup &batch)->Result<bool> {
++        auto phaseStart=Clock::now();
+         auto selected = select(columns, batch); if (!selected.ok()) return selected.status();
++        selectMs+=std::chrono::duration<double,std::milli>(Clock::now()-phaseStart).count();
++        phaseStart=Clock::now();
+         const auto &rows = *selected;
+         for (size_t i=0; i<rows.size(); ++i)
+             if (rows[i]>=batch.size || (i && rows[i]<=rows[i-1]))
+@@ -378,13 +385,17 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+                 compact.columns.push_back(std::move(column).ValueUnsafe());
+             }
+         }
++        compactMs+=std::chrono::duration<double,std::milli>(Clock::now()-phaseStart).count();
++        phaseStart=Clock::now();
+         if(transform)for(size_t c=0;c<columns.size();++c) {
+             auto column=transform(columns[c],compact.columns[c]);if(!column.ok())return column.status();
+             if(!*column || (*column)->size!=compact.size)return Status::Invalid("Transform changed row count");
+             compact.columns[c]=std::move(column).ValueUnsafe();
+         }
++        transformMs+=std::chrono::duration<double,std::milli>(Clock::now()-phaseStart).count();
+         result->row_groups_.push_back(std::move(compact)); return true;
+     });
++    std::fprintf(stderr,"PREP_PROFILE table=%s total_ms=%.3f select_ms=%.3f compact_ms=%.3f transform_ms=%.3f\n",name.c_str(),std::chrono::duration<double,std::milli>(Clock::now()-loadStart).count(),selectMs,compactMs,transformMs);
+     if (!scan.ok()) return scan.status();
+     if (io) *io = *scan;
+     return result;
