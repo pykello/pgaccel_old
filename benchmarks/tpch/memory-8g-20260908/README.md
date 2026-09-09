@@ -4,17 +4,16 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
-[TRANSITION-RUNS.md](TRANSITION-RUNS.md) is the latest complete comparison
+[TRANSITION-CHAINS.md](TRANSITION-CHAINS.md) is the latest complete comparison
 against saved pgaccel, ClickHouse and DuckDB times. It includes the
 [8 MiB direct reads](LARGER-READS.md) and [warm-execution changes](WARM-RECOVERY.md).
 The reader remains synchronous `O_DIRECT`; `io_uring` has not been added.
 
 One frozen build executed Q1 through Q22 in one long-lived database, nine
-calls each. All 198 answers pass; cumulative memory peak is **6.960 GiB**, with
-zero sampled file-cache charge, zero swap and no memory-limit events. Q17 and Q18 now run in 214.448 and 573.199 ms, below their saved
-272.281 and 733.755 ms. Q11 alone exceeds its saved median: 30.581 versus
-30.496 ms (0.3%). All 22 warm medians are below the saved ClickHouse and DuckDB times.
-First calls take **1.5–32.6 seconds** and include SQL-specific preparation.
+calls each. All 198 answers pass; cumulative memory peak is **7.060 GiB**, with
+zero sampled file-cache charge, zero swap and no memory-limit events. **Every warm median is below its saved pgaccel time.** Q11 is 17.852 ms,
+Q17 207.672 ms and Q18 572.943 ms. All 22 warm medians are below the saved ClickHouse and DuckDB times.
+First calls take **1.5–33.0 seconds** and include SQL-specific preparation.
 Warm reuse is not equivalent to executing changing SQL from NVMe at the old
 fully resident latency. Internal admission for arbitrary workloads is also
 unfinished. The full goal remains open.
@@ -23,13 +22,15 @@ The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) and
 [previous 8 MiB sweep](TRANSITION-NARROW.md) and
 [dense-group sweep](TRANSITION-DENSE.md), and
 [preparation sweep](TRANSITION-COMPACTION.md) and
-[HAVING sweep](TRANSITION-HAVING.md) remain separate. No faster
+[HAVING sweep](TRANSITION-HAVING.md) and
+[run-reduction sweep](TRANSITION-RUNS.md) remain separate. No faster
 individual measurement replaces a slower value in a complete sweep.
 The latest module includes the Q22 prefix, Q12 conditional-count preparation,
 scoped arithmetic gathers, and Q1 observed dictionary-pair reductions. It
 also includes parallel compaction, final-slot dictionary decoding and
 fixed-width compaction, adaptive HAVING pruning, hierarchical membership
-and contiguous-run reduction. It passes all 284 native tests, all 22 SF1 answers and Python integration.
+contiguous-run reduction, shared-scope proof and chained membership
+preparation. It passes all 286 native tests, all 22 SF1 answers and Python integration.
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
@@ -40,7 +41,7 @@ uncorrelated scalar scopes require the same inner-join rows. Bounded
 different-key propagation now carries those domains through dimensions.
 Q11 runs in 8.844 ms warm at 0.098 GiB total peak; Q3 and Q5 also pass under
 8 GiB. All 286 tests, SF1 answers and Python integration pass. This follow-up
-is not yet included in the complete comparison above.
+is included in the complete comparison above.
 
 ## Q17 follow-up: two-level bitmap probing
 
@@ -59,7 +60,8 @@ from 49.4 to 1.68 MiB by proving that completed groups cannot pass the final
 threshold. The paired SF100 warm result improves modestly from 28.571 to
 28.181 ms. All 282 tests, 22 SF1 answers and Python integration pass. This
 change is included in the complete comparison above. Its remaining Q11
-margin is insufficient; the full run retains that slight regression.
+warm target is now met after shared-domain preparation; earlier regressions
+remain in their original reports.
 
 ## Preparation profiling and parallel compaction
 

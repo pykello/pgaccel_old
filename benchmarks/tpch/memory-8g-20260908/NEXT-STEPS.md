@@ -1,15 +1,16 @@
 # Remaining work toward the 8 GiB performance goal
 
-The [latest complete sweep](TRANSITION-RUNS.md) passes all 198 answers at
-6.960 GiB peak. Q17 and Q18 have clear margins at 214.448 and 573.199 ms.
-Q11 alone exceeds its saved warm median: 30.581 versus 30.496 ms. Do not
-rerun merely to select a favorable sample; create more actual headroom.
+The [latest complete sweep](TRANSITION-CHAINS.md) passes all 198 answers at
+7.060 GiB peak. **Every prepared-input warm median meets its saved pgaccel
+time.** Preserve that complete milestone; do not rerun to improve its numbers.
+All 286 tests, 22 SF1 answers and Python integration pass for this module.
 
-The [shared-domain proof and bounded propagation](SHARED-DOMAIN-PREPARATION.md)
-are now retained. All 286 tests and SF1 answers pass. SF100 Q11 reaches
-8.844 ms warm and 0.098 GiB total peak; Q3 and Q5 also pass nine answers under
-the cap. Next, validate the entire workload on this frozen module, preserving
-all timings and transition memory rather than substituting individual runs.
+The original fully resident database and this statement-specific working set
+have different preparation behavior. New SQL still releases old input and
+performs direct reads, filtering and compaction. First calls take 1.5–33.0
+seconds. Warm benchmark success does not prove the same latency when changing
+queries or a general-purpose 8 GiB working set. That remains the next work,
+with any later implementation checked against the preserved warm baseline.
 
 For preparation latency, also investigate retaining original stripe buffers
 when a necessary filter discards very few rows. This belongs in the query

@@ -96,3 +96,17 @@ Evidence: [Q11](native-direct-chain-domain-q11-sf100.json),
 [Q3](native-direct-chain-domain-q3-sf100.json),
 [Q5](native-direct-chain-domain-q5-sf100.json),
 [SF1 gate](auto-projection-sf1-chain-domain-gate.json).
+
+
+## Complete workload milestone
+
+[TRANSITION-CHAINS.md](TRANSITION-CHAINS.md) records the final frozen module
+across all 22 queries in one database. All 198 answers pass under 8 GiB with
+zero swap; total peak is 7.060 GiB and sampled file charge is zero. Every warm
+median is below the saved pgaccel time. Q11 is 17.852 ms in this full run;
+keep it separate from the faster isolated measurement.
+
+This establishes the prepared-input warm milestone, not unchanged latency
+for different SQL. First calls still take 1.5–33.0 seconds. Subsequent work
+must address preparation and general working-set behavior without hiding
+those costs or rewriting the completed timing evidence.
