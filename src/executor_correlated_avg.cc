@@ -117,6 +117,17 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
         if (selectedBuild > 1000000 || selectedBuild > dimensionRows / 8) throw NotDense{};
         index.finalize();
         BitmapDomain domain{lo, hi, index.words()};
+        std::pmr::vector<uint32_t> nonempty(&budget);
+        Wide width=Wide(hi)-lo+1;
+        // Large sparse domains benefit from a cache-sized exact summary:
+        // one bit says whether a 32-key membership word contains any key.
+        if(avx && lo>=0 && hi<=INT32_MAX && width>(1<<20) && Wide(index.size())*128<width) {
+            size_t words=size_t((width+31)/32);
+            nonempty.resize((words+31)/32,0);
+            auto bits=reinterpret_cast<const uint32_t *>(index.words());
+            for(size_t word=0;word<words;++word) if(bits[word]) nonempty[word/32]|=uint32_t(1)<<(word%32);
+            domain.nonemptyWords=nonempty.data();
+        }
         const auto &facts = *q.tables[probeTable];
         int workers = parallel ? std::min(8, std::max(1, facts.RowGroupCount())) : 1;
         auto partials = RunTasks(workers, [&](int worker) {
@@ -138,7 +149,9 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
                 };
                 if (avx && raw->bytesPerValue == 4 && lo >= 0 && hi <= INT32_MAX) {
                     for (int begin = 0; begin < rg.size; begin += Block)
-                        consume(BitmapSelectRange32(domain, reinterpret_cast<const int32_t *>(raw->values), begin, std::min(Block, rg.size - begin), nullptr, selected));
+                        consume(domain.nonemptyWords
+                            ? BitmapSelectRange32<true>(domain, reinterpret_cast<const int32_t *>(raw->values), begin, std::min(Block, rg.size - begin), nullptr, selected)
+                            : BitmapSelectRange32(domain, reinterpret_cast<const int32_t *>(raw->values), begin, std::min(Block, rg.size - begin), nullptr, selected));
                 } else {
                     int n = 0;
                     for (int row = 0; row < rg.size; ++row) if (domain.contains(int64_t(Read(rg, probeKey, row).number))) {

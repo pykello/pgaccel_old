@@ -5,12 +5,14 @@ namespace pgaccel {
 namespace {
 struct BitmapDomain {
     int64_t first,last;const uint64_t *bits;
+    const uint32_t *nonemptyWords=nullptr;
     bool contains(int64_t key) const {
         if(key<first || key>last)return false;
         uint64_t offset=uint64_t(Wide(key)-first);return bits[offset/64]>>(offset%64)&1;
     }
 
 };
+template<bool Hierarchical=false>
 int BitmapSelectRange32(const BitmapDomain &domain,const int32_t *values,int begin,int n,
                       const uint8_t *bitmap,uint32_t *output) {
     auto first=_mm512_set1_epi32(domain.first),last=_mm512_set1_epi32(domain.last);
@@ -23,6 +25,13 @@ int BitmapSelectRange32(const BitmapDomain &domain,const int32_t *values,int beg
         auto valid=selected & _mm512_cmpge_epi32_mask(key,first) & _mm512_cmple_epi32_mask(key,last);
         if(!valid)continue;
         auto positions=_mm512_srli_epi32(delta,5);
+        if constexpr (Hierarchical) {
+            auto summary=_mm512_mask_i32gather_epi32(_mm512_setzero_si512(),valid,
+                _mm512_srli_epi32(positions,5),domain.nonemptyWords,4);
+            valid &= _mm512_test_epi32_mask(_mm512_srlv_epi32(summary,
+                _mm512_and_si512(positions,_mm512_set1_epi32(31))),_mm512_set1_epi32(1));
+            if(!valid)continue;
+        }
         uint32_t firstWord=uint32_t(_mm_cvtsi128_si32(_mm512_castsi512_si128(positions)));
         __m512i bits;
         if((_mm512_cmpeq_epi32_mask(positions,_mm512_set1_epi32(firstWord)) & valid)==valid)

@@ -1,3 +1,4 @@
+#include "executor_bitmap_probe.hpp"
 #include "test_table.hpp"
 #include <gtest/gtest.h>
 using namespace pgaccel;
@@ -85,4 +86,33 @@ TEST(CorrelatedAverage, RoundedAverageThresholdAndReversedComparison) {
         auto limited = *q; limited.memoryBudgetBytes = 1; limited.allowSpill = false;
         EXPECT_FALSE(ExecuteQuery(limited, true, true).ok());
     }
+}
+
+TEST(BitmapProbe, HierarchicalSparseWordsMasksAndTails) {
+    constexpr int first=13,last=200019;
+    std::vector<uint64_t> bits((last-first+64)/64);
+    for(int key:{first,first+31,first+32,first+1023,first+1024,last}) {
+        int offset=key-first;bits[offset/64]|=uint64_t(1)<<(offset%64);
+    }
+    size_t words=(last-first+32)/32;
+    std::vector<uint32_t> summary((words+31)/32);
+    auto narrow=reinterpret_cast<const uint32_t *>(bits.data());
+    for(size_t i=0;i<words;++i) if(narrow[i]) summary[i/32]|=uint32_t(1)<<(i%32);
+    BitmapDomain domain{first,last,bits.data(),summary.data()};
+    std::vector<int32_t> values(320);
+    const int32_t cases[]={INT32_MIN,first-1,first,first+31,first+32,first+1023,
+        first+1024,first+1025,last,last+1,INT32_MAX,100000};
+    for(size_t i=0;i<values.size();++i)values[i]=cases[i%12];
+    uint8_t bitmap[40];memset(bitmap,0xaa,sizeof(bitmap));
+    uint32_t output[320];
+    for(int begin:{0,16,32}) for(int n:{0,1,15,16,17,63,64,65,255,256})
+        for(bool filtered:{false,true}) {
+            std::vector<uint32_t> expected;
+            for(int row=begin;row<begin+n;++row)
+                if((!filtered || (bitmap[row/8]>>(row%8)&1)) && domain.contains(values[row]))expected.push_back(row);
+            int count=BitmapSelectRange32<true>(domain,values.data(),begin,n,filtered?bitmap:nullptr,output);
+            EXPECT_EQ((std::vector<uint32_t>(output,output+count)),expected);
+            int flat=BitmapSelectRange32(domain,values.data(),begin,n,filtered?bitmap:nullptr,output);
+            EXPECT_EQ((std::vector<uint32_t>(output,output+flat)),expected);
+        }
 }
