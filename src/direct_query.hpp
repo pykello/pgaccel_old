@@ -7,6 +7,7 @@
 #include "date_predicate_columns.hpp"
 #include "compact_column.hpp"
 #include "direct_join_membership.hpp"
+#include "direct_literal_filters.hpp"
 #include <filesystem>
 #include <cstring>
 #include <numeric>
@@ -34,6 +35,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 return Status::Invalid("Duplicate direct table name");
         }
         auto parsed=ParseSelect(sql,schemas);if(!parsed.ok())return parsed.status();
+        auto preparation=DirectPreparationFilters(*parsed);
         auto needed=RequiredQueryColumns(*parsed);
         auto predicateColumns=PredicateOnlyColumns(*parsed);
         auto datePredicates=DatePredicateOnlyColumns(*parsed);
@@ -80,12 +82,12 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
             auto fields=needed.find(schema.get());if(fields==needed.end())continue;
             DirectScanStats io;
             std::vector<FilterClause> filters;
-            if (push && schema.get()==compactTable) for (const auto &filter:parsed->filterClauses)
+            if (push && schema.get()==compactTable) for (const auto &filter:preparation.filterClauses)
                 if (parsed->tables[filter.columnRef.tableIdx]==schema.get()) filters.push_back(filter);
             std::vector<DirectJoinMembership> memberships;
             if(push && schema.get()==compactTable) {
                 int fact=std::find(parsed->tables.begin(),parsed->tables.end(),compactTable)-parsed->tables.begin();
-                memberships=PrepareDirectMemberships(*parsed,fact,result.tables,useAvx);
+                memberships=PrepareDirectMemberships(preparation,fact,result.tables,useAvx);
             }
             FilterNodeP node;
             auto selectRows = [&](const auto &columns, const RowGroup &batch)->Result<std::vector<uint16_t>> {

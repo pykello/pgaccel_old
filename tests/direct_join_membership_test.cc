@@ -39,3 +39,14 @@ TEST(DirectJoinMembership, SparseExtremeDomainsDeclinePruning) {
     auto memberships=PrepareDirectMemberships(*q,f,tables,true,1024);
     EXPECT_TRUE(memberships.empty());
 }
+
+TEST(DirectJoinMembership, CommonDisjunctFiltersAreNecessaryInEveryBranch) {
+    auto tables=test::Table({{test::Raw({1,2,3}),test::Dict<StringType>({"yes","no","yes"})}},
+        {{"k",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+    auto common=ParseSelect("SELECT sum(k) FROM t WHERE (s='yes' AND k=1) OR (s='yes' AND k=3)",tables);
+    ASSERT_TRUE(common.ok());auto required=DirectPreparationFilters(*common);
+    ASSERT_EQ(required.filterClauses.size(),1);EXPECT_EQ(required.filterClauses[0].columnRef.Name(),"s");
+    EXPECT_EQ(required.filterClauses[0].value,"yes");
+    auto optional=ParseSelect("SELECT sum(k) FROM t WHERE (s='yes' AND k=1) OR k=2",tables);
+    ASSERT_TRUE(optional.ok());EXPECT_TRUE(DirectPreparationFilters(*optional).filterClauses.empty());
+}
