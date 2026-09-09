@@ -32,6 +32,15 @@ The earlier [chain-domain sweep](TRANSITION-CHAINS.md),
 [run-reduction sweep](TRANSITION-RUNS.md) remain separate evidence. No faster
 individual measurement replaces a slower value in a complete sweep.
 
+## Latest follow-up: reuse released string dictionaries
+
+[Dictionary allocation reuse](STRING-PREPARATION.md) reduces Q13 first-call
+time from 27.682 to 18.222 seconds and Q9 from 17.403 to 16.344 seconds.
+Candidate peaks are 1.791 and 2.759 GiB. All 293 native tests, Python
+integration and all 22 SF1 answers pass. Retained columns remain immutable;
+only dictionaries released by the consumer are recycled between stripes.
+The complete sweep above predates this follow-up and remains unchanged.
+
 ## Latest follow-up: small direct header buffers
 
 [Header validation](SMALL-HEADERS.md) now uses 4 KiB with no read-ahead.

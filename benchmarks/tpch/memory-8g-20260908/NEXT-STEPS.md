@@ -91,7 +91,15 @@ all-query measurement, predating this follow-up.
 
 ## Next preparation target
 
-Q13 still spends about 27 seconds preparing predicate-only strings.
+[String allocation reuse](STRING-PREPARATION.md) now reduces Q13 first-call
+time from 27.682 to 18.222 seconds, at 1.791 GiB peak. Q9 improves from
+17.403 to 16.344 seconds with a matching control. All 293 native tests,
+Python integration and all 22 SF1 answers pass. The pre-change profile
+measures 13.205 seconds decoding 149 million labels and 5.126 seconds in
+the predicate transformation. Those phase timings predate allocation reuse;
+reprofile before attributing the remaining 18 seconds.
+
+Q13 still prepares predicate-only strings on every changed statement.
 `PredicateOnlyColumns` proves when every use observes the same predicate,
 and `PredicateDictionary` later replaces the loaded dictionary with at most
 two representative strings. The loader currently constructs the complete
