@@ -82,3 +82,40 @@ median 540.756 ms. The [instrumentation](reused-string-profile.patch) is
 preserved separately and absent from production. Remaining decoder overhead
 and predicate transformation both warrant investigation; the earlier
 pre-allocation profile is no longer a current phase breakdown.
+
+## Retained change: one stream guard per dictionary
+
+Commit `58c4876` constructs one unformatted stream guard for the dictionary
+instead of calling istream::read separately for every length and value.
+The loop reads through the stream buffer, checks exact byte counts, validates
+the length before resizing, and still writes into the reusable string slots.
+A short read sets EOF and failure state; a stream-buffer exception sets badbit
+and propagates the original exception when that exception mask is enabled.
+The existing dictionary validation then checks ordering, codes and coverage.
+
+All 294 native tests, Python integration and all 22 SF1 answers pass. Added
+fault-injection checks cover short string bodies and throwing stream buffers,
+with and without stream exception masks. This changes input bookkeeping, not
+string bytes, predicate evaluation, read-ahead or the native file format.
+
+| Query/build | First call s | Warm median ms | Total peak GiB |
+|---|---:|---:|---:|
+| Q13 previous | 18.222 | 541.537 | 1.791 |
+| Q13 one guard | 15.281 | 542.819 | 1.791 |
+| Q9 previous | 16.344 | 1575.506 | 2.759 |
+| Q9 one guard | 16.019 | 1536.688 | 2.759 |
+
+Each candidate uses nine calls in a fresh process under MemoryMax=8G and
+MemorySwapMax=0. All 18 answers pass. Controls are the preceding allocation-
+reuse runs; these are individual samples, not confidence intervals. First
+calls improve about 16.1% for Q13 and 2.0% for Q9. Warm samples remain as
+measured; the changed decoder is not called during statement-input reuse.
+
+Evidence: [Q13](native-direct-string-guard-q13-sf100.json),
+[Q9](native-direct-string-guard-q9-sf100.json),
+[SF1 gate](auto-projection-sf1-string-guard-gate.json).
+The complete read-ahead sweep still predates these string-loading changes.
+The first call remains seconds long, so the changing-query residency goal
+is still open. Predicate transformation is the next measured preparation
+component to investigate, with its latest phase sample also predating this
+stream-guard change.
