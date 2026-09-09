@@ -4,29 +4,28 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
-[TRANSITION-NARROW.md](TRANSITION-NARROW.md) is the latest complete comparison
+[TRANSITION-DENSE.md](TRANSITION-DENSE.md) is the latest complete comparison
 against saved pgaccel, ClickHouse and DuckDB times. It includes the
 [8 MiB direct reads](LARGER-READS.md) and [warm-execution changes](WARM-RECOVERY.md).
 The reader remains synchronous `O_DIRECT`; `io_uring` has not been added.
 
 One frozen build executed Q1 through Q22 in one long-lived database, nine
-calls each. All 198 answers pass; cumulative memory peak is 7.681 GiB, with
-zero sampled file-cache charge, zero swap and no memory-limit events. Q1, Q11,
-Q12 and Q22 still exceed their saved pgaccel warm medians. First calls take
-1.5–38.4 seconds and include SQL-specific
-preparation; this is not equivalent to scanning arbitrary queries from NVMe at
-the old fully resident latency. Internal admission for arbitrary workloads is
-also unfinished. The full goal remains open.
+calls each. All 198 answers pass; cumulative memory peak is **6.930 GiB**, with
+zero sampled file-cache charge, zero swap and no memory-limit events. Q11 is
+the only warm median above the saved pgaccel time: 30.761 versus 30.496 ms
+(0.9%). All 22 warm medians are below the saved ClickHouse and DuckDB times.
+First calls take **1.5–38.3 seconds** and include SQL-specific preparation.
+Warm reuse is not equivalent to executing changing SQL from NVMe at the old
+fully resident latency. Internal admission for arbitrary workloads is also
+unfinished. The full goal remains open.
 
-The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) remains separate.
-No faster individual measurement replaces a slower value in either full sweep.
-The subsequent [Q22 prefix follow-up](WARM-RECOVERY.md) passes at 219.790 ms
-warm; it has not yet been incorporated into a new complete sweep.
-Further individual checks reach 204.854 ms and 1.294 GiB peak for Q12 after
-conditional-count preparation, and 28.640 ms for Q11 with scoped arithmetic
-gathers. All 279 native tests and 22 SF1 answers pass. These are separate
-follow-ups, not replacements for the slower complete-sweep measurements.
-[Next steps](NEXT-STEPS.md) cover remaining execution margins, full validation,
+The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) and
+[previous 8 MiB sweep](TRANSITION-NARROW.md) remain separate. No faster
+individual measurement replaces a slower value in a complete sweep.
+The latest module includes the Q22 prefix, Q12 conditional-count preparation,
+scoped arithmetic gathers, and Q1 observed dictionary-pair reductions. It
+passes all 280 native tests, all 22 SF1 answers and Python integration.
+[Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
 ## Nested date filters reduce Q15 and Q20 residency

@@ -128,7 +128,7 @@ and the earlier direct run's 7.458 GiB peak. First preparation is 10.946 seconds
 The new test checks selected fact rows, intact dimensions and exclusion of
 outer joins using the parser's supported aggregate shapes. All 279 tests and
 the [final 22-query SF1 gate](auto-projection-sf1-scoped-count-final-gate.json)
-pass. These follow-ups have not yet been incorporated into a complete sweep.
+pass. These follow-ups are included in the subsequent complete sweep below.
 
 ## Q1: reduce only dictionary pairs present in each block
 
@@ -156,3 +156,16 @@ saved baseline. First preparation is still 28.184 seconds. All 280 native
 tests, all 22 SF1 answers and Python integration pass. The new test covers
 absent Cartesian pairs, whole blocks excluded by filtering, and a short tail,
 using the general arithmetic interpreter as a reference.
+
+## Complete sweep after the retained changes
+
+[TRANSITION-DENSE.md](TRANSITION-DENSE.md) uses the frozen dense-active module
+for all 22 queries in one long-lived database. All 198 answers pass, peak total
+memory is 6.930 GiB, sampled file-cache charge is zero, and no limit or OOM
+events occur. Q1 is 356.617 ms, Q12 178.161 ms and Q22 186.768 ms. Q11 remains
+slightly above its saved baseline: 30.761 versus 30.496 ms. The report keeps
+that result instead of substituting the faster individual trial.
+
+These are warm medians after SQL-specific direct reading and compaction.
+First calls take 1.5–38.3 seconds. The remaining preparation cost and Q11
+regression prevent claiming the full objective is complete.

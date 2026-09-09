@@ -1,19 +1,21 @@
 # Remaining work toward the 8 GiB performance goal
 
-The [latest complete sweep](TRANSITION-NARROW.md) passes every answer at
-7.681 GiB peak, but Q1, Q11, Q12 and Q22 exceed the saved pgaccel medians.
-The subsequent Q22 prefix change has a substantial individual-run margin.
-Subsequent Q12 conditional-count preparation reaches 204.854 ms and 1.294 GiB
-peak, while scoped arithmetic gathers give Q11 a 28.640 ms individual result.
-Keep both measurements. Do not choose faster individual samples to rewrite
-a complete sweep or relax the timing threshold to declare completion.
+The [latest complete sweep](TRANSITION-DENSE.md) passes all 198 answers at
+6.930 GiB peak. Q11 alone exceeds the saved pgaccel warm median: 30.761 versus
+30.496 ms. Its faster individual results remain separate evidence. Q1, Q12
+and Q22 now have substantial margin in the complete workload.
 
-1. **Create and confirm margin in the remaining kernels.** Q1 was 454.791 versus 440.185 ms;
-   Q11 was 31.874 versus 30.496 ms; Q12 was 343.101 versus 341.982 ms. Start
-   with Q1 phase measurements, then optimize the dominant work. The Q11 profile
-   already identifies its grouped fact scan. Keep eight executor workers so
-   comparisons do not gain from an unreported concurrency increase. Check
-   meaningful nonempty and boundary answers as well as the SF100 timings.
+1. **Improve preparation and preserve execution margin.** First preparation
+   remains seconds, despite warm execution gains. Measure read wait,
+   filtering and compaction separately before adding asynchronous I/O.
+   The selected loader checks row order once, then compaction checks it again
+   for every column; consider a validated selection interface that preserves
+   bounds checks for each source. Independent column compaction may run in
+   parallel, but selection and transformation callbacks capture mutable state
+   and cannot simply be dispatched concurrently. Bound any pipeline's buffers
+   and preserve the eight-worker comparison. Q11's grouped fact scan remains
+   the measured warm bottleneck; do not rerun to select a favorable sample or
+   silently relax the threshold.
 
 2. **Revalidate the complete workload after retained changes.** Use one frozen
    module, Q1 through Q22 in one Database, nine calls each, an enforced 8 GiB
@@ -24,7 +26,7 @@ a complete sweep or relax the timing threshold to declare completion.
 
 3. **Reduce preparation without hiding it.** Current warm calls reuse
    SQL-specific projected and filtered input. Changing SQL rereads and
-   reconstructs that input; the latest first calls take 1.5–38.4 seconds.
+   reconstructs that input; the latest first calls take 1.5–38.3 seconds.
    Investigate which retained physical columns or immutable blocks can be
    reused safely across different queries, with explicit byte admission and
    eviction. A representation transformed for one query cannot be treated as
