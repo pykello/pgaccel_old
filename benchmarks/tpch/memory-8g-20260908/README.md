@@ -4,6 +4,12 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: full sweep and corrected Q19 follow-up
 
+[TRANSITIONS.md](TRANSITIONS.md) adds a five-step test in one long-lived database.
+All 45 answers pass before and after returning unused allocator pages on SQL
+changes. Q9's ending residency falls from 7.88 to 2.79 GiB; reloads can take
+longer. The new run records no file-cache charge or memory-limit events.
+This is not yet a complete 22-query transition sweep.
+
 [FULL-SWEEP.md](FULL-SWEEP.md) compares all 22 queries with saved ClickHouse,
 DuckDB and previous pgaccel times. One frozen build passed 21 queries and was
 OOM-killed on Q19. A separately identified fix (`683ad20`) made Q19 pass at

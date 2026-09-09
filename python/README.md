@@ -60,8 +60,8 @@ statement. Binding includes joins and nested queries. For a simple query scope,
 preparation also discards rows failing simple filters on the largest SUM-input
 table (or on the only table), estimated using snapshot stripe counts. Columns are compacted together; numeric bounds
 and local dictionaries are rebuilt. Dimensions remain intact to preserve
-consecutive-key join proofs. Queries with child scopes, repeated uses of the candidate physical table,
-outer joins or existence joins currently use projection alone. Other dimension
+consecutive-key join proofs. Join-membership pruning declines child scopes,
+repeated uses of the candidate physical table, outer joins and existence joins. Other dimension
 aliases can coexist with fact compaction. Inner-join preparation loads dimensions
 first and can intersect the fact input with filtered dimension-key membership,
 including transitive integer equalities. The original join still expands duplicate
@@ -73,6 +73,11 @@ in preparation time. Native payloads are read
 with Linux `O_DIRECT`; schema metadata uses ordinary small reads. Unsupported
 filesystems or alignment failures raise errors without a buffered fallback.
 Snapshots must remain immutable while the database is open.
+
+Single-table scopes can also discard rows inside subqueries or CTEs when
+every bound use of that physical table requires the same literal filters.
+An unfiltered use, a different filter, or a use in a multi-table scope prevents
+this shared row removal. This preserves rows needed by another alias or scope.
 
 Preparation may also replace a string dictionary by matching/nonmatching
 representatives when every bound use, across all scopes, observes the same
@@ -86,6 +91,9 @@ and cross-alias comparisons prevent that transformation.
 The database retains one projected working set. An identical SQL string reuses
 its columns, while a different string releases them before preparing the next
 statement. Every call reparses and executes the query; there is no result cache.
+On glibc, changing SQL also returns unused allocator pages after releasing
+the old tables. That process-wide allocator operation is included in preparation
+time and may increase later allocation cost. Identical SQL does not trigger it.
 `prepare_ms` and `direct_load_bytes` report new preparation, and are zero on
 reuse. `load_ms` measures constructor schema checks in this mode. Client timing
 includes preparation on the first call and after SQL changes; `execution_ms`
