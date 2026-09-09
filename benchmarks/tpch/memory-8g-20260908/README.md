@@ -2,7 +2,55 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
-## Latest: paired date predicates bring Q21 under the cap
+## Latest: full sweep and corrected Q19 follow-up
+
+[FULL-SWEEP.md](FULL-SWEEP.md) compares all 22 queries with saved ClickHouse,
+DuckDB and previous pgaccel times. One frozen build passed 21 queries and was
+OOM-killed on Q19. A separately identified fix (`683ad20`) made Q19 pass at
+96.720 ms warm and 2.057 GiB peak, with a 17.272-second first call. It extracts
+literal filters required by every OR branch before retaining fact rows. The
+original SQL still checks the complete predicate. All 274 native tests, all 22
+SF1 answers and Python integration pass after this fix.
+
+These results do not constitute an all-query success on one final build.
+Ten warm medians exceed the recorded pgaccel baseline; first preparation remains
+substantial and query transitions are a separate outstanding measurement.
+The report preserves the failed run and distinguishes Q19's follow-up build.
+
+## Earlier checkpoint: inner-join membership brings Q5, Q8 and Q9 under the cap
+
+`d07628f` exposes validated snapshot stripe counts during binding. `cdd4cec`
+uses them to choose the largest SUM input, loads its dimensions first, and builds
+integer-key membership from their literal filters. Equality chains carry these
+necessary conditions through intermediate joins. Fact rows that cannot match
+are discarded before their payloads are retained. Dimensions keep every row and
+key sequence; the original executor still expands duplicate matches and checks
+all predicates. Outer/existence joins, child scopes and repeated candidate-table
+aliases decline this preparation step. Bitmap payloads have a 256 MiB allowance;
+sparse extreme key domains skip optional pruning rather than allocating an
+unbounded dense index.
+
+| Query | Previous client ms | Warm client ms | First call s | Peak cgroup GiB |
+|---|---:|---:|---:|---:|
+| Q5 | 374.163 | 306.261 | 19.577 | 2.960 |
+| Q8 | 658.360 | 398.008 | 22.200 | 2.195 |
+| Q9 | 2174.809 | 1592.271 | 31.328 | 2.766 |
+
+All 27 answers pass their typed oracle. Each query uses a separate 8 GiB,
+zero-swap cgroup with a 512 MiB executor allowance. First-call reading, membership
+construction and compaction are separate from warm execution. All 273 native
+tests, 22 SF1 answers and Python integration pass. Tests include transitive keys,
+duplicate dimension matches, empty key sets, outer-join exclusion and signed
+extreme domains. Source snapshots and the SQL statement remain unchanged.
+
+Every SF100 query now has an individual capped success across these checkpoints.
+A complete fixed-build sweep is reported in [FULL-SWEEP.md](FULL-SWEEP.md), with
+saved peer comparisons and current regressions. Neither that sweep nor the
+individual results demonstrate a bounded cache across transitions between
+queries. Query-specific preparation remains substantial, and matching every
+recorded warm time is still unfinished.
+
+## Earlier checkpoint: paired date predicates bring Q21 under the cap
 
 `9fae20f` extends statement-specific predicate storage to date pairs. It checks
 all scopes before compressing columns used only in the same comparison between

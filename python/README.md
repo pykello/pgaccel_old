@@ -57,12 +57,19 @@ The default build keeps this optional dependency disabled.
 
 Pass `direct=True` to load only the physical columns referenced by each SQL
 statement. Binding includes joins and nested queries. For a simple query scope,
-preparation also discards rows failing simple filters on the sole SUM-input
-table (or on the only table). Columns are compacted together; numeric bounds
+preparation also discards rows failing simple filters on the largest SUM-input
+table (or on the only table), estimated using snapshot stripe counts. Columns are compacted together; numeric bounds
 and local dictionaries are rebuilt. Dimensions remain intact to preserve
 consecutive-key join proofs. Queries with child scopes, repeated uses of the candidate physical table,
 outer joins or existence joins currently use projection alone. Other dimension
-aliases can coexist with fact compaction. Native payloads are read
+aliases can coexist with fact compaction. Inner-join preparation loads dimensions
+first and can intersect the fact input with filtered dimension-key membership,
+including transitive integer equalities. The original join still expands duplicate
+matches. Bitmap storage is bounded; sparse extreme domains skip this optional
+pruning. A literal condition shared by every OR branch can also be applied
+during preparation; conditions present in only some branches cannot. The full
+original predicate remains in execution. Membership construction is included
+in preparation time. Native payloads are read
 with Linux `O_DIRECT`; schema metadata uses ordinary small reads. Unsupported
 filesystems or alignment failures raise errors without a buffered fallback.
 Snapshots must remain immutable while the database is open.
