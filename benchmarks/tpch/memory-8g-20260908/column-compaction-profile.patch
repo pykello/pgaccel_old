@@ -1,0 +1,38 @@
+diff --git a/src/columnar_table.cc b/src/columnar_table.cc
+index f44a541..3ab4031 100644
+--- a/src/columnar_table.cc
++++ b/src/columnar_table.cc
+@@ -1,3 +1,5 @@
++#include <chrono>
++#include <cstdio>
+ #include "executor_tasks.hpp"
+ #include "compact_column.hpp"
+ #include "columnar_table.h"
+@@ -344,6 +346,7 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+     for (const auto &column:(*schema)->Schema())
+         if (normalized.count(column.name)) result->schema_.push_back(column);
+     if (result->schema_.size()!=normalized.size()) return Status::Invalid("Unknown selected column");
++    std::vector<double> copyMs(result->schema_.size());
+     auto scan = ScanDirect(path, fields, [&](const auto &columns, const RowGroup &batch)->Result<bool> {
+         auto selected = select(columns, batch); if (!selected.ok()) return selected.status();
+         const auto &rows = *selected;
+@@ -355,7 +358,10 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+         if (rows.size()==size_t(batch.size)) compact.columns=batch.columns;
+         else {
+             auto copy = [&](int c) {
+-                return CompactNativeColumn(*batch.columns[c], *columns[c].type, rows);
++                auto start=std::chrono::steady_clock::now();
++                auto output=CompactNativeColumn(*batch.columns[c], *columns[c].type, rows);
++                copyMs[c]+=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
++                return output;
+             };
+             // Only independent column copies run concurrently. The selector
+             // and transforms may share mutable state and remain on the caller.
+@@ -379,6 +385,7 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+         }
+         result->row_groups_.push_back(std::move(compact)); return true;
+     });
++    for(size_t c=0;c<copyMs.size();++c) std::fprintf(stderr,"COMPACT_PROFILE table=%s column=%s task_ms=%.3f\n",name.c_str(),result->schema_[c].name.c_str(),copyMs[c]);
+     if (!scan.ok()) return scan.status();
+     if (io) *io = *scan;
+     return result;
