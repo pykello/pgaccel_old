@@ -32,3 +32,20 @@ TEST(QueryColumns, ScopedDependenciesAndDirectRebinding) {
         auto actual=ExecuteQuery(prepared->query,true,true);ASSERT_TRUE(actual.ok())<<actual.status().Message();EXPECT_EQ(actual->values,expected->values);
     }
 }
+
+TEST(QueryColumns, DensePreparationRetainsBuffersAndRechecksPredicates) {
+    char directory[]="/tmp/pgaccel-dense-preparation-XXXXXX";ASSERT_NE(mkdtemp(directory),nullptr);
+    struct Cleanup{const char *p;~Cleanup(){std::filesystem::remove_all(p);}}cleanup{directory};
+    std::vector<int64_t> keys(20000),values(20000,1);std::iota(keys.begin(),keys.end(),0);
+    auto tables=test::Table({{test::Raw(keys),test::Raw(values)}},
+        {{"k",std::make_shared<Int64Type>()},{"v",std::make_shared<Int64Type>()}});
+    ASSERT_TRUE(tables.at("t")->Save(std::string(directory)+"/t.pgaccel").ok());
+    for(int cutoff:{0,18999,19000,19999,20000}) {
+        auto sql="SELECT sum(v) FROM t WHERE k<"+std::to_string(cutoff);
+        auto q=ParseSelect(sql,tables);ASSERT_TRUE(q.ok());auto expected=ExecuteQuery(*q,true,true);ASSERT_TRUE(expected.ok());
+        auto prepared=PrepareDirectQuery(directory,sql);ASSERT_TRUE(prepared.ok());
+        auto actual=ExecuteQuery(prepared->query,true,true);ASSERT_TRUE(actual.ok());EXPECT_EQ(actual->values,expected->values);
+        int rows=0;for(int g=0;g<prepared->tables.at("t")->RowGroupCount();++g)rows+=prepared->tables.at("t")->GetRowGroup(g).size;
+        EXPECT_EQ(rows,cutoff>=19000?20000:cutoff);
+    }
+}

@@ -156,6 +156,13 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 auto selection=selectRows(columns,batch);if(!selection.ok())return selection.status();
                 auto rows=std::move(selection).ValueUnsafe();
                 IntersectDirectMemberships(memberships,columns,batch,rows);
+                // Preparation pruning is optional: the original SQL still
+                // checks its predicates. Avoid copying nearly complete large
+                // stripes; the exact selected-load API remains unchanged.
+                if(batch.size>=16384 && rows.size()<size_t(batch.size) &&
+                   rows.size()*100>=size_t(batch.size)*95) {
+                    rows.resize(batch.size);std::iota(rows.begin(),rows.end(),0);
+                }
                 if(dates!=datePredicates.end())selectedRows=rows;
                 return rows;
             };
