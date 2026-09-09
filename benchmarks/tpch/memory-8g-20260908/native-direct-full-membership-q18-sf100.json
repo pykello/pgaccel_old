@@ -1,0 +1,202 @@
+{
+  "query": 18,
+  "query_memory_mib": 768,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-18-1788912643254223839",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/tpch-work/checkpoints/direct-memory-20260908/pgaccel_native-join-membership.cpython-312-x86_64-linux-gnu.so",
+    "18",
+    "768"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-native-direct-18-1788912643254223839.service; invocation ID: fc1fcf3fc94e403e85e13ef724f5476a\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 21.870s\nCPU time consumed: 59.574s\nMemory peak: 352.0K\nMemory swap peak: 0B\n",
+  "module_sha256": "902fc219216220b2367cd8d1f5a1fc4789a52cca60a201510ef332407624c13f",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 733.7551634991542,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "measurements": {
+    "trials": [
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 869.401061,
+        "prepare_ms": 14025.530783,
+        "direct_load_bytes": 6146752512,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 14895.33486601431,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 760.863585,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 761.3185649970546,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 784.71953,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 785.1479150122032,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 751.737915,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 752.3102110135369,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 744.178182,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 744.6461079525761,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 738.160187,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 738.5798250325024,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 734.677315,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 735.158390016295,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 735.067826,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 735.5054389918223,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      },
+      {
+        "columns": [
+          "c_name ",
+          "c_custkey ",
+          "o_orderkey ",
+          "o_orderdate ",
+          "o_totalprice ",
+          "sum ( l_quantity ) "
+        ],
+        "execution_ms": 761.891659,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 115521672,
+        "spill_bytes": 0,
+        "client_ms": 762.3571660369635,
+        "row_count": 100,
+        "rows_sha256": "8100e9de6f9914e32ba9dabbf49c2cfed5be72d51cecef10e80cb79cb2bd7485"
+      }
+    ],
+    "cgroup_peak_bytes": 6939422720,
+    "memory_max": 8589934592,
+    "swap_max": 0
+  },
+  "correct": true,
+  "median_client_ms": 748.4781594830565,
+  "first_client_ms": 14895.33486601431,
+  "memory_verified": true,
+  "reuse_verified": true,
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-full-membership-q18-sf100.json",
+  "raw_sha256": "5f9e1b06bfc08026482307da3a1d4a671bf1bac2dda93bd794b436d63e94858e"
+}
