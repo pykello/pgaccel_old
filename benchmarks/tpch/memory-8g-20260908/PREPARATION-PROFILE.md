@@ -37,3 +37,31 @@ Evidence: [Q1](native-direct-prep-profile-q1-sf100.json),
 [Q13](native-direct-prep-profile-q13-sf100.json). These records retain diagnostic
 stderr and hashes/locations of every complete answer. Ignore the post-exit
 systemd memory summary; the table uses the live cgroup peak read by the worker.
+
+## First retained experiment: parallel column compaction
+
+`290bcb5` runs independent column copies in the existing eight-worker task
+arena when the caller enables parallel execution, the selection has at least
+8192 rows, and there is more than one column. Full-row selections still retain
+source buffers directly. Small selections use serial copies. Each task owns
+its output; the caller waits for all tasks before transforming or releasing
+the stripe. Selectors and transformations remain on the calling thread.
+Python and query_runner propagate their existing parallel-execution setting.
+
+All 281 native tests, all 22 SF1 answers, and Python integration pass. A new
+large-stripe test compares serial and parallel selected rows, checks numeric
+and dictionary columns together, and checks callback thread affinity.
+
+| Query | First call s | Warm median ms | Peak total GiB |
+|---|---:|---:|---:|
+| Q1 | 25.615 | 357.745 | 6.869 |
+| Q12 | 11.016 | 208.356 | 1.293 |
+
+Both [Q1](native-direct-parallel-compact-q1-sf100.json) and
+[Q12](native-direct-parallel-compact-q12-sf100.json) pass all nine SF100 answers
+under 8 GiB with zero swap. Q1's earlier uninstrumented dense-active first
+call was 28.184 seconds (28.390 in the complete sweep). This is a modest
+preparation improvement; these few observations do not establish a stable
+percentage gain. Q12's highly selective stripes largely retain the serial
+policy. These isolated measurements do not replace the complete-sweep table.
+The next check covers allocator retention across different SQL statements.

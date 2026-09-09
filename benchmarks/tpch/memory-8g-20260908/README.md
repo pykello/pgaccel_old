@@ -28,6 +28,15 @@ passes all 280 native tests, all 22 SF1 answers and Python integration.
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
+## Preparation profiling and parallel compaction
+
+[PREPARATION-PROFILE.md](PREPARATION-PROFILE.md) measures direct-read wall time
+and preparation phases. Q1 spends about 20 seconds compacting columns; Q13
+has a different loading/transformation bottleneck. Parallel column copies
+reduce Q1 first-call time modestly to 25.615 seconds at 6.869 GiB peak in an
+individual run. All 281 tests, 22 SF1 answers and Python integration pass.
+The complete comparison above predates this follow-up.
+
 ## Nested date filters reduce Q15 and Q20 residency
 
 `4cac40f` intersects necessary literal filters across every physical-table use.
