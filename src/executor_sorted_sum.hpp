@@ -73,6 +73,10 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
             if (op.low*rg.size<INT64_MIN || op.high*rg.size>INT64_MAX) throw NotDense{};
             const auto raw=static_cast<const RawColumnDataBase *>(rg.columns[key.columnIdx].get());
             auto &stripe=result.stripes[f];int n=0;
+            auto stripeKeep=[&] {
+                if constexpr (requires { keep.begin(); }) return keep.begin();
+                else return keep;
+            }();
             // Avoid repeated tiny allocations when retaining complete groups.
             // Keep the combined initial reservation below 1/8 of the query
             // allowance; selective HAVING paths keep their existing growth.
@@ -104,7 +108,7 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
                         // boundary. Keep the first and current last group
                         // until the wide boundary merge is complete.
                         if constexpr (!std::is_same_v<Keep,KeepSortedSums>)
-                            if (stripe.groups.size()>1 && !keep(stripe.groups.back().key,stripe.groups.back().sum))
+                            if (stripe.groups.size()>1 && !stripeKeep(stripe.groups.back().key,stripe.groups.back().sum))
                                 stripe.groups.pop_back();
                         stripe.groups.push_back({keys[i],values[i]});
                     } else stripe.groups.back().sum+=values[i];
@@ -120,6 +124,7 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
                 Selected(rg,bitmap,[&](int row){selected[n++]=row;if(n==Block)consume.template operator()<true>(0);});
                 if(n)consume.template operator()<true>(0);
             }
+            if constexpr (requires { keep.complete(stripe.sum); }) keep.complete(stripe.sum);
         }
         return 0;
     });
