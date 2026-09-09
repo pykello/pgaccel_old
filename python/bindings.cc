@@ -10,6 +10,9 @@
 #include <filesystem>
 #include <mutex>
 #include <unordered_map>
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
 
 namespace py = pybind11;
 using namespace pgaccel;
@@ -58,11 +61,17 @@ public:
             std::lock_guard lock(mutex);
             if (closed) throw std::runtime_error("Database is closed");
             if (direct && (tables.empty() || sql != residentSQL)) {
+                auto start = Clock::now();
                 // Release the previous working set before allocating the next.
                 // Failed preparation must not leave a reusable SQL marker.
                 residentSQL.clear();
                 tables.clear();
-                auto start = Clock::now();
+#if defined(__GLIBC__)
+                // Stripe allocations can leave free pages in malloc arenas.
+                // Return them before retaining the next statement's columns;
+                // include release cost in preparation, never in warm reuse.
+                malloc_trim(0);
+#endif
                 auto prepared = PrepareDirectQuery(directDirectory, sql, avx);
                 if (!prepared.ok())
                     throw std::invalid_argument(prepared.status().Message());
