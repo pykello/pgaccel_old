@@ -15,7 +15,8 @@ work = Path('/home/hadi/projects/tpch-work')
 
 if len(sys.argv) > 1 and sys.argv[1] == '--worker':
     module = Path(sys.argv[2])
-    queries = list(map(int, sys.argv[3:]))
+    cache_mib = int(sys.argv[3])
+    queries = list(map(int, sys.argv[4:]))
     spec = importlib.util.spec_from_file_location('pgaccel_native', module)
     native = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(native)
@@ -28,8 +29,9 @@ if len(sys.argv) > 1 and sys.argv[1] == '--worker':
         result['events'] = {key: int(value) for key, value in
                             (line.split() for line in (group / 'memory.events').read_text().splitlines())}
         return result
+    cache_options = dict(cache_bytes=cache_mib * 2**20) if cache_mib else {}
     with native.Database(str(work / 'sf100/native'), direct=True,
-                         memory_bytes=768 * 2**20) as db:
+                         memory_bytes=768 * 2**20, **cache_options) as db:
         for step, query in enumerate(queries):
             sql = (work / f'queries-duckdb-1.4.3/q{query:02}.sql').read_text()
             # Flush progress before preparation so an OOM identifies the step.
@@ -54,18 +56,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument('module', type=Path)
 parser.add_argument('queries', nargs='+', type=int)
 parser.add_argument('--tag', required=True)
+parser.add_argument('--cache-mib', type=int, default=0)
 args = parser.parse_args()
+if args.cache_mib < 0: parser.error("cache size must be nonnegative")
 module = args.module.resolve()
 oracle_path = Path('/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl')
 oracles = {r['id']: r for line in oracle_path.open() if 'id' in (r := json.loads(line))}
 command = ['systemd-run', '--user', '--unit=pgaccel-transitions-' + str(time.time_ns()),
            '--property=MemoryAccounting=yes', '--property=MemoryMax=8G',
            '--property=MemorySwapMax=0', '--wait', '--pipe', sys.executable,
-           str(Path(__file__).resolve()), '--worker', str(module), *map(str, args.queries)]
+           str(Path(__file__).resolve()), '--worker', str(module), str(args.cache_mib), *map(str, args.queries)]
 run = subprocess.run(command, capture_output=True, text=True)
 events = [json.loads(line) for line in run.stdout.splitlines() if line.strip()]
 trials = [event for event in events if event['event'] == 'trial']
-report = dict(command=command, returncode=run.returncode, stderr=run.stderr,
+report = dict(cache_mib=args.cache_mib, command=command, returncode=run.returncode, stderr=run.stderr,
               sequence=args.queries, module_sha256=hashlib.sha256(module.read_bytes()).hexdigest(),
               oracle=str(oracle_path), oracle_sha256=hashlib.sha256(oracle_path.read_bytes()).hexdigest(),
               sql_sha256={q: hashlib.sha256((work / f'queries-duckdb-1.4.3/q{q:02}.sql').read_bytes()).hexdigest()
