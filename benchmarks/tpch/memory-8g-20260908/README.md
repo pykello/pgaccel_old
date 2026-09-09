@@ -36,9 +36,11 @@ cross-query residency and measured asynchronous-I/O experiments.
 ## Q11 preparation: shared scalar domain proof
 
 [Shared-domain preparation](SHARED-DOMAIN-PREPARATION.md) now proves when
-uncorrelated scalar scopes require the same inner-join rows. All 285 tests and
-SF1 checks pass. Q11 still needs different-key dimension-chain propagation;
-this stage does not yet claim a new SF100 speedup.
+uncorrelated scalar scopes require the same inner-join rows. Bounded
+different-key propagation now carries those domains through dimensions.
+Q11 runs in 8.844 ms warm at 0.098 GiB total peak; Q3 and Q5 also pass under
+8 GiB. All 286 tests, SF1 answers and Python integration pass. This follow-up
+is not yet included in the complete comparison above.
 
 ## Q17 follow-up: two-level bitmap probing
 

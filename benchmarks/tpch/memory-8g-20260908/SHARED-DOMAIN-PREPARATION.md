@@ -29,10 +29,10 @@ both answers and prepared row counts for identical, differing and missing
 child filters. [SF1 evidence](auto-projection-sf1-shared-scope-gate.json).
 This stage alone does not provide a measured Q11 speedup.
 
-## Stage 2: propagate membership through different dimension keys
+## Stage 2 design: propagation through different dimension keys
 
-PrepareDirectMemberships currently follows equality classes. It can follow
-f.k=b.k=d.k, but cannot carry a nation filter through supplier.nation_key to
+Before this stage, PrepareDirectMemberships followed only equality classes. It could follow
+f.k=b.k=d.k, but could not carry a nation filter through supplier.nation_key to
 supplier.supplier_key and then to partsupp.supplier_key. Q11 needs the latter.
 
 Implement bounded recursive necessary domains while preserving the original
@@ -55,3 +55,44 @@ cycles, tight bitmap budgets, and a scalar child with a different domain.
 Dimensions must remain intact. Then validate all SF1 answers and measure Q11
 at SF100 with first preparation, warm execution, total memory and answer
 checks. Check other affected preparation paths before a full capped sweep.
+
+
+## Stage 2 retained implementation and evidence
+
+`32e7afe` implements the design above with three traversal levels and a visited
+alias path. Before collecting a source's allowed keys, it derives necessary
+memberships on that source's other join columns. These constraints intersect
+its literal filters. The source table stays intact; the original query still
+expands duplicate joins and checks every predicate.
+
+A single remaining-byte counter covers all live membership bitmaps. Recursive
+results consume it until their parent finishes using them; an RAII charge
+release handles successful and declined paths. A parent that cannot fit simply
+declines that optional bitmap. The test checks both surviving bitmap bytes and
+restored remaining allowance at 0, 8, 16 and 64-byte limits, including a cycle.
+This is a scratch-bitmap allowance, not a replacement for the total cgroup cap.
+
+All 286 tests, all 22 SF1 answers and Python integration pass. Tests include
+same and differing scalar scopes, different-key chains, duplicate dimensions,
+no qualifying dimension rows, cycles and byte limits. Dimension row counts
+remain intact. The SF100 measurements below each pass nine typed answers in
+fresh 8 GiB zero-swap processes.
+
+| Query | Warm median ms | First call s | Total peak GiB |
+|---|---:|---:|---:|
+| Q11 | 8.844 | 1.068 | 0.098 |
+| Q3 | 342.229 | 11.331 | 2.386 |
+| Q5 | 261.495 | 11.380 | 2.067 |
+
+Q11 now has substantial margin below the saved 30.496 ms, rather than a
+fractional improvement susceptible to ordinary run variation. Q3 and Q5 also
+remain below their saved times, though their individual warm medians are
+slower than the preceding complete sweep. Keep both sets of evidence. The
+new module still needs the complete workload and transitions checked together.
+Warm calls reuse SQL-specific prepared input; these results do not establish
+changing-query execution at the old fully resident latency.
+
+Evidence: [Q11](native-direct-chain-domain-q11-sf100.json),
+[Q3](native-direct-chain-domain-q3-sf100.json),
+[Q5](native-direct-chain-domain-q5-sf100.json),
+[SF1 gate](auto-projection-sf1-chain-domain-gate.json).

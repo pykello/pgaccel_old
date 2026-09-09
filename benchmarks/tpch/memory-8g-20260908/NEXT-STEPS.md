@@ -5,19 +5,11 @@ The [latest complete sweep](TRANSITION-RUNS.md) passes all 198 answers at
 Q11 alone exceeds its saved warm median: 30.581 versus 30.496 ms. Do not
 rerun merely to select a favorable sample; create more actual headroom.
 
-The [shared-domain proof](SHARED-DOMAIN-PREPARATION.md) is now retained and
-passes 285 tests plus all SF1 answers. Next implement bounded membership
-propagation across different dimension keys; that is still needed for Q11.
-Preparation of a shared join domain for Q11-like scalar subqueries follows:
-The executor already proves that parent and scalar child share the same fact,
-filters and joins. The preparer currently excludes such multi-scope inputs
-from fact membership pruning. A reusable scope-equivalence proof could allow
-pruning only when every physical-table use requires that same inner-join
-domain. Mismatched predicates, unfiltered uses, correlations, outer joins and
-unsupported scopes must retain the current preparation. This is a proof-driven
-planner improvement, not a query-ID rule. Validate nonempty answers and cases
-where only one scope applies a filter, then measure both preparation and warm
-execution under the total cap.
+The [shared-domain proof and bounded propagation](SHARED-DOMAIN-PREPARATION.md)
+are now retained. All 286 tests and SF1 answers pass. SF100 Q11 reaches
+8.844 ms warm and 0.098 GiB total peak; Q3 and Q5 also pass nine answers under
+the cap. Next, validate the entire workload on this frozen module, preserving
+all timings and transition memory rather than substituting individual runs.
 
 For preparation latency, also investigate retaining original stripe buffers
 when a necessary filter discards very few rows. This belongs in the query
