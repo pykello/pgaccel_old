@@ -32,6 +32,14 @@ The earlier [chain-domain sweep](TRANSITION-CHAINS.md),
 [run-reduction sweep](TRANSITION-RUNS.md) remain separate evidence. No faster
 individual measurement replaces a slower value in a complete sweep.
 
+## Latest follow-up: reduce dictionary stream setup
+
+[One stream guard per dictionary](STRING-PREPARATION.md) reduces Q13 first-call
+time from 18.222 to 15.281 seconds and Q9 from 16.344 to 16.019 seconds.
+All 294 native tests, Python integration and all 22 SF1 checks pass, including
+injected stream failures. The complete comparison above still predates these
+string-loading follow-ups.
+
 ## Latest follow-up: reuse released string dictionaries
 
 [Dictionary allocation reuse](STRING-PREPARATION.md) reduces Q13 first-call

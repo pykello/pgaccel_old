@@ -91,13 +91,19 @@ all-query measurement, predating this follow-up.
 
 ## Next preparation target
 
-[String allocation reuse](STRING-PREPARATION.md) now reduces Q13 first-call
-time from 27.682 to 18.222 seconds, at 1.791 GiB peak. Q9 improves from
-17.403 to 16.344 seconds with a matching control. All 293 native tests,
-Python integration and all 22 SF1 answers pass. The pre-change profile
-measures 13.205 seconds decoding 149 million labels and 5.126 seconds in
-the predicate transformation. Those phase timings predate allocation reuse;
-reprofile before attributing the remaining 18 seconds.
+[String allocation reuse and stream setup](STRING-PREPARATION.md) now reduce
+Q13 first-call time from 27.682 to 18.222 and then 15.281 seconds. Q9 improves
+from 17.403 to 16.344 and then 16.019 seconds. All 294 native tests, Python
+integration and all 22 SF1 answers pass. The post-allocation profile measures
+7.897 seconds decoding 149 million labels and 6.406 seconds in predicate
+transformation; it predates the later stream-guard change.
+
+Next inspect `PredicateDictionary`: it constructs a filter node per stripe,
+then evaluates a row bitmap and extracts representatives. Separate node
+construction, literal matching and row-code remapping costs. Consider reusing
+an immutable predicate evaluator across stripes before adding a separate
+streamed predicate decoder. Preserve literal matching, escaping, UTF-8 and
+negation semantics and the existing proof that original spellings are unused.
 
 Q13 still prepares predicate-only strings on every changed statement.
 `PredicateOnlyColumns` proves when every use observes the same predicate,
