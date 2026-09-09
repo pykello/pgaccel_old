@@ -4,27 +4,29 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
-[TRANSITION-DENSE.md](TRANSITION-DENSE.md) is the latest complete comparison
+[TRANSITION-COMPACTION.md](TRANSITION-COMPACTION.md) is the latest complete comparison
 against saved pgaccel, ClickHouse and DuckDB times. It includes the
 [8 MiB direct reads](LARGER-READS.md) and [warm-execution changes](WARM-RECOVERY.md).
 The reader remains synchronous `O_DIRECT`; `io_uring` has not been added.
 
 One frozen build executed Q1 through Q22 in one long-lived database, nine
-calls each. All 198 answers pass; cumulative memory peak is **6.930 GiB**, with
+calls each. All 198 answers pass; cumulative memory peak is **6.914 GiB**, with
 zero sampled file-cache charge, zero swap and no memory-limit events. Q11 is
-the only warm median above the saved pgaccel time: 30.761 versus 30.496 ms
-(0.9%). All 22 warm medians are below the saved ClickHouse and DuckDB times.
-First calls take **1.5–38.3 seconds** and include SQL-specific preparation.
+the only warm median above the saved pgaccel time: 31.494 versus 30.496 ms
+(3.3%). All 22 warm medians are below the saved ClickHouse and DuckDB times.
+First calls take **1.5–32.9 seconds** and include SQL-specific preparation.
 Warm reuse is not equivalent to executing changing SQL from NVMe at the old
 fully resident latency. Internal admission for arbitrary workloads is also
 unfinished. The full goal remains open.
 
 The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) and
-[previous 8 MiB sweep](TRANSITION-NARROW.md) remain separate. No faster
+[previous 8 MiB sweep](TRANSITION-NARROW.md) and
+[dense-group sweep](TRANSITION-DENSE.md) remain separate. No faster
 individual measurement replaces a slower value in a complete sweep.
 The latest module includes the Q22 prefix, Q12 conditional-count preparation,
 scoped arithmetic gathers, and Q1 observed dictionary-pair reductions. It
-passes all 280 native tests, all 22 SF1 answers and Python integration.
+also includes parallel compaction, final-slot dictionary decoding and
+fixed-width compaction. It passes all 281 native tests, all 22 SF1 answers and Python integration.
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
@@ -40,7 +42,7 @@ from 35.907 to 30.708 seconds, with nine checked SF100 answers under 8 GiB.
 [Per-column compaction profiling](COMPACTION-PROFILE.md) then identifies repeated
 virtual code-width lookups. Resolving those once reduces Q1 first-call time
 to 18.298 seconds at 6.887 GiB peak; its 391.606 ms warm result is preserved.
-The complete comparison above predates these follow-ups.
+These retained changes are included in the latest complete comparison above.
 
 ## Nested date filters reduce Q15 and Q20 residency
 

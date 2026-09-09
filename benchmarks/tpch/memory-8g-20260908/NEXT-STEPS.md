@@ -1,7 +1,7 @@
 # Remaining work toward the 8 GiB performance goal
 
-The [latest complete sweep](TRANSITION-DENSE.md) passes all 198 answers at
-6.930 GiB peak. Q11 alone exceeds the saved pgaccel warm median: 30.761 versus
+The [latest complete sweep](TRANSITION-COMPACTION.md) passes all 198 answers at
+6.914 GiB peak. Q11 alone exceeds the saved pgaccel warm median: 31.494 versus
 30.496 ms. Its faster individual results remain separate evidence. Q1, Q12
 and Q22 now have substantial margin in the complete workload.
 
@@ -19,7 +19,9 @@ and Q22 now have substantial margin in the complete workload.
    native dictionary loading and 5.254-second transformation separately. Direct construction in final dictionary slots now reduces Q13
    first-call time from 35.907 to 30.708 seconds in a sequential control and
    candidate comparison. Further loading and transformation costs remain.
-   Q11's grouped fact scan remains the measured warm bottleneck. Preserve the
+   Q11's grouped fact scan remains the measured warm bottleneck. The
+   [adaptive HAVING proposal](HAVING-PRUNING-PLAN.md) specifies proofs and
+   tests for reducing retained groups; it is not implemented yet. Preserve the
    eight-worker limit and do not select favorable repeats or relax thresholds.
 
 2. **Revalidate the complete workload after retained changes.** Use one frozen
@@ -31,7 +33,7 @@ and Q22 now have substantial margin in the complete workload.
 
 3. **Reduce preparation without hiding it.** Current warm calls reuse
    SQL-specific projected and filtered input. Changing SQL rereads and
-   reconstructs that input; the latest first calls take 1.5–38.3 seconds.
+   reconstructs that input; the latest first calls take 1.5–32.9 seconds.
    Investigate which retained physical columns or immutable blocks can be
    reused safely across different queries, with explicit byte admission and
    eviction. A representation transformed for one query cannot be treated as

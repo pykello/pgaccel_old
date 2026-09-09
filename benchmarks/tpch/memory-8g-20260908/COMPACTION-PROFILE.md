@@ -69,3 +69,13 @@ seconds and warm median from 391.606 to 394.715 ms. There is no measured gain.
 The source and experimental test were restored; the complete patch, SF1 gate
 and SF100 measurements remain available. Do not repeat this variant merely
 because the related contiguous reduction was successful.
+
+
+## Full workload after retained preparation changes
+
+[TRANSITION-COMPACTION.md](TRANSITION-COMPACTION.md) includes all retained
+changes in one frozen module. All 198 SF100 answers pass at 6.914 GiB peak,
+with zero swap, zero sampled file charge and no memory-limit events. Q1 first
+call is 18.193 seconds; Q13 is 32.872 seconds. Q11 remains above its original
+warm baseline at 31.494 versus 30.496 ms. Q17 and Q18 have narrow margins;
+the full report retains those results. The goal remains unfinished.
