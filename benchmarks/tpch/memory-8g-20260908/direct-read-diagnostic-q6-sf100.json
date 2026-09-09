@@ -1,0 +1,144 @@
+{
+  "query": 6,
+  "measurements": {
+    "trials": [
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 16.774794,
+        "prepare_ms": 11864.61876,
+        "direct_load_bytes": 5498732544,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 11881.527275021654,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 7.314151,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 7.449462020304054,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 6.292242,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 6.38229597825557,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 6.667698,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 6.755284033715725,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 5.321534,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 5.444233014713973,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 5.710211,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 5.793851974885911,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 5.311011,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 5.389529978856444,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 4.716683,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 4.7797440201975405,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      },
+      {
+        "columns": [
+          "revenue"
+        ],
+        "execution_ms": 5.535047,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 619520,
+        "spill_bytes": 0,
+        "client_ms": 5.59687300119549,
+        "row_count": 1,
+        "rows_sha256": "c87539454d5960fec437c7b0ac04afd194c6de79fe188d431f4ef3e6579a2d00"
+      }
+    ],
+    "cgroup_peak_bytes": 171249664,
+    "memory_max": 8589934592,
+    "swap_max": 0
+  },
+  "correct": true,
+  "module_sha256": "8f8c8cb6adf7378f56a551774c3a264a3a6e1919bee7100395c8ba0e8d8541c2",
+  "note": "Diagnostic only: strace -f -c -w -e trace=pread64 around run_native_direct.py --worker MODULE 6 768 in an 8 GiB zero-swap cgroup. Tracing perturbs wall times; do not promote these as query timing comparisons.",
+  "strace": "770205 ???( <detached ...>\n% time     seconds  usecs/call     calls    errors syscall\n------ ----------- ----------- --------- --------- ----------------\n100.00    4.846682         920      5263           pread64\n------ ----------- ----------- --------- --------- ----------------\n100.00    4.846682         920      5263           total\n",
+  "stderr": "Running as unit: pgaccel-read-profile-20260909.service; invocation ID: 74b5c18c787d4da08ba2fd85775998ac\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 12.110s\nCPU time consumed: 9.220s\nMemory peak: 304.0K\nMemory swap peak: 0B\n",
+  "sequential_reads": [
+    {
+      "command": "dd if=/home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel of=/dev/null iflag=direct bs=1M count=4096",
+      "output": "4096+0 records in\n4096+0 records out\n4294967296 bytes (4.3 GB, 4.0 GiB) copied, 2.99367 s, 1.4 GB/s\n"
+    },
+    {
+      "command": "dd if=/home/hadi/projects/tpch-work/sf100/native/lineitem.pgaccel of=/dev/null iflag=direct bs=8M count=512",
+      "output": "512+0 records in\n512+0 records out\n4294967296 bytes (4.3 GB, 4.0 GiB) copied, 1.6643 s, 2.6 GB/s\n"
+    }
+  ],
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/direct-read-diagnostic-q6-sf100.json",
+  "raw_sha256": "0a8368e1d754dd5e2e5e1574da05ac237148359b1a6a8c13c08f013b10037ab5"
+}
