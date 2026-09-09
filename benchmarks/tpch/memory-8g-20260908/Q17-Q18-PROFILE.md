@@ -67,3 +67,36 @@ sweep. Q18's measured sorted aggregation is the next target.
 Evidence: [control](native-direct-summary-bitmap-control-q17-sf100.json),
 [candidate](native-direct-summary-bitmap-q17-sf100.json),
 [SF1 gate](auto-projection-sf1-summary-bitmap-gate.json).
+
+
+## Retained Q18 change: combine contiguous equal-key runs
+
+`b943b96` changes the all-row sorted scan to accumulate each equal-key run
+within the decoded block before updating retained group storage. Previously
+it tested the vector's last key and updated its stored sum for every row.
+Runs crossing a block boundary still merge into the existing last group;
+first and last stripe groups still use the exact wide cross-stripe merge.
+The existing expression bounds prove block/run/stripe arithmetic fits before
+using signed 64-bit partial sums. Unsorted input retains the fallback check.
+
+Gathered scans keep the row loop, including Q11's adaptive HAVING path. The
+change does not assume any fixed run length or use query-specific metadata.
+All 284 tests, 22 SF1 answers and Python integration pass. New tests combine
+single-row and varying-length runs, block/stripe boundaries, signed values,
+filters and HAVING comparisons against the independent modern executor.
+
+| Run | Warm median ms | First call s | Total peak GiB |
+|---|---:|---:|---:|
+| Q18 control | 751.764 | 9.048 | 6.676 |
+| Q18 run reduction | 581.259 | 8.890 | 6.676 |
+| Q11 gathered check | 27.782 | 1.363 | 1.067 |
+
+All nine answers in every run pass under 8 GiB with zero swap. Q18 improves
+about 23% and is below its saved 733.755 ms. Q11 remains below its saved
+30.496 ms. The next full workload must verify these retained changes together
+with Q17's bitmap summary; individual medians do not replace full-run values.
+
+Evidence: [Q18 control](native-direct-sorted-runs-control-q18-sf100.json),
+[Q18 candidate](native-direct-sorted-runs-q18-sf100.json),
+[Q11 check](native-direct-sorted-runs-q11-sf100.json),
+[SF1 gate](auto-projection-sf1-sorted-runs-gate.json).

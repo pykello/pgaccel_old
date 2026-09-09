@@ -37,8 +37,9 @@ cross-query residency and measured asynchronous-I/O experiments.
 A budgeted summary of nonempty membership words reduces Q17 warm time from
 275.683 to 209.781 ms in paired SF100 runs. Both pass nine answers under
 8 GiB; all 283 tests, 22 SF1 answers and Python integration pass. This
-follow-up is not yet included in the complete comparison above. Q18 remains
-the next execution target.
+follow-up is not yet included in the complete comparison above. Subsequent
+contiguous-run reduction improves Q18 from 751.764 to 581.259 ms, and Q11
+passes at 27.782 ms. All 284 tests and SF1 checks pass for that final module.
 
 ## Q11 follow-up: bounded HAVING pruning
 
