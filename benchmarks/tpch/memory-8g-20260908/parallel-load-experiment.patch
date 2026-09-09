@@ -1,0 +1,163 @@
+diff --git a/src/columnar_table.cc b/src/columnar_table.cc
+index f44a541..2ceba2d 100644
+--- a/src/columnar_table.cc
++++ b/src/columnar_table.cc
+@@ -114,13 +114,13 @@ ColumnarTable::LoadSchema(const std::string &name, const std::string &path) {
+ 
+ Result<DirectScanStats>
+ ColumnarTable::ScanDirect(const std::string &path, const std::set<std::string> &fields,
+-                         const ScanConsumer &consumer) {
++                         const ScanConsumer &consumer, bool parallel) {
+     if (!consumer || fields.empty()) return Status::Invalid("Direct scan needs columns and a consumer");
+     try {
+         DirectInput data(path);
+         std::ifstream metadata(path + ".metadata");
+         DirectScanStats stats;
+-        auto result = LoadImpl("scan", metadata, data, fields, &path, consumer, &stats);
++        auto result = LoadImpl("scan", metadata, data, fields, &path, consumer, &stats, false, parallel);
+         if (!result.ok()) return result.status();
+         stats.bytesRead += data.bytesRead(); stats.readCalls += data.readCalls();
+         stats.ioBufferBytes += DirectInput::BufferBytes;
+@@ -140,7 +140,7 @@ ColumnarTable::LoadImpl(const std::string &tableName,
+                     std::istream& dataStream,
+                     std::optional<std::set<std::string>> maybeFields,
+                     const std::string *directPath, const ScanConsumer &consumer,
+-                    DirectScanStats *stats, bool schemaOnly)
++                    DirectScanStats *stats, bool schemaOnly, bool parallel)
+ {
+     auto result = std::unique_ptr<ColumnarTable>(new ColumnarTable);
+     result->name_ = tableName;
+@@ -272,13 +272,28 @@ ColumnarTable::LoadImpl(const std::string &tableName,
+         stats->ioBufferBytes = streams.size() * DirectInput::BufferBytes;
+         for (int g = 0; g < column_groups[0]; ++g) {
+             RowGroup batch;
+-            for (size_t c = 0; c < streams.size(); ++c) {
+-                auto loaded = ColumnDataBase::Load(*streams[c], result->schema_[c].type.get(), aligned);
++            auto load = [&](int c) {
++                return ColumnDataBase::Load(*streams[c], result->schema_[c].type.get(), aligned);
++            };
++            auto append = [&](Result<ColumnDataP> loaded)->Result<bool> {
+                 if (!loaded.ok()) return loaded.status();
+-                if (c && batch.size != (*loaded)->size)
++                if (!batch.columns.empty() && batch.size != (*loaded)->size)
+                     return Status::Invalid("Inconsistent native column lengths");
+                 batch.size = (*loaded)->size;
+                 batch.columns.push_back(std::move(loaded).ValueUnsafe());
++                return true;
++            };
++            // Each task owns a different stream and output column. Join all
++            // reads before exposing the stripe to the serial consumer.
++            if (parallel && streams.size()>1) {
++                auto loaded=RunTasks(int(streams.size()),load);
++                for (auto &column:loaded) {
++                    auto added=append(std::move(column));
++                    if (!added.ok()) return added.status();
++                }
++            } else for (size_t c=0;c<streams.size();++c) {
++                auto added=append(load(c));
++                if (!added.ok()) return added.status();
+             }
+             stats->rows += batch.size; ++stats->groups;
+             auto accepted = consumer(result->schema_, batch);
+@@ -378,7 +393,7 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+             compact.columns[c]=std::move(column).ValueUnsafe();
+         }
+         result->row_groups_.push_back(std::move(compact)); return true;
+-    });
++    }, parallel);
+     if (!scan.ok()) return scan.status();
+     if (io) *io = *scan;
+     return result;
+diff --git a/src/columnar_table.h b/src/columnar_table.h
+index 4c7f9cf..d426a60 100644
+--- a/src/columnar_table.h
++++ b/src/columnar_table.h
+@@ -91,7 +91,8 @@ public:
+     static Result<ColumnarTableP> LoadSchema(const std::string &name, const std::string &path);
+ 
+     static Result<DirectScanStats> ScanDirect(const std::string &path,
+-        const std::set<std::string> &fields, const ScanConsumer &consumer);
++        const std::set<std::string> &fields, const ScanConsumer &consumer,
++        bool parallel = false);
+ 
+     static Result<ColumnarTableP> LoadDirectSelected(const std::string &name,
+         const std::string &path, const std::set<std::string> &fields,
+@@ -132,7 +133,7 @@ private:
+         std::optional<std::set<std::string>> fields,
+         const std::string *directPath = nullptr,
+         const ScanConsumer &consumer = {}, DirectScanStats *stats = nullptr,
+-        bool schemaOnly = false);
++        bool schemaOnly = false, bool parallel = false);
+ 
+     std::vector<ColumnDesc> schema_;
+     std::vector<RowGroup> row_groups_;
+diff --git a/tests/direct_scan_test.cc b/tests/direct_scan_test.cc
+index 3ca3077..c828730 100644
+--- a/tests/direct_scan_test.cc
++++ b/tests/direct_scan_test.cc
+@@ -2,6 +2,7 @@
+ #include "direct_input.hpp"
+ #include <gtest/gtest.h>
+ #include <filesystem>
++#include <fstream>
+ #include <unistd.h>
+ using namespace pgaccel;
+ TEST(DirectScan, ProjectionOwnedBatchesAndEarlyStop) {
+@@ -10,19 +11,52 @@ TEST(DirectScan, ProjectionOwnedBatchesAndEarlyStop) {
+     auto t=test::Table({{test::Raw({1,2,3}),test::Dict<StringType>({"a","b","a"})},
+                         {test::Raw({4,5}),test::Dict<StringType>({"c","d"})}},
+                        {{"v",std::make_shared<Int64Type>()},{"s",std::make_shared<StringType>()}});
+-    for(bool aligned:{false,true}) {
++    for(bool aligned:{false,true}) for(bool parallel:{false,true}) {
+         ASSERT_TRUE(t.at("t")->Save(path,aligned).ok());
+         int calls=0;ColumnDataP retained;
+         auto result=ColumnarTable::ScanDirect(path,{"V"},[&](const auto &schema,const RowGroup &batch)->Result<bool>{
+             EXPECT_EQ(schema.size(),1);EXPECT_EQ(schema[0].name,"v");EXPECT_EQ(batch.columns.size(),1);
+             if(!calls)retained=batch.columns[0];++calls;return true;
+-        });
++        },parallel);
+         ASSERT_TRUE(result.ok())<<result.status().Message();EXPECT_EQ(result->rows,5);EXPECT_EQ(calls,2);
+         EXPECT_EQ(result->ioBufferBytes,2*DirectInput::BufferBytes);EXPECT_GT(result->bytesRead,0);
+         EXPECT_EQ(reinterpret_cast<RawColumnDataBase *>(retained.get())->values[0],1);
+-        auto early=ColumnarTable::ScanDirect(path,{"s"},[](const auto &,const auto &)->Result<bool>{return false;});
++        int bothCalls=0;
++        auto both=ColumnarTable::ScanDirect(path,{"v","s"},
++            [&](const auto &schema,const RowGroup &batch)->Result<bool>{
++                EXPECT_EQ(schema.size(),2);EXPECT_EQ(batch.columns.size(),2);
++                EXPECT_EQ(batch.columns[0]->size,batch.columns[1]->size);
++                auto *v=static_cast<RawColumnDataBase*>(batch.columns[0].get());
++                EXPECT_EQ(v->values[0],bothCalls ? 4 : 1);
++                ++bothCalls;return true;
++            },parallel);
++        ASSERT_TRUE(both.ok());EXPECT_EQ(bothCalls,2);
++        EXPECT_EQ(both->ioBufferBytes,3*DirectInput::BufferBytes);
++        auto fail=ColumnarTable::ScanDirect(path,{"v","s"},
++            [](const auto &,const auto &)->Result<bool>{return Status::Invalid("stop");},parallel);
++        EXPECT_FALSE(fail.ok());
++        auto early=ColumnarTable::ScanDirect(path,{"s"},[](const auto &,const auto &)->Result<bool>{return false;},parallel);
+         ASSERT_TRUE(early.ok());EXPECT_EQ(early->groups,1);EXPECT_EQ(early->rows,3);
+-        EXPECT_FALSE(ColumnarTable::ScanDirect(path,{"missing"},[](const auto &,const auto &)->Result<bool>{return true;}).ok());
+-        EXPECT_FALSE(ColumnarTable::ScanDirect(path,{"v"},[](const auto &,const auto &)->Result<bool>{return Status::Invalid("consumer failed");}).ok());
++        EXPECT_FALSE(ColumnarTable::ScanDirect(path,{"missing"},[](const auto &,const auto &)->Result<bool>{return true;},parallel).ok());
++        EXPECT_FALSE(ColumnarTable::ScanDirect(path,{"v"},[](const auto &,const auto &)->Result<bool>{return Status::Invalid("consumer failed");},parallel).ok());
++    }
++}
++
++TEST(DirectScan, ParallelLoadRejectsInconsistentRows) {
++    char path[]="/tmp/pgaccel-scan-invalid-XXXXXX";
++    int fd=mkstemp(path);ASSERT_GE(fd,0);close(fd);
++    struct Cleanup {const char *p;~Cleanup(){std::filesystem::remove(p);std::filesystem::remove(std::string(p)+".metadata");}} cleanup{path};
++    {
++        std::ofstream data(path,std::ios::binary),meta(std::string(path)+".metadata");
++        meta << "2\n0 1 v " << INT64_TYPE << '\n';
++        ASSERT_TRUE(test::Raw({1,2,3})->Save(data).ok());
++        meta << data.tellp() << " 1 s " << STRING_TYPE << '\n';
++        ASSERT_TRUE(test::Dict<StringType>({"a","b"})->Save(data).ok());
++    }
++    for(bool parallel:{false,true}) {
++        bool consumed=false;
++        auto result=ColumnarTable::ScanDirect(path,{"v","s"},
++            [&](const auto &,const auto &)->Result<bool>{consumed=true;return true;},parallel);
++        EXPECT_FALSE(result.ok());EXPECT_FALSE(consumed);
+     }
+ }
