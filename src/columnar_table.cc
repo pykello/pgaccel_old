@@ -106,7 +106,7 @@ ColumnarTable::Load(const std::string &tableName,
 Result<ColumnarTableP>
 ColumnarTable::LoadSchema(const std::string &name, const std::string &path) {
     try {
-        DirectInput data(path);
+        DirectInput data(path,DirectInput::Mode::Header);
         std::ifstream metadata(path + ".metadata");
         return LoadImpl(name, metadata, data, std::nullopt, nullptr, {}, nullptr, true);
     } catch (const std::exception &e) { return Status::Invalid(e.what()); }
@@ -117,13 +117,13 @@ ColumnarTable::ScanDirect(const std::string &path, const std::set<std::string> &
                          const ScanConsumer &consumer) {
     if (!consumer || fields.empty()) return Status::Invalid("Direct scan needs columns and a consumer");
     try {
-        DirectInput data(path);
+        DirectInput data(path,DirectInput::Mode::Header);
         std::ifstream metadata(path + ".metadata");
         DirectScanStats stats;
         auto result = LoadImpl("scan", metadata, data, fields, &path, consumer, &stats);
         if (!result.ok()) return result.status();
         stats.bytesRead += data.bytesRead(); stats.readCalls += data.readCalls();
-        stats.ioBufferBytes += DirectInput::BufferBytes;
+        stats.ioBufferBytes += data.bufferBytes();
         return stats;
     } catch (const std::exception &e) { return Status::Invalid(e.what()); }
 }

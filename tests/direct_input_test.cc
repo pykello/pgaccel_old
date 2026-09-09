@@ -48,3 +48,23 @@ TEST(DirectInput, SequentialReadAheadAndEarlyDestruction) {
         // A queued write must finish before the stream frees its buffers.
     }
 }
+
+TEST(DirectInput, HeaderReadsStaySmallAndSeekAcrossBlocks) {
+    char path[]="/tmp/pgaccel-header-XXXXXX";
+    int fd=mkstemp(path);ASSERT_GE(fd,0);close(fd);
+    struct Cleanup {const char *p;~Cleanup(){std::filesystem::remove(p);}} cleanup{path};
+    std::string input(3*DirectInput::HeaderBytes+17,'\0');
+    for(size_t i=0;i<input.size();++i)input[i]=char(i*17%251);
+    {std::ofstream out(path,std::ios::binary);out.write(input.data(),input.size());}
+    DirectInput in(path,DirectInput::Mode::Header);
+    char header[24];in.read(header,sizeof(header));
+    ASSERT_TRUE(in);EXPECT_EQ(std::string(header,sizeof(header)),input.substr(0,sizeof(header)));
+    EXPECT_EQ(in.bufferBytes(),DirectInput::HeaderBytes);
+    EXPECT_EQ(in.bytesRead(),DirectInput::HeaderBytes);EXPECT_EQ(in.readCalls(),1);
+    in.seekg(DirectInput::HeaderBytes-5);in.read(header,sizeof(header));
+    ASSERT_TRUE(in);EXPECT_EQ(std::string(header,sizeof(header)),input.substr(DirectInput::HeaderBytes-5,sizeof(header)));
+    EXPECT_EQ(in.bytesRead(),2*DirectInput::HeaderBytes);EXPECT_EQ(in.readCalls(),2);
+    in.seekg(-17,std::ios::end);in.read(header,17);
+    ASSERT_TRUE(in);EXPECT_EQ(std::string(header,17),input.substr(input.size()-17));
+    EXPECT_EQ(in.peek(),EOF);
+}

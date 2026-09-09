@@ -13,8 +13,11 @@ class DirectInput final : public std::istream {
 public:
     static constexpr size_t ReadBytes = 8 << 20;
     static constexpr size_t BufferBytes = 2 * ReadBytes;
-    explicit DirectInput(const std::string &path);
+    enum class Mode { Payload, Header };
+    static constexpr size_t HeaderBytes = 4096;
+    explicit DirectInput(const std::string &path, Mode mode = Mode::Payload);
     ~DirectInput();
+    uint64_t bufferBytes() const;
     uint64_t bytesRead() const;
     uint64_t readCalls() const;
 };

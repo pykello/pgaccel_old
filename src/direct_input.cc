@@ -12,7 +12,8 @@
 
 namespace pgaccel {
 class DirectInput::Buffer final : public std::streambuf {
-    static constexpr size_t blockSize = DirectInput::ReadBytes;
+    const size_t blockSize, ownedBytes;
+    const bool readAhead;
     int fd = -1;
     char *storage = nullptr, *buffer = nullptr, *spare = nullptr;
     std::future<ssize_t> pending;
@@ -46,7 +47,7 @@ protected:
         ready = false;
         setg(buffer, buffer + offset - start, buffer + n);
         spareStart = start + blockSize;
-        if (spareStart < length) {
+        if (readAhead && spareStart < length) {
             // Only the spare buffer is written by the background read. The
             // consumer keeps decoding on its caller, with one request ahead.
             auto target = spare; auto at = spareStart;
@@ -80,7 +81,11 @@ public:
             ++calls; bytes += spareSize;
         }
     }
-    explicit Buffer(const std::string &path) {
+    uint64_t bufferBytes() const { return ownedBytes; }
+    explicit Buffer(const std::string &path, DirectInput::Mode mode)
+        : blockSize(mode == DirectInput::Mode::Header ? DirectInput::HeaderBytes : DirectInput::ReadBytes),
+          ownedBytes(mode == DirectInput::Mode::Header ? DirectInput::HeaderBytes : DirectInput::BufferBytes),
+          readAhead(mode == DirectInput::Mode::Payload) {
         fd = open(path.c_str(), O_RDONLY | O_DIRECT | O_CLOEXEC);
         if (fd < 0) throw std::runtime_error("Cannot open direct input: " + std::string(std::strerror(errno)));
         struct stat st{};
@@ -89,11 +94,11 @@ public:
             throw std::runtime_error("Direct input requires a regular snapshot file");
         }
         length = uint64_t(st.st_size);
-        // 4 KiB addresses and 8 MiB offsets/lengths meet this backend's
+        // 4 KiB addresses and block-aligned offsets/lengths meet this backend's
         // alignment contract. Unsupported device/filesystem alignment fails
         // explicitly at pread; no cached descriptor is opened as a fallback.
-        storage = static_cast<char *>(std::aligned_alloc(4096, DirectInput::BufferBytes));
-        buffer = storage; spare = storage ? storage + blockSize : nullptr;
+        storage = static_cast<char *>(std::aligned_alloc(4096, ownedBytes));
+        buffer = storage; spare = storage && readAhead ? storage + blockSize : nullptr;
         if (!storage) { close(fd); fd = -1; throw std::bad_alloc(); }
     }
     ~Buffer() override {
@@ -104,11 +109,12 @@ public:
         std::free(storage);
     }
 };
-DirectInput::DirectInput(const std::string &path) : std::istream(nullptr), buffer_(std::make_unique<Buffer>(path)) {
+DirectInput::DirectInput(const std::string &path, Mode mode) : std::istream(nullptr), buffer_(std::make_unique<Buffer>(path,mode)) {
     rdbuf(buffer_.get());
     exceptions(std::ios_base::badbit);
 }
 DirectInput::~DirectInput() = default;
+uint64_t DirectInput::bufferBytes() const { return buffer_->bufferBytes(); }
 uint64_t DirectInput::bytesRead() const { buffer_->finishRead(); return buffer_->bytes; }
 uint64_t DirectInput::readCalls() const { buffer_->finishRead(); return buffer_->calls; }
 }
