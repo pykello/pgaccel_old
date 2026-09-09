@@ -1,0 +1,2691 @@
+{
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-transitions-1788913631772618010",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_direct_transitions.py",
+    "--worker",
+    "/home/hadi/projects/tpch-work/checkpoints/direct-memory-20260908/pgaccel_native-trim.cpython-312-x86_64-linux-gnu.so",
+    "20",
+    "1",
+    "9",
+    "1",
+    "20"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-transitions-1788913631772618010.service; invocation ID: d4e4f7af858b487b8a1c5e9d15fa74b8\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 2min 34.674s\nCPU time consumed: 4min 49.551s\nMemory peak: 352.0K\nMemory swap peak: 0B\n",
+  "sequence": [
+    20,
+    1,
+    9,
+    1,
+    20
+  ],
+  "module_sha256": "cb7fad5223eefc650da7763bf7092973db08b465c0582cb35b8fa607451d36ce",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "oracle_sha256": "82c7895ba916243dbe718ec67b334333b21483b4d8e6226367c364582e582d36",
+  "sql_sha256": {
+    "20": "60ded5b6ed62f249396681b92640d6039f9116e955ffc0d87f47fd97ab7f1103",
+    "1": "f5b91004137e609374a73cceaf9226598e93c937bc38aa61d8a22f5088ff62d9",
+    "9": "ffb470c5b7cac40c3465dba9ae055bf0722dd4e6bdea007f4261f269711db564"
+  },
+  "starts": [
+    {
+      "event": "start",
+      "step": 0,
+      "query": 20,
+      "memory": {
+        "current": 8290304,
+        "peak": 9371648,
+        "max": 8589934592,
+        "swap.max": 0,
+        "anon": 7917568,
+        "file": 0,
+        "kernel": 172032,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "event": "start",
+      "step": 1,
+      "query": 1,
+      "memory": {
+        "current": 8422232064,
+        "peak": 8435646464,
+        "max": 8589934592,
+        "swap.max": 0,
+        "anon": 8403996672,
+        "file": 0,
+        "kernel": 16973824,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "event": "start",
+      "step": 2,
+      "query": 9,
+      "memory": {
+        "current": 7396966400,
+        "peak": 8435646464,
+        "max": 8589934592,
+        "swap.max": 0,
+        "anon": 7378464768,
+        "file": 0,
+        "kernel": 16945152,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "event": "start",
+      "step": 3,
+      "query": 1,
+      "memory": {
+        "current": 2994409472,
+        "peak": 8435646464,
+        "max": 8589934592,
+        "swap.max": 0,
+        "anon": 2977427456,
+        "file": 0,
+        "kernel": 16941056,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    },
+    {
+      "event": "start",
+      "step": 4,
+      "query": 20,
+      "memory": {
+        "current": 7360450560,
+        "peak": 8435646464,
+        "max": 8589934592,
+        "swap.max": 0,
+        "anon": 7343255552,
+        "file": 0,
+        "kernel": 16932864,
+        "events": {
+          "low": 0,
+          "high": 0,
+          "max": 0,
+          "oom": 0,
+          "oom_kill": 0,
+          "oom_group_kill": 0
+        }
+      }
+    }
+  ],
+  "measurements": {
+    "trials": [
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 0,
+        "before": {
+          "current": 8290304,
+          "peak": 9371648,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7917568,
+          "file": 0,
+          "kernel": 172032,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8421203968,
+          "peak": 8425705472,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403398656,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 21350.905450992286,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 275.825158,
+        "prepare_ms": 21060.070683,
+        "direct_load_bytes": 9015663714,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 1,
+        "before": {
+          "current": 8419000320,
+          "peak": 8425705472,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403398656,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8421138432,
+          "peak": 8432107520,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403091456,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 267.52348500303924,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 257.602448,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 2,
+        "before": {
+          "current": 8420036608,
+          "peak": 8432107520,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403091456,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8421388288,
+          "peak": 8433668096,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403107840,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 230.00398697331548,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 221.258235,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 3,
+        "before": {
+          "current": 8421322752,
+          "peak": 8433668096,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403107840,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422150144,
+          "peak": 8434692096,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403980288,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 225.0112799811177,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 216.650652,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 4,
+        "before": {
+          "current": 8422359040,
+          "peak": 8434692096,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403980288,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422105088,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403984384,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 225.08872201433405,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 217.024643,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 5,
+        "before": {
+          "current": 8422572032,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403984384,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422313984,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403984384,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 226.6049970057793,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 217.771067,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 6,
+        "before": {
+          "current": 8422260736,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403984384,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422113280,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403992576,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 224.24392303219065,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 216.056777,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 7,
+        "before": {
+          "current": 8422322176,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403992576,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422330368,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403992576,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 232.24472103174776,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 224.265522,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 0,
+        "query": 20,
+        "trial": 8,
+        "before": {
+          "current": 8422539264,
+          "peak": 8435466240,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403992576,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422285312,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403996672,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 226.6315909801051,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 218.590986,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 0,
+        "before": {
+          "current": 8422232064,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8403996672,
+          "file": 0,
+          "kernel": 16973824,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7397146624,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 28517.657851974946,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 444.739527,
+        "prepare_ms": 28072.776206,
+        "direct_load_bytes": 7302283264,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 1,
+        "before": {
+          "current": 7397146624,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7397146624,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 440.0137970224023,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 439.863965,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 2,
+        "before": {
+          "current": 7397146624,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 438.40107996948063,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 438.251286,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 3,
+        "before": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 439.6981719764881,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 439.522699,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 4,
+        "before": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 441.39817997347564,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 441.231416,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 5,
+        "before": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 436.12146202940494,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 435.96512,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 6,
+        "before": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 438.1384940352291,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 437.986644,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 7,
+        "before": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 439.0650650020689,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 438.90424,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 1,
+        "query": 1,
+        "trial": 8,
+        "before": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 452.9104619869031,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 452.753268,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 0,
+        "before": {
+          "current": 7396966400,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7378464768,
+          "file": 0,
+          "kernel": 16945152,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994446336,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 31247.08851001924,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1821.212537,
+        "prepare_ms": 29425.460613,
+        "direct_load_bytes": 14159972726,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 1,
+        "before": {
+          "current": 2994446336,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994442240,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1398.9927679649554,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1398.692263,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 2,
+        "before": {
+          "current": 2994442240,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994438144,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1395.9151600138284,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1395.614558,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 3,
+        "before": {
+          "current": 2994438144,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994434048,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1407.545380992815,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1407.251998,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 4,
+        "before": {
+          "current": 2994434048,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994429952,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1452.8435399988666,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1452.553097,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 5,
+        "before": {
+          "current": 2994429952,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994425856,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1458.3420919952914,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1458.053791,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 6,
+        "before": {
+          "current": 2994425856,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994421760,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1409.1520310030319,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1408.867402,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 7,
+        "before": {
+          "current": 2994421760,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994417664,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1407.9144389834255,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1407.608712,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 2,
+        "query": 9,
+        "trial": 8,
+        "before": {
+          "current": 2994417664,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 2994413568,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 1403.582094993908,
+        "columns": [
+          "nation",
+          "o_year",
+          "sum_profit"
+        ],
+        "execution_ms": 1403.276014,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 286937101,
+        "spill_bytes": 0,
+        "row_count": 175,
+        "rows_sha256": "d3e3ad8738836df33874853760f0d92ebec0b8710fe87756f74359ddff6e6e32"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 0,
+        "before": {
+          "current": 2994409472,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 2977427456,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 28198.088633012958,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 440.890762,
+        "prepare_ms": 27757.059831,
+        "direct_load_bytes": 7302283264,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 1,
+        "before": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 441.5105849620886,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 441.351024,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 2,
+        "before": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 485.6114439899102,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 485.453307,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 3,
+        "before": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 448.8773350021802,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 448.716958,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 4,
+        "before": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 443.325828993693,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 443.15543,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 5,
+        "before": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16941056,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 450.93810599064454,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 450.772246,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 6,
+        "before": {
+          "current": 7360409600,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360450560,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 455.076060956344,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 454.915703,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 7,
+        "before": {
+          "current": 7360450560,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360450560,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 465.2546290308237,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 465.067997,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 3,
+        "query": 1,
+        "trial": 8,
+        "before": {
+          "current": 7360450560,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 7360450560,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 446.1717610247433,
+        "columns": [
+          "l_returnflag ",
+          "l_linestatus ",
+          "sum_qty",
+          "sum_base_price",
+          "sum_disc_price",
+          "sum_charge",
+          "avg_qty",
+          "avg_price",
+          "avg_disc",
+          "count_order"
+        ],
+        "execution_ms": 446.013715,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 1056512,
+        "spill_bytes": 0,
+        "row_count": 4,
+        "rows_sha256": "f5f72f37130eea9b71039f05e793ed9032875f05514bfc7a77b3a36ffb4216b1"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 0,
+        "before": {
+          "current": 7360450560,
+          "peak": 8435646464,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 7343255552,
+          "file": 0,
+          "kernel": 16932864,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8423346176,
+          "peak": 8436707328,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404340736,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 22162.17151400633,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 271.80087,
+        "prepare_ms": 21878.181883,
+        "direct_load_bytes": 9015663714,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 1,
+        "before": {
+          "current": 8423280640,
+          "peak": 8436707328,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404340736,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8436912128,
+          "peak": 8436912128,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8417943552,
+          "file": 0,
+          "kernel": 16977920,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 258.1533029442653,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 249.943582,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 2,
+        "before": {
+          "current": 8436854784,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8417943552,
+          "file": 0,
+          "kernel": 16977920,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8423342080,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404344832,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 224.6688829618506,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 216.743867,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 3,
+        "before": {
+          "current": 8423550976,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404344832,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8423047168,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404357120,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 221.87215398298576,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 213.825557,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 4,
+        "before": {
+          "current": 8423256064,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404357120,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8423002112,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404357120,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 221.9378090230748,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 213.902775,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 5,
+        "before": {
+          "current": 8422948864,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404357120,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422957056,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404353024,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 224.1196109680459,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 215.982167,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 6,
+        "before": {
+          "current": 8423428096,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404353024,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422912000,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404353024,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 225.47217103419825,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 217.392851,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 7,
+        "before": {
+          "current": 8423383040,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404353024,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8422866944,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404353024,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 225.43898998992518,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 217.261453,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      },
+      {
+        "event": "trial",
+        "step": 4,
+        "query": 20,
+        "trial": 8,
+        "before": {
+          "current": 8423337984,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404353024,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "after": {
+          "current": 8423084032,
+          "peak": 8437035008,
+          "max": 8589934592,
+          "swap.max": 0,
+          "anon": 8404353024,
+          "file": 0,
+          "kernel": 16953344,
+          "events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0,
+            "oom_group_kill": 0
+          }
+        },
+        "client_ms": 225.6877159816213,
+        "columns": [
+          "s_name ",
+          "s_address "
+        ],
+        "execution_ms": 217.381958,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 18090320,
+        "spill_bytes": 0,
+        "row_count": 17971,
+        "rows_sha256": "f4f2e0f2ec1d1f6f233fa5788eff9179922ff37325ad5134166637a4082a61a3"
+      }
+    ]
+  },
+  "complete": true,
+  "note": "One long-lived Database, nine calls per step; first call includes re-preparation. Live memory peaks are cumulative across the sequence.",
+  "correct": true,
+  "memory_verified": true,
+  "reuse_verified": true,
+  "steps": [
+    {
+      "step": 0,
+      "query": 20,
+      "trials": 9,
+      "first_client_ms": 21350.905450992286,
+      "warm_client_ms": 226.6182939929422
+    },
+    {
+      "step": 1,
+      "query": 1,
+      "trials": 9,
+      "first_client_ms": 28517.657851974946,
+      "warm_client_ms": 439.3816184892785
+    },
+    {
+      "step": 2,
+      "query": 9,
+      "trials": 9,
+      "first_client_ms": 31247.08851001924,
+      "warm_client_ms": 1407.7299099881202
+    },
+    {
+      "step": 3,
+      "query": 1,
+      "trials": 9,
+      "first_client_ms": 28198.088633012958,
+      "warm_client_ms": 449.90772049641237
+    },
+    {
+      "step": 4,
+      "query": 20,
+      "trials": 9,
+      "first_client_ms": 22162.17151400633,
+      "warm_client_ms": 225.0539364758879
+    }
+  ],
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-transitions-trim-sf100.json",
+  "raw_sha256": "b1d4464fedea3dcb71a93435d5c551d993ea792d5ff2732f8d6c90212a726e94"
+}
