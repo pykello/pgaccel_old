@@ -59,3 +59,23 @@ row-code bitmap application. If testing parallel label matching, share only
 immutable predicate state, partition output words to avoid races, and keep
 decoding serial. The rejected concurrent-column-loading experiment combined
 I/O, allocation and decoding and must not be repeated under a different name.
+
+## Label matching versus row-code application
+
+A [second profile](native-direct-match-phases-q13-sf100.json) on `2eb2e10`
+instruments only dictionaries with at least 8192 labels. Across 2289 Q13
+calls to that path, label matching takes 5943.298 ms and applying label bits
+to row codes takes 111.983 ms. Small transformed dictionaries used by warm
+calls are excluded by this size gate. The earlier combined phase included
+both operations; these timings support targeting label matching itself.
+
+The first call takes 15.565 seconds, warm median
+546.954 ms, and live peak
+1.792 GiB. All nine answers pass
+under 8 GiB with zero permitted swap. The [patch](match-phases-profile.patch)
+is temporary instrumentation, absent from production source and its module.
+
+The next experiment parallelizes only large-dictionary label matching during
+predicate preparation. Decoding remains serial, predicate state is immutable,
+and tasks own disjoint bitmap words before a blocking join. The existing
+serial and SIMD row-code application paths remain in place.

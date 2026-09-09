@@ -1,0 +1,53 @@
+diff --git a/src/executor_filter_values.cc b/src/executor_filter_values.cc
+index 6e19f24..6b35aad 100644
+--- a/src/executor_filter_values.cc
++++ b/src/executor_filter_values.cc
+@@ -1,3 +1,6 @@
++#include <atomic>
++#include <chrono>
++#include <cstdio>
+ #include "executor_state.hpp"
+ #include <re2/re2.h>
+ #include <array>
+@@ -6,6 +9,11 @@
+ #include "executor_literal_search.hpp"
+ namespace pgaccel {
+ namespace {
++using MatchClock=std::chrono::steady_clock;
++struct MatchProfile {
++    std::atomic<uint64_t> labels{0},codes{0},calls{0};
++    ~MatchProfile(){std::fprintf(stderr,"MATCH_PROFILE labels_ms=%.3f codes_ms=%.3f calls=%llu\n",labels.load()/1e6,codes.load()/1e6,(unsigned long long)calls.load());}
++} matchProfile;
+ class ValuePredicate : public FilterNodeImpl {
+   FilterClause f;
+   std::unique_ptr<RE2> pattern;
+@@ -46,6 +54,9 @@ class ValuePredicate : public FilterNodeImpl {
+             ? static_cast<const DictColumnDataBase *>(data)
+             : nullptr;
+     if (dict) {
++      bool profile=dict->dictSize()>=8192;
++      auto start=MatchClock::now();
++      auto elapsed=[&]{return std::chrono::duration_cast<std::chrono::nanoseconds>(MatchClock::now()-start).count();};
+       // At most 65,536 local labels: the complete membership map fits in 8 KiB.
+       std::array<uint32_t, RowGroupSize / 32> labels{};
+       auto signatures = substring && needle.size() >= 3
+@@ -124,6 +135,7 @@ class ValuePredicate : public FilterNodeImpl {
+           if (yes) labels[i / 32] |= uint32_t(1) << (i % 32);
+         }
+       }
++      if(profile)matchProfile.labels+=elapsed();start=MatchClock::now();
+       auto apply = [&]<class CodeType>() {
+         auto codes = reinterpret_cast<const CodeType *>(dict->values);
+         int count = 0, base = 0;
+@@ -167,8 +179,10 @@ class ValuePredicate : public FilterNodeImpl {
+         }
+         return count;
+       };
+-      return dict->bytesPerValue() == 1 ? apply.template operator()<uint8_t>()
++      int result=dict->bytesPerValue() == 1 ? apply.template operator()<uint8_t>()
+                                        : apply.template operator()<uint16_t>();
++      if(profile){matchProfile.codes+=elapsed();++matchProfile.calls;}
++      return result;
+     }
+     if(compactIntegers) {
+       auto raw=static_cast<const RawColumnDataBase *>(data);
