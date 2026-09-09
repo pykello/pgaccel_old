@@ -2,7 +2,19 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
-## Latest: nested date filters reduce Q15 and Q20 residency
+## Latest: all 22 queries pass in one 8 GiB database
+
+[TRANSITION-SWEEP.md](TRANSITION-SWEEP.md) is the latest complete comparison
+against saved pgaccel, ClickHouse and DuckDB times. One frozen build executed
+Q1 through Q22 in one long-lived database, nine calls each. All 198 answers
+pass; cumulative memory peak is 7.680 GiB, with zero sampled file-cache charge,
+zero swap and no memory-limit events. Q2, Q11 and Q14 still exceed their saved
+pgaccel warm medians. First calls take 2.3–40.3 seconds and include SQL-specific
+preparation; this is not equivalent to scanning arbitrary queries from NVMe at
+the old fully resident latency. Internal admission for arbitrary workloads is
+also unfinished. The full goal remains open.
+
+## Nested date filters reduce Q15 and Q20 residency
 
 `4cac40f` intersects necessary literal filters across every physical-table use.
 A single-table scan inside a CTE or subquery can discard failing rows only if
@@ -17,7 +29,7 @@ still runs on the retained rows.
 
 Both queries pass all nine SF100 answers in fresh 8 GiB zero-swap processes.
 The change passes 275 native tests, all 22 SF1 answers and Python integration.
-Eight latest warm medians still exceed their saved pgaccel baseline. The full
+Eight warm medians in that individual-run comparison exceed their saved baseline. The full
 objective remains open; first-call preparation is not a warm scan benchmark.
 
 ## Full sweep, follow-ups and representative transitions
@@ -26,7 +38,7 @@ objective remains open; first-call preparation is not a warm scan benchmark.
 All 45 answers pass before and after returning unused allocator pages on SQL
 changes. Q9's ending residency falls from 7.88 to 2.79 GiB; reloads can take
 longer. The new run records no file-cache charge or memory-limit events.
-This is not yet a complete 22-query transition sweep.
+The complete transition sweep linked above supersedes this smaller coverage test.
 
 [FULL-SWEEP.md](FULL-SWEEP.md) compares all 22 queries with saved ClickHouse,
 DuckDB and previous pgaccel times. One frozen build passed 21 queries and was
@@ -39,7 +51,7 @@ SF1 answers and Python integration pass after this fix.
 These results do not constitute an all-query success on one final build.
 The updated table includes the separately identified Q15 and Q20 follow-ups.
 First preparation remains substantial and a full query-transition sweep is
-a separate outstanding measurement.
+a separate measurement reported above.
 The report preserves the failed run and distinguishes Q19's follow-up build.
 
 ## Earlier checkpoint: inner-join membership brings Q5, Q8 and Q9 under the cap
