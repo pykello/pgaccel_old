@@ -1,0 +1,166 @@
+{
+  "query": 13,
+  "query_memory_mib": 768,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-13-1788924311201090291",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/tpch-work/checkpoints/direct-memory-20260908/pgaccel_native-dense-retain.cpython-312-x86_64-linux-gnu.so",
+    "13",
+    "768"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-native-direct-13-1788924311201090291.service; invocation ID: 83c2f3753dbd4324944695c3d3f3c56c\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 35.315s\nCPU time consumed: 1min 3.965s\nMemory peak: 352.0K\nMemory swap peak: 0B\n",
+  "module_sha256": "95ff8a9008f0b603b33247e1060c2bcb2fc1f21679de077ab3e2e376bc632109",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 1093.3120045083342,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "measurements": {
+    "trials": [
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 552.156943,
+        "prepare_ms": 30171.285945,
+        "direct_load_bytes": 9446661171,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 30723.589904024266,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 552.314992,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 552.513484028168,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 556.666102,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 556.8789000390097,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 547.459553,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 547.6680549909361,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 550.067876,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 550.2670579589903,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 542.608568,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 542.8080710116774,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 539.212936,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 539.527699991595,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 542.421905,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 542.6446769852191,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      },
+      {
+        "columns": [
+          "c_count ",
+          "custdist"
+        ],
+        "execution_ms": 545.020225,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 480115712,
+        "spill_bytes": 0,
+        "client_ms": 545.2489139861427,
+        "row_count": 45,
+        "rows_sha256": "8b3d142e5b463f42dbd3f49fa26a916bda294953582c4c037395b067197e7115"
+      }
+    ],
+    "cgroup_peak_bytes": 1944170496,
+    "memory_max": 8589934592,
+    "swap_max": 0
+  },
+  "correct": true,
+  "median_client_ms": 546.4584844885394,
+  "first_client_ms": 30723.589904024266,
+  "memory_verified": true,
+  "reuse_verified": true,
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-byte-usage-control-q13-sf100.json",
+  "raw_sha256": "fbf859a0afe35aabf04752d008f949988a1dca407b3902f8091ea77543a46eb1"
+}
