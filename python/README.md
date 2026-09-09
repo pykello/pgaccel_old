@@ -77,6 +77,10 @@ one per selected column plus its header reader. These buffers count toward the
 total process limit in addition to retained columns and executor memory.
 Snapshots must remain immutable while the database is open.
 
+For two-table conditional counts whose SUM inputs are constant CASE values,
+preparation can filter the single string/date grouping input. This preserves
+the other table's key sequence and retains the same scope restrictions.
+
 Single-table scopes can also discard rows inside subqueries or CTEs when
 every bound use of that physical table requires the same literal filters.
 An unfiltered use, a different filter, or a use in a multi-table scope prevents

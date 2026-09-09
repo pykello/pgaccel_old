@@ -22,6 +22,10 @@ The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) remains separate.
 No faster individual measurement replaces a slower value in either full sweep.
 The subsequent [Q22 prefix follow-up](WARM-RECOVERY.md) passes at 219.790 ms
 warm; it has not yet been incorporated into a new complete sweep.
+Further individual checks reach 204.854 ms and 1.294 GiB peak for Q12 after
+conditional-count preparation, and 28.640 ms for Q11 with scoped arithmetic
+gathers. All 279 native tests and 22 SF1 answers pass. These are separate
+follow-ups, not replacements for the slower complete-sweep measurements.
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, full validation,
 cross-query residency and measured asynchronous-I/O experiments.
 

@@ -3,12 +3,14 @@
 The [latest complete sweep](TRANSITION-NARROW.md) passes every answer at
 7.681 GiB peak, but Q1, Q11, Q12 and Q22 exceed the saved pgaccel medians.
 The subsequent Q22 prefix change has a substantial individual-run margin.
+Subsequent Q12 conditional-count preparation reaches 204.854 ms and 1.294 GiB
+peak, while scoped arithmetic gathers give Q11 a 28.640 ms individual result.
 Keep both measurements. Do not choose faster individual samples to rewrite
 a complete sweep or relax the timing threshold to declare completion.
 
-1. **Create margin in Q1, Q11 and Q12.** Q1 was 454.791 versus 440.185 ms;
+1. **Create and confirm margin in the remaining kernels.** Q1 was 454.791 versus 440.185 ms;
    Q11 was 31.874 versus 30.496 ms; Q12 was 343.101 versus 341.982 ms. Start
-   with phase measurements, then optimize the dominant work. The Q11 profile
+   with Q1 phase measurements, then optimize the dominant work. The Q11 profile
    already identifies its grouped fact scan. Keep eight executor workers so
    comparisons do not gain from an unreported concurrency increase. Check
    meaningful nonempty and boundary answers as well as the SF100 timings.

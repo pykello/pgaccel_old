@@ -92,3 +92,40 @@ tests cover short strings, non-ASCII leading characters and UTF-8 suffixes;
 the added test verifies rejection of an invalid suffix. Keep this change for
 its substantial execution-time margin. It does not replace Q22's measurement
 in the preceding complete sweep.
+
+## Sorted arithmetic gathers: retain a scoped policy
+
+The [global experiment](global-gather-experiment.patch) gathered eight signed
+32-bit or 64-bit values explicitly with vector instructions. It passed 278
+native tests and all SF1 answers. Paired fresh-process SF100 measurements
+showed a mixed result: Q11 improved from 30.369 to 29.257 ms, while Q3 rose
+from 347.983 to 355.643 ms. Both queries passed all nine answers under 8 GiB.
+The global policy was not retained.
+
+`d8e6591` makes vector gathering an explicit template option and enables it
+only for sorted aggregation, including arithmetic input decoding and grouping
+keys. Other join paths retain their original policy. Tests cover signed
+extremes, repeated indices, nonzero offsets, unaligned outputs and short tails.
+The final build passes 279 tests, all 22 SF1 answers and Python integration.
+[Q11](native-direct-scoped-count-q11-sf100.json) runs in 28.640 ms warm;
+the [Q3 control](native-direct-scoped-count-q3-sf100.json) is 344.759 ms.
+This is a measured choice for sorted aggregation, not a claim that explicit
+gathers improve every kernel.
+
+## Q12: identify the grouped input of a conditional count
+
+Q12's SUM expressions contribute constant CASE values. The old preparation
+rule therefore found no numeric measure column and retained the whole fact
+input, despite its literal date and shipping-mode filters. `a20dcf7` uses the
+single string/date grouping input for a two-table conditional-count shape.
+Only that input loses rows; the other table retains its key sequence. The
+existing inner-scope and unique-physical-table guards still apply. The original
+query checks its date comparisons and evaluates both conditional counts.
+
+The [Q12 follow-up](native-direct-scoped-count-q12-sf100.json) passes all nine
+answers at **204.854 ms warm and 1.294 GiB peak**, versus the saved 341.982 ms
+and the earlier direct run's 7.458 GiB peak. First preparation is 10.946 seconds.
+The new test checks selected fact rows, intact dimensions and exclusion of
+outer joins using the parser's supported aggregate shapes. All 279 tests and
+the [final 22-query SF1 gate](auto-projection-sf1-scoped-count-final-gate.json)
+pass. These follow-ups have not yet been incorporated into a complete sweep.
