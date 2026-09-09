@@ -118,3 +118,7 @@ target_link_libraries(query_runner PRIVATE pgaccel_static)
 add_executable(native_inventory benchmarks/native_inventory.cc)
 target_include_directories(native_inventory PRIVATE src benchmarks)
 target_link_libraries(native_inventory PRIVATE pgaccel_static)
+
+add_executable(native_column_charge benchmarks/native_column_charge.cc)
+target_include_directories(native_column_charge PRIVATE src benchmarks)
+target_link_libraries(native_column_charge PRIVATE pgaccel_static)
