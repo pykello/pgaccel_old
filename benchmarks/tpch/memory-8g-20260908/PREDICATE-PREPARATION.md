@@ -24,3 +24,38 @@ module and raw answer hashes. Timing instrumentation is absent from production
 source and the installed module. The complete all-query comparison remains
 [TRANSITION-READ-AHEAD.md](TRANSITION-READ-AHEAD.md), which predates the later
 string preparation improvements.
+
+## Rejected experiment: hoist dictionary metadata lookups
+
+The candidate caches dictionary size and logical type once at entry to the
+dictionary branch, replacing the repeated virtual lookups in dense, sparse
+and signature-assisted label matching. It passes all 294 native tests,
+Python integration and all 22 SF1 answers without changing matching semantics.
+
+| Query/build | First call s | Warm median ms | Total peak GiB |
+|---|---:|---:|---:|
+| Q13 control | 15.281 | 542.819 | 1.791 |
+| Q13 candidate | 15.175 | 544.855 | 1.791 |
+| Q9 control | 16.019 | 1536.688 | 2.759 |
+| Q9 candidate | 16.091 | 1555.658 | 2.760 |
+
+Each candidate executes nine calls in a fresh process with MemoryMax=8G and
+MemorySwapMax=0. All 18 candidate answers pass. Controls are the preceding
+string-guard runs. Q13 first-call time improves only 0.7%, while Q9 becomes
+0.5% slower; those small differences do not establish a useful end-to-end
+improvement. Revert the candidate and keep the frozen production Python module
+at string-guard. Do not repeat runs merely to obtain a favorable sample.
+
+The [patch](label-metadata-experiment.patch),
+[Q13 evidence](native-direct-label-metadata-q13-sf100.json),
+[Q9 evidence](native-direct-label-metadata-q9-sf100.json), and
+[SF1 gate](auto-projection-sf1-label-metadata-gate.json) remain available.
+This result does not isolate the virtual calls' CPU cost, nor prove the compiler
+already eliminated them. It shows this particular source change does not
+sufficiently address the measured matching bottleneck.
+
+Next investigate matching itself, separating literal-byte searches from
+row-code bitmap application. If testing parallel label matching, share only
+immutable predicate state, partition output words to avoid races, and keep
+decoding serial. The rejected concurrent-column-loading experiment combined
+I/O, allocation and decoding and must not be repeated under a different name.
