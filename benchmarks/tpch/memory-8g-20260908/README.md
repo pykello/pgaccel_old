@@ -32,6 +32,14 @@ The earlier [chain-domain sweep](TRANSITION-CHAINS.md),
 [run-reduction sweep](TRANSITION-RUNS.md) remain separate evidence. No faster
 individual measurement replaces a slower value in a complete sweep.
 
+## Latest follow-up: small direct header buffers
+
+[Header validation](SMALL-HEADERS.md) now uses 4 KiB with no read-ahead.
+The matching Q2 control improves from 1.783 to 1.475 seconds; Q13 improves
+from 28.727 to 27.682 seconds. Q1 is slightly slower in its recorded sample.
+All 291 tests and all 22 SF1 checks pass. The complete comparison above
+predates this follow-up and remains unchanged.
+
 ## Preparation follow-up: retain dense stripes
 
 [Dense retention](DENSE-RETENTION.md) reduces Q1 first-call time from 20.505

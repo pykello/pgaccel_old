@@ -79,19 +79,33 @@ The same-performance goal remains open. The full report distinguishes warm
 reuse from changing-query execution; arbitrary-workload admission and spill
 behavior are also not yet a proved property of this experimental loader.
 
-## Next bounded preparation experiment
+## Header-read follow-up completed
 
-Inspect header-only reads before adding another asynchronous backend.
-`ColumnarTable::LoadSchema` uses the same DirectInput as payload scans, and
-`PrepareDirectQuery` loads every native schema at each new SQL statement.
-The snapshot identity is only a short header, but the current reader fetches
-an 8 MiB block and schedules another where available. Schema-only seeks do
-not consume column payload. This is source-level evidence of amplification,
-not a measured attribution of the remaining first-call time.
+[Small header buffers](SMALL-HEADERS.md) now use 4 KiB without read-ahead
+for schema identity validation, retaining paired 8 MiB payload buffers.
+All 291 tests and 22 SF1 answers pass. A matching Q2 control improves from
+1.783 to 1.475 seconds; Q13 improves from 28.727 to 27.682 seconds, while
+Q1 is slightly slower in its preserved sample. Peak candidate memory across
+those queries is 6.953 GiB. The prior complete sweep remains the latest
+all-query measurement, predating this follow-up.
 
-Give header validation a small aligned direct-read buffer with no read-ahead;
-keep payload scans at two 8 MiB buffers. Preserve identity, offset, truncation
-and unsupported-alignment errors. Count actual buffer ownership and include
-schema setup in end-to-end timings. Test small-query preparation and Q1/Q13,
-then retain only a measured improvement under the same total cap. Payload
-prefetch and SQL-specific row transforms must remain semantically unchanged.
+## Next preparation target
+
+Q13 still spends about 27 seconds preparing predicate-only strings.
+`PredicateOnlyColumns` proves when every use observes the same predicate,
+and `PredicateDictionary` later replaces the loaded dictionary with at most
+two representative strings. The loader currently constructs the complete
+string dictionary first. Investigate applying that proven transformation
+while decoding: preserve sorted/unique dictionary validation and code-range
+and coverage checks, but retain only the representatives and a code map.
+Do not discard original spellings when any scope observes values, order or
+identity. Match the existing literal-filter semantics, including negation
+and escaping, and leave original SQL execution intact.
+
+Profile before choosing the implementation. A streamed transformation must
+preserve early errors, stripe lifetime, and the full source validation
+contract; avoiding allocations cannot justify accepting malformed snapshots.
+Measure Q13 end-to-end and a second predicate-only query, then verify the
+all-query correctness gate and total memory. This is preparation work;
+statement-specific transformed columns still do not provide cross-query
+residency. Internal byte admission and safe reuse remain separate open work.
