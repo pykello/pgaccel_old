@@ -53,3 +53,19 @@ Evidence: [Q1](native-direct-compact-width-q1-sf100.json),
 [SF1 gate](auto-projection-sf1-compact-width-gate.json).
 The full workload report still uses the earlier frozen module. After remaining
 work, validate all 22 queries and transitions in a single final capped run.
+
+## Rejected: stored-width bounds during numeric compaction
+
+The [experiment](compact-bounds-experiment.patch) keeps min/max accumulators
+at the stored signed width and widens them after copying, rather than widening
+every selected value. This resembles the retained contiguous native-load
+bounds optimization, but compaction gathers selected rows and has different
+execution costs. The experiment passes 282 tests, including new selected
+signed-extreme and tail cases, all 22 SF1 answers, and Python integration.
+
+[SF100 Q1](native-direct-compact-bounds-q1-sf100.json) passes nine answers under
+8 GiB with zero swap, but first-call time increases from 18.298 to 20.319
+seconds and warm median from 391.606 to 394.715 ms. There is no measured gain.
+The source and experimental test were restored; the complete patch, SF1 gate
+and SF100 measurements remain available. Do not repeat this variant merely
+because the related contiguous reduction was successful.

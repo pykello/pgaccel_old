@@ -1,0 +1,48 @@
+diff --git a/src/compact_column.cc b/src/compact_column.cc
+index 897b6ee..4dcdac1 100644
+--- a/src/compact_column.cc
++++ b/src/compact_column.cc
+@@ -14,10 +14,14 @@ ColumnDataP CompactRaw(const ColumnDataBase &source, const std::vector<uint16_t>
+     auto copy = [&]<class T>() {
+         auto from = reinterpret_cast<const T *>(input.values);
+         auto to = reinterpret_cast<T *>(output->values);
++        T minimum = std::numeric_limits<T>::max();
++        T maximum = std::numeric_limits<T>::lowest();
+         for (size_t i=0; i<rows.size(); ++i) {
+-            int64_t value = from[rows[i]]; to[i] = value;
+-            low = std::min(low, value); high = std::max(high, value);
++            T value = from[rows[i]]; to[i] = value;
++            minimum = std::min(minimum, value);
++            maximum = std::max(maximum, value);
+         }
++        low = minimum; high = maximum;
+     };
+     switch (input.bytesPerValue) {
+     case 1: copy.template operator()<int8_t>(); break;
+diff --git a/tests/compact_column_test.cc b/tests/compact_column_test.cc
+index 299569a..41574d7 100644
+--- a/tests/compact_column_test.cc
++++ b/tests/compact_column_test.cc
+@@ -96,3 +96,22 @@ TEST(CompactColumn, ParallelLargeStripeMatchesSerialAndKeepsCallbacksLocal) {
+         EXPECT_EQ(result->values,expected);
+     }
+ }
++
++TEST(CompactColumn, SelectedSignedExtremesAtEveryStoredWidth) {
++    Int64Type logical;
++    for (int width:{1,2,4,8}) for (int count:{1,7,8,15,16,17,63,64,65}) {
++        int64_t low=width==8?INT64_MIN:-(int64_t(1)<<(width*8-1));
++        int64_t high=width==8?INT64_MAX:(int64_t(1)<<(width*8-1))-1;
++        std::vector<int64_t> values(2*count+1,0);
++        std::vector<uint16_t> rows;
++        for(int i=0;i<count;++i) {
++            rows.push_back(2*i+1); values[2*i+1]=i%2?high:low;
++        }
++        auto input=test::Raw(values,width);
++        auto compact=CompactNativeColumn(*input,logical,rows);ASSERT_TRUE(compact.ok());
++        auto raw=static_cast<RawColumnData<Int64Type>*>((*compact).get());
++        EXPECT_EQ(raw->minValue,low);EXPECT_EQ(raw->maxValue,count==1?low:high);
++        std::stringstream saved;ASSERT_TRUE(raw->Save(saved).ok());
++        auto loaded=ColumnDataBase::Load(saved,&logical);ASSERT_TRUE(loaded.ok());
++    }
++}

@@ -1,0 +1,247 @@
+{
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-auto-direct-sf1",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/pgaccel_old/build/query_runner",
+    "direct-dir",
+    "/home/hadi/projects/tpch-work/native-sf1",
+    "ignored",
+    "-",
+    "1",
+    "1",
+    "1"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-auto-direct-sf1.service; invocation ID: ec8a2d4373314b46842a2b64f5004aa4\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 2.750s\nCPU time consumed: 4.495s\nMemory peak: 360.0K\nMemory swap peak: 0B\n",
+  "runner_sha256": "e6f91abaf2b905b42a478dc74f793b4bf079a73016a24be39354d603dcd670be",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-min-chain-sf1.jsonl",
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/auto-direct-sf1-compact-bounds.jsonl",
+  "raw_sha256": "9ae90d37ecad2f719139b49d925ed280ba5857b6ee0576803b55a9fe408c1a84",
+  "queries": [
+    {
+      "id": 1,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 236.81,
+      "execution_ms": [
+        10.1204
+      ],
+      "error": null
+    },
+    {
+      "id": 2,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 44.6322,
+      "execution_ms": [
+        1.32679
+      ],
+      "error": null
+    },
+    {
+      "id": 3,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 114.732,
+      "execution_ms": [
+        5.46946
+      ],
+      "error": null
+    },
+    {
+      "id": 4,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 137.676,
+      "execution_ms": [
+        4.74167
+      ],
+      "error": null
+    },
+    {
+      "id": 5,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 130.984,
+      "execution_ms": [
+        3.98127
+      ],
+      "error": null
+    },
+    {
+      "id": 6,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 61.7317,
+      "execution_ms": [
+        0.28931
+      ],
+      "error": null
+    },
+    {
+      "id": 7,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 136.854,
+      "execution_ms": [
+        5.07848
+      ],
+      "error": null
+    },
+    {
+      "id": 8,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 144.474,
+      "execution_ms": [
+        4.1488
+      ],
+      "error": null
+    },
+    {
+      "id": 9,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 182.335,
+      "execution_ms": [
+        22.4292
+      ],
+      "error": null
+    },
+    {
+      "id": 10,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 160.515,
+      "execution_ms": [
+        9.0473
+      ],
+      "error": null
+    },
+    {
+      "id": 11,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 14.1913,
+      "execution_ms": [
+        2.10985
+      ],
+      "error": null
+    },
+    {
+      "id": 12,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 119.918,
+      "execution_ms": [
+        5.18206
+      ],
+      "error": null
+    },
+    {
+      "id": 13,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 266.393,
+      "execution_ms": [
+        3.47375
+      ],
+      "error": null
+    },
+    {
+      "id": 14,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 68.9886,
+      "execution_ms": [
+        1.20919
+      ],
+      "error": null
+    },
+    {
+      "id": 15,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 73.2756,
+      "execution_ms": [
+        0.704721
+      ],
+      "error": null
+    },
+    {
+      "id": 16,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 17.7044,
+      "execution_ms": [
+        9.9201
+      ],
+      "error": null
+    },
+    {
+      "id": 17,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 67.0339,
+      "execution_ms": [
+        3.37556
+      ],
+      "error": null
+    },
+    {
+      "id": 18,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 64.3208,
+      "execution_ms": [
+        46.4406
+      ],
+      "error": null
+    },
+    {
+      "id": 19,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 157.514,
+      "execution_ms": [
+        2.07709
+      ],
+      "error": null
+    },
+    {
+      "id": 20,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 138.51,
+      "execution_ms": [
+        1.62845
+      ],
+      "error": null
+    },
+    {
+      "id": 21,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 159.881,
+      "execution_ms": [
+        16.3054
+      ],
+      "error": null
+    },
+    {
+      "id": 22,
+      "status": "success",
+      "correct": true,
+      "prepare_ms": 22.1674,
+      "execution_ms": [
+        7.12236
+      ],
+      "error": null
+    }
+  ]
+}
