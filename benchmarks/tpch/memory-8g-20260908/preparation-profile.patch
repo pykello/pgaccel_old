@@ -1,0 +1,85 @@
+diff --git a/src/columnar_table.cc b/src/columnar_table.cc
+index aae69b2..4fea4ac 100644
+--- a/src/columnar_table.cc
++++ b/src/columnar_table.cc
+@@ -1,3 +1,5 @@
++#include <chrono>
++#include <cstdio>
+ #include "compact_column.hpp"
+ #include "columnar_table.h"
+ #include "util.h"
+@@ -343,8 +345,14 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+     for (const auto &column:(*schema)->Schema())
+         if (normalized.count(column.name)) result->schema_.push_back(column);
+     if (result->schema_.size()!=normalized.size()) return Status::Invalid("Unknown selected column");
++    using Clock = std::chrono::steady_clock;
++    double selectMs=0, compactMs=0, transformMs=0;
++    auto loadStart=Clock::now();
+     auto scan = ScanDirect(path, fields, [&](const auto &columns, const RowGroup &batch)->Result<bool> {
++        auto phaseStart=Clock::now();
+         auto selected = select(columns, batch); if (!selected.ok()) return selected.status();
++        selectMs += std::chrono::duration<double,std::milli>(Clock::now()-phaseStart).count();
++        phaseStart=Clock::now();
+         const auto &rows = *selected;
+         for (size_t i=0; i<rows.size(); ++i)
+             if (rows[i]>=batch.size || (i && rows[i]<=rows[i-1]))
+@@ -359,13 +367,17 @@ Result<ColumnarTableP> ColumnarTable::LoadDirectSelected(const std::string &name
+                 compact.columns.push_back(std::move(column).ValueUnsafe());
+             }
+         }
++        compactMs += std::chrono::duration<double,std::milli>(Clock::now()-phaseStart).count();
++        phaseStart=Clock::now();
+         if(transform)for(size_t c=0;c<columns.size();++c) {
+             auto column=transform(columns[c],compact.columns[c]);if(!column.ok())return column.status();
+             if(!*column || (*column)->size!=compact.size)return Status::Invalid("Transform changed row count");
+             compact.columns[c]=std::move(column).ValueUnsafe();
+         }
++        transformMs += std::chrono::duration<double,std::milli>(Clock::now()-phaseStart).count();
+         result->row_groups_.push_back(std::move(compact)); return true;
+     });
++    std::fprintf(stderr,"PREP_PROFILE table=%s total_ms=%.3f select_ms=%.3f compact_ms=%.3f transform_ms=%.3f\n",name.c_str(),std::chrono::duration<double,std::milli>(Clock::now()-loadStart).count(),selectMs,compactMs,transformMs);
+     if (!scan.ok()) return scan.status();
+     if (io) *io = *scan;
+     return result;
+diff --git a/src/direct_input.cc b/src/direct_input.cc
+index 0cbe17f..e3c3540 100644
+--- a/src/direct_input.cc
++++ b/src/direct_input.cc
+@@ -1,5 +1,7 @@
+ #include "direct_input.hpp"
+ #include <algorithm>
++#include <chrono>
++#include <cstdio>
+ #include <cerrno>
+ #include <cstdlib>
+ #include <cstring>
+@@ -23,9 +25,11 @@ protected:
+         uint64_t offset = position();
+         if (offset >= length) return traits_type::eof();
+         start = offset / blockSize * blockSize;
++        auto readStart = std::chrono::steady_clock::now();
+         ssize_t n;
+         do { n = pread(fd, buffer, blockSize, off_t(start)); } while (n < 0 && errno == EINTR);
+         if (n < 0) throw std::runtime_error("Direct read failed: " + std::string(std::strerror(errno)));
++        nanos += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-readStart).count();
+         ++calls; bytes += n;
+         if (uint64_t(n) != std::min<uint64_t>(blockSize, length - start))
+             throw std::runtime_error("Short direct read or snapshot changed during read");
+@@ -49,7 +53,7 @@ protected:
+         return seekoff(off_type(offset), std::ios_base::beg, mode);
+     }
+ public:
+-    uint64_t bytes = 0, calls = 0;
++    uint64_t bytes = 0, calls = 0, nanos = 0;
+     explicit Buffer(const std::string &path) {
+         fd = open(path.c_str(), O_RDONLY | O_DIRECT | O_CLOEXEC);
+         if (fd < 0) throw std::runtime_error("Cannot open direct input: " + std::string(std::strerror(errno)));
+@@ -65,7 +69,7 @@ public:
+         buffer = static_cast<char *>(std::aligned_alloc(4096, blockSize));
+         if (!buffer) { close(fd); fd = -1; throw std::bad_alloc(); }
+     }
+-    ~Buffer() override { if (fd >= 0) close(fd); std::free(buffer); }
++    ~Buffer() override { std::fprintf(stderr,"DIRECT_PROFILE bytes=%llu calls=%llu read_ms=%.3f\n", (unsigned long long)bytes, (unsigned long long)calls, nanos/1e6); if (fd >= 0) close(fd); std::free(buffer); }
+ };
+ DirectInput::DirectInput(const std::string &path) : std::istream(nullptr), buffer_(std::make_unique<Buffer>(path)) {
+     rdbuf(buffer_.get());
