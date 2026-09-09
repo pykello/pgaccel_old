@@ -1,14 +1,15 @@
 # Remaining work toward the 8 GiB performance goal
 
-The [latest complete sweep](TRANSITION-CHAINS.md) passes all 198 answers at
-7.060 GiB peak. **Every prepared-input warm median meets its saved pgaccel
+The [latest complete sweep](TRANSITION-READ-AHEAD.md) passes all 198 answers at
+6.968 GiB peak. **Every prepared-input warm median meets its saved pgaccel
 time.** Preserve that complete milestone; do not rerun to improve its numbers.
-All 286 tests, 22 SF1 answers and Python integration pass for this module.
+All 289 tests, 22 SF1 answers and Python integration pass for this module.
 
 The original fully resident database and this statement-specific working set
 have different preparation behavior. New SQL still releases old input and
 performs direct reads, filtering and compaction. First calls take 1.5–33.0
-seconds. Warm benchmark success does not prove the same latency when changing
+seconds historically; the latest sweep reduces this to 1.191–28.888 seconds.
+Warm benchmark success does not prove the same latency when changing
 queries or a general-purpose 8 GiB working set. That remains the next work,
 with any later implementation checked against the preserved warm baseline.
 
@@ -68,7 +69,8 @@ does not isolate I/O from allocator and scheduling effects.
    It keeps serial decoding and uses two 8 MiB buffers per stream, one
    pending background pread, with charged memory and joined cleanup.
    The Q1 → Q21 → Q1 transition check passes all 27 answers below 8 GiB.
-   The complete post-change sweep remains to be run. Measure remaining
+   The complete post-change sweep passes all 198 answers at 6.968 GiB.
+   Measure remaining
    wait before replacing thread-per-read overhead with a persistent worker
    or io_uring. Keep O_DIRECT, count speculative bytes and charge every
    in-flight buffer; no payload page-cache fallback is permitted.
@@ -76,3 +78,20 @@ does not isolate I/O from allocator and scheduling effects.
 The same-performance goal remains open. The full report distinguishes warm
 reuse from changing-query execution; arbitrary-workload admission and spill
 behavior are also not yet a proved property of this experimental loader.
+
+## Next bounded preparation experiment
+
+Inspect header-only reads before adding another asynchronous backend.
+`ColumnarTable::LoadSchema` uses the same DirectInput as payload scans, and
+`PrepareDirectQuery` loads every native schema at each new SQL statement.
+The snapshot identity is only a short header, but the current reader fetches
+an 8 MiB block and schedules another where available. Schema-only seeks do
+not consume column payload. This is source-level evidence of amplification,
+not a measured attribution of the remaining first-call time.
+
+Give header validation a small aligned direct-read buffer with no read-ahead;
+keep payload scans at two 8 MiB buffers. Preserve identity, offset, truncation
+and unsupported-alignment errors. Count actual buffer ownership and include
+schema setup in end-to-end timings. Test small-query preparation and Q1/Q13,
+then retain only a measured improvement under the same total cap. Payload
+prefetch and SQL-specific row transforms must remain semantically unchanged.

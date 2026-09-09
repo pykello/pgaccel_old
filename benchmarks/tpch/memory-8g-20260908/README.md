@@ -4,36 +4,33 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
-[TRANSITION-CHAINS.md](TRANSITION-CHAINS.md) is the latest complete comparison
-against saved pgaccel, ClickHouse and DuckDB times. It includes the
-[8 MiB direct reads](LARGER-READS.md) and [warm-execution changes](WARM-RECOVERY.md).
-That sweep used synchronous `O_DIRECT`. The later [read-ahead change](READ-AHEAD.md)
-overlaps bounded direct reads; `io_uring` has not been added.
+[TRANSITION-READ-AHEAD.md](TRANSITION-READ-AHEAD.md) is the latest complete
+comparison against saved pgaccel, ClickHouse and DuckDB times. It uses one
+frozen module and one long-lived database, Q1 through Q22, nine calls each.
+All **198 answers pass** at **6.968 GiB** peak total memory, with zero sampled
+file-cache charge, zero swap and no memory-limit events. Every warm median
+is below its saved pgaccel, ClickHouse and DuckDB time.
 
-One frozen build executed Q1 through Q22 in one long-lived database, nine
-calls each. All 198 answers pass; cumulative memory peak is **7.060 GiB**, with
-zero sampled file-cache charge, zero swap and no memory-limit events. **Every warm median is below its saved pgaccel time.** Q11 is 17.852 ms,
-Q17 207.672 ms and Q18 572.943 ms. All 22 warm medians are below the saved ClickHouse and DuckDB times.
-First calls take **1.5–33.0 seconds** and include SQL-specific preparation.
-Warm reuse is not equivalent to executing changing SQL from NVMe at the old
-fully resident latency. Internal admission for arbitrary workloads is also
-unfinished. The full goal remains open.
+First calls take **1.191–28.888 seconds** and include SQL-specific preparation.
+Their sum falls from 256.221 to 168.749 seconds versus the preceding complete
+chain-domain sweep, combining dense retention, byte dictionary flags and
+read-ahead. This is not an isolated I/O comparison. Warm reuse is not
+equivalent to executing changing SQL at the old fully resident latency.
+Internal admission for arbitrary workloads is also unfinished.
 
-The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) and
-[previous 8 MiB sweep](TRANSITION-NARROW.md) and
-[dense-group sweep](TRANSITION-DENSE.md), and
-[preparation sweep](TRANSITION-COMPACTION.md) and
+The reader now overlaps O_DIRECT reads using two bounded 8 MiB buffers per
+stream while decoding remains serial. It uses a background pread; io_uring
+has not been added. All 289 native tests, 22 SF1 answers and Python integration
+pass for this module. [Next steps](NEXT-STEPS.md) track the remaining gap.
+
+The earlier [chain-domain sweep](TRANSITION-CHAINS.md),
+[1 MiB reader sweep](TRANSITION-SWEEP.md),
+[8 MiB sweep](TRANSITION-NARROW.md),
+[dense-group sweep](TRANSITION-DENSE.md),
+[preparation sweep](TRANSITION-COMPACTION.md),
 [HAVING sweep](TRANSITION-HAVING.md) and
-[run-reduction sweep](TRANSITION-RUNS.md) remain separate. No faster
+[run-reduction sweep](TRANSITION-RUNS.md) remain separate evidence. No faster
 individual measurement replaces a slower value in a complete sweep.
-The latest module includes the Q22 prefix, Q12 conditional-count preparation,
-scoped arithmetic gathers, and Q1 observed dictionary-pair reductions. It
-also includes parallel compaction, final-slot dictionary decoding and
-fixed-width compaction, adaptive HAVING pruning, hierarchical membership
-contiguous-run reduction, shared-scope proof and chained membership
-preparation. It passes all 286 native tests, all 22 SF1 answers and Python integration.
-[Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
-cross-query residency and measured asynchronous-I/O experiments.
 
 ## Preparation follow-up: retain dense stripes
 
