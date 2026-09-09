@@ -1,0 +1,172 @@
+diff --git a/src/executor.cc b/src/executor.cc
+index b2d721f..e7677d9 100644
+--- a/src/executor.cc
++++ b/src/executor.cc
+@@ -1,3 +1,4 @@
++#include <cstdio>
+ #include "executor.h"
+ #include "executor_groupby.h"
+ #include "nodes.h"
+@@ -60,31 +61,31 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
+     for (const auto *table : query.tables)
+         if (table->IsSchemaOnly()) return Status::Invalid("Cannot execute a schema-only table");
+     if (!query.materializedSources.empty()) {
+-        if(auto extreme=ExecuteGroupedExtreme(query,useAvx,useParallelism))return std::move(*extreme);
+-        if(auto histogram=ExecuteLeftCountHistogram(query,useAvx,useParallelism))return std::move(*histogram);
++        if(auto extreme=ExecuteGroupedExtreme(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteGroupedExtreme\n");return std::move(*extreme);}
++        if(auto histogram=ExecuteLeftCountHistogram(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteLeftCountHistogram\n");return std::move(*histogram);}
+         return ExecuteMaterialized(query, useAvx, useParallelism);
+     }
+     if (query.tables.size() > 1 || !query.predicates.empty() || !query.membershipQueries.empty() || !query.scalarQueries.empty() ||
+         std::any_of(query.aggregateClauses.begin(), query.aggregateClauses.end(), [](const auto &a) {
+             return a.type == AggregateClause::AGGREGATE_FORMULA;
+         })) {
+-        if(auto sorted=ExecuteSortedJoinSum(query,useAvx,useParallelism)) return std::move(*sorted);
+-        if(auto minimum=ExecuteCorrelatedMin(query,useAvx,useParallelism)) return std::move(*minimum);
+-        if(auto summed=ExecuteCorrelatedSum(query,useAvx,useParallelism)) return std::move(*summed);
+-        if(auto correlated=ExecuteCorrelatedAvg(query,useAvx,useParallelism)) return std::move(*correlated);
+-        if(auto exists=ExecuteExistsCount(query,useAvx,useParallelism)) return std::move(*exists);
+-        if(auto distinct=ExecuteJoinDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
+-        if(auto counts=ExecuteJoinCount(query,useAvx,useParallelism)) return std::move(*counts);
+-        if(auto star=ExecuteStarSum(query,useAvx,useParallelism)) return std::move(*star);
+-        if(auto convergent=ExecuteConvergentSum(query,useAvx,useParallelism)) return std::move(*convergent);
+-        if(auto separate=ExecuteSeparateSum(query,useAvx,useParallelism)) return std::move(*separate);
+-        if(auto ratio=ExecuteIndependentRatio(query,useAvx,useParallelism)) return std::move(*ratio);
+-        if(auto profit=ExecutePairedProfit(query,useAvx,useParallelism)) return std::move(*profit);
+-        if(auto chain=ExecuteChainSum(query,useAvx,useParallelism)) return std::move(*chain);
+-        if(auto waiting=ExecuteSupplierWait(query,useAvx,useParallelism)) return std::move(*waiting);
+-        if(auto prefix=ExecutePrefixAntiJoin(query,useAvx,useParallelism)) return std::move(*prefix);
+-        if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) return std::move(*joined);
+-        if(auto disjunction=ExecuteDisjunctiveSum(query,useAvx,useParallelism)) return std::move(*disjunction);
++        if(auto sorted=ExecuteSortedJoinSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteSortedJoinSum\n");return std::move(*sorted);}
++        if(auto minimum=ExecuteCorrelatedMin(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteCorrelatedMin\n");return std::move(*minimum);}
++        if(auto summed=ExecuteCorrelatedSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteCorrelatedSum\n");return std::move(*summed);}
++        if(auto correlated=ExecuteCorrelatedAvg(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteCorrelatedAvg\n");return std::move(*correlated);}
++        if(auto exists=ExecuteExistsCount(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteExistsCount\n");return std::move(*exists);}
++        if(auto distinct=ExecuteJoinDistinct(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteJoinDistinct\n");return std::move(*distinct);}
++        if(auto counts=ExecuteJoinCount(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteJoinCount\n");return std::move(*counts);}
++        if(auto star=ExecuteStarSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteStarSum\n");return std::move(*star);}
++        if(auto convergent=ExecuteConvergentSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteConvergentSum\n");return std::move(*convergent);}
++        if(auto separate=ExecuteSeparateSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteSeparateSum\n");return std::move(*separate);}
++        if(auto ratio=ExecuteIndependentRatio(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteIndependentRatio\n");return std::move(*ratio);}
++        if(auto profit=ExecutePairedProfit(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecutePairedProfit\n");return std::move(*profit);}
++        if(auto chain=ExecuteChainSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteChainSum\n");return std::move(*chain);}
++        if(auto waiting=ExecuteSupplierWait(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteSupplierWait\n");return std::move(*waiting);}
++        if(auto prefix=ExecutePrefixAntiJoin(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecutePrefixAntiJoin\n");return std::move(*prefix);}
++        if(auto joined=ExecuteJoinSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteJoinSum\n");return std::move(*joined);}
++        if(auto disjunction=ExecuteDisjunctiveSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteDisjunctiveSum\n");return std::move(*disjunction);}
+         return ExecuteRelational(query, useAvx, useParallelism);
+     }
+     try {
+@@ -95,20 +96,20 @@ ExecuteQuery(const QueryDesc &query, bool useAvx, bool useParallelism)
+             if (query.filterClauses.empty()) return ExecuteAggNoGroupByNoFilter(query,useAvx,useParallelism);
+             return ExecuteAggNoGroupByWithFilter(query,useAvx,useParallelism);
+         }
+-        if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) return std::move(*fast);
+-        if (auto filtered = ExecuteFilteredSum(query,useAvx,useParallelism)) return std::move(*filtered);
+-        if (auto projection = ExecuteProjection(query,useAvx,useParallelism)) return std::move(*projection);
+-        if (auto sorted = ExecuteSortedSum(query,useAvx,useParallelism)) return std::move(*sorted);
+-        if (auto distinct = ExecutePostingDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
+-        if (auto counts = ExecutePostingGroupedCount(query,useParallelism)) return std::move(*counts);
+-        if (auto counts = ExecuteRadixGroupCount(query,useAvx,useParallelism)) return std::move(*counts);
+-        if (auto weighted = ExecuteDictionaryWeighted(query,useAvx,useParallelism)) return std::move(*weighted);
+-        if (auto lengths = ExecuteDenseLength(query,useAvx,useParallelism)) return std::move(*lengths);
+-        if (auto numeric = ExecuteRadixNumeric(query,useAvx,useParallelism)) return std::move(*numeric);
+-        if (auto dense = ExecuteDenseArithmetic(query,useAvx,useParallelism)) return std::move(*dense);
+-        if (auto composite = ExecuteComposite(query,useAvx,useParallelism)) return std::move(*composite);
+-        if (auto counts = ExecuteGroupedCount(query,useAvx,useParallelism)) return std::move(*counts);
+-        if (auto distinct = ExecuteDistinct(query,useAvx,useParallelism)) return std::move(*distinct);
++        if (auto fast = ExecuteScalarFast(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteScalarFast\n");return std::move(*fast);}
++        if (auto filtered = ExecuteFilteredSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteFilteredSum\n");return std::move(*filtered);}
++        if (auto projection = ExecuteProjection(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteProjection\n");return std::move(*projection);}
++        if (auto sorted = ExecuteSortedSum(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteSortedSum\n");return std::move(*sorted);}
++        if (auto distinct = ExecutePostingDistinct(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecutePostingDistinct\n");return std::move(*distinct);}
++        if (auto counts = ExecutePostingGroupedCount(query,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecutePostingGroupedCount\n");return std::move(*counts);}
++        if (auto counts = ExecuteRadixGroupCount(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteRadixGroupCount\n");return std::move(*counts);}
++        if (auto weighted = ExecuteDictionaryWeighted(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteDictionaryWeighted\n");return std::move(*weighted);}
++        if (auto lengths = ExecuteDenseLength(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteDenseLength\n");return std::move(*lengths);}
++        if (auto numeric = ExecuteRadixNumeric(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteRadixNumeric\n");return std::move(*numeric);}
++        if (auto dense = ExecuteDenseArithmetic(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteDenseArithmetic\n");return std::move(*dense);}
++        if (auto composite = ExecuteComposite(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteComposite\n");return std::move(*composite);}
++        if (auto counts = ExecuteGroupedCount(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteGroupedCount\n");return std::move(*counts);}
++        if (auto distinct = ExecuteDistinct(query,useAvx,useParallelism)) {std::fprintf(stderr,"ROUTE_PROFILE ExecuteDistinct\n");return std::move(*distinct);}
+         auto result = ExecuteModern(query,useAvx,useParallelism);
+         if (!result.ok() && query.allowSpill && result.status().Message().find("Query memory budget exceeded") == 0)
+             return ExecuteExternal(query,useAvx);
+diff --git a/src/executor_correlated_avg.cc b/src/executor_correlated_avg.cc
+index 1378a2d..81f96c0 100644
+--- a/src/executor_correlated_avg.cc
++++ b/src/executor_correlated_avg.cc
+@@ -1,3 +1,5 @@
++#include <chrono>
++#include <cstdio>
+ #include "executor_bitmap_probe.hpp"
+ #include "executor_boolean_bitmap.hpp"
+ #include "executor_rank_join.hpp"
+@@ -84,6 +86,8 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
+         } else if (a.type != AggregateClause::AGGREGATE_COUNT || a.expression) return {};
+     }
+     try {
++        auto phaseStart=std::chrono::steady_clock::now();
++        auto phase=[&](const char *name){auto now=std::chrono::steady_clock::now();std::fprintf(stderr,"AVG_PROFILE phase=%s ms=%.3f\n",name,std::chrono::duration<double,std::milli>(now-phaseStart).count());phaseStart=now;};
+         Budget budget(q.memoryBudgetBytes); ScopedValueResource memory(budget);
+         auto &dimension = *q.tables[build.tableIdx];
+         int64_t lo = INT64_MAX, hi = INT64_MIN; uint64_t dimensionRows = 0;
+@@ -119,6 +123,7 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
+         BitmapDomain domain{lo, hi, index.words()};
+         const auto &facts = *q.tables[probeTable];
+         int workers = parallel ? std::min(8, std::max(1, facts.RowGroupCount())) : 1;
++        phase("dimension");
+         auto partials = RunTasks(workers, [&](int worker) {
+             ScopedValueResource memory(budget); Scratch scratch(budget, 4096);
+             AvgPartial partial(index.size(), budget); uint32_t selected[Block];
+@@ -149,6 +154,7 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
+             }
+             return partial;
+         });
++        phase("fact_scan");
+         std::pmr::vector<Wide> thresholds(index.size(), &budget);
+         for (size_t slot = 0; slot < index.size(); ++slot) {
+             AvgState state;
+@@ -162,6 +168,7 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
+             }).number;
+         }
+         struct Total { std::array<Wide, 32> sums{}; uint64_t count = 0; };
++        phase("thresholds");
+         auto totals = RunTasks(workers, [&](int worker) {
+             ScopedValueResource memory(budget); Total total;
+             for (const auto &selected : partials[worker].rows) {
+@@ -175,6 +182,7 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedAvg(const QueryDesc &q, bool
+             }
+             return total;
+         });
++        phase("selected_values");
+         Total total;
+         for (const auto &p : totals) { total.count += p.count; for (size_t i = 0; i < q.aggregateClauses.size(); ++i) total.sums[i] = Add(total.sums[i], p.sums[i]); }
+         struct Null {};
+diff --git a/src/executor_sorted_sum.cc b/src/executor_sorted_sum.cc
+index d429126..fb842ac 100644
+--- a/src/executor_sorted_sum.cc
++++ b/src/executor_sorted_sum.cc
+@@ -1,3 +1,5 @@
++#include <chrono>
++#include <cstdio>
+ #include "executor_sorted_sum.hpp"
+ namespace pgaccel {
+ std::optional<Result<QueryOutput>> ExecuteSortedSum(const QueryDesc &q,bool avx,bool parallel) {
+@@ -25,6 +27,7 @@ std::optional<Result<QueryOutput>> ExecuteSortedSum(const QueryDesc &q,bool avx,
+             if (filter) return bool(filter->ExecuteSet(rg,bitmap));
+             memset(bitmap,0xff,(rg.size+7)/8);return true;
+         };
++        auto phaseStart=std::chrono::steady_clock::now();
+         auto scan=bounds.empty()
+             ? ScanSortedSums(*q.tables[0],*q.groupExpressions[0]->column,*q.aggregateClauses[sum].expression,
+                 filterRows,budget,avx,parallel,KeepSortedSums{},!filter)
+@@ -32,6 +35,7 @@ std::optional<Result<QueryOutput>> ExecuteSortedSum(const QueryDesc &q,bool avx,
+                 filterRows,budget,avx,parallel,[&](int64_t value,int64_t total) {
+                     return SortedSumMatches(bounds,key,value,total);
+                 },!filter);
++        std::fprintf(stderr,"SORTED_PROFILE scan_ms=%.3f\n",std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-phaseStart).count());
+         return FinishSortedSums(q,key,sum,scan,budget,parallel);
+     } catch (const NotDense &) { return {}; }
+     catch (const std::exception &e) { return Status::Invalid(e.what()); }
