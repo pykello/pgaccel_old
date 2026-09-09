@@ -35,7 +35,9 @@ and preparation phases. Q1 spends about 20 seconds compacting columns; Q13
 has a different loading/transformation bottleneck. Parallel column copies
 reduce Q1 first-call time modestly to 25.615 seconds at 6.869 GiB peak in an
 individual run. All 281 tests, 22 SF1 answers and Python integration pass.
-The complete comparison above predates this follow-up.
+Direct dictionary construction subsequently reduces Q13 first-call time
+from 35.907 to 30.708 seconds, with nine checked SF100 answers under 8 GiB.
+The complete comparison above predates these follow-ups.
 
 ## Nested date filters reduce Q15 and Q20 residency
 

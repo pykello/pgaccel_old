@@ -15,9 +15,9 @@ and Q22 now have substantial margin in the complete workload.
    bounds, dictionary pruning and allocation need separate measurements.
    The repeated selection validation is another candidate, with source bounds
    checks preserved. Q13 has only 0.164 seconds of compaction; investigate its
-   native dictionary loading and 5.254-second transformation separately. Its
-   loader currently copies each temporary string into a growing dictionary;
-   direct construction in reserved storage is a concrete allocation candidate.
+   native dictionary loading and 5.254-second transformation separately. Direct construction in final dictionary slots now reduces Q13
+   first-call time from 35.907 to 30.708 seconds in a sequential control and
+   candidate comparison. Further loading and transformation costs remain.
    Q11's grouped fact scan remains the measured warm bottleneck. Preserve the
    eight-worker limit and do not select favorable repeats or relax thresholds.
 

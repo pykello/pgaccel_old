@@ -87,3 +87,33 @@ or arbitrary input. Q9 and Q21 warm times are slower than the previous full
 sweep but remain below the saved fully resident pgaccel medians. Keep these
 observations intact. The complete 22-query report still refers to the earlier
 module; a later complete sweep must use one final build after further work.
+
+## Decode dictionaries in final storage
+
+`bfdc927` resizes the dictionary from its validated entry count and decodes
+values directly into those slots. Previously every string was decoded into a
+temporary, copied into the growing vector, then destroyed. Long strings could
+therefore require two heap allocations and a payload copy per entry. The new
+path constructs their storage once. Numeric dictionary entries are read as a
+contiguous block. Dictionary ordering, uniqueness, code bounds, coverage,
+string length and truncation checks remain in place; the disk format is unchanged.
+
+All 281 native tests, all 22 SF1 answers and Python integration pass. A fresh
+Q13 control and candidate run were performed sequentially with eight workers,
+8 GiB total memory, zero swap and nine typed-checked answers each.
+
+| Run | First call s | Warm median ms | Peak total GiB |
+|---|---:|---:|---:|
+| Q13 control | 35.907 | 541.957 | 1.851 |
+| Q13 final-slot decoding | 30.708 | 544.051 | 1.859 |
+| Q1 final-slot decoding | 25.824 | 360.103 | 6.874 |
+
+The Q13 first call improves by about 14%; warm execution is essentially
+unchanged. Q1 also passes all nine answers and remains close to its preceding
+parallel-compaction measurements. This reduces preparation CPU work without
+adding buffers or asynchronous I/O. It does not solve changing-query latency.
+
+Evidence: [Q13 control](native-direct-dict-slots-control-q13-sf100.json),
+[Q13 candidate](native-direct-dict-slots-q13-sf100.json),
+[Q1 candidate](native-direct-dict-slots-q1-sf100.json),
+[SF1 gate](auto-projection-sf1-dict-slots-gate.json).
