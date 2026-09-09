@@ -31,6 +31,14 @@ The complete [read-ahead sweep](TRANSITION-READ-AHEAD.md) and older reports
 remain separate evidence; no faster individual measurement replaces a slower
 value in a complete sweep.
 
+## Cache admission foundation
+
+[Decoded-column accounting](COLUMN-ADMISSION.md) measures the 17 small repeated
+columns at 479.175 MiB of block charges, plus 32 KiB of retained pointers.
+Peak total cgroup memory is 485.645 MiB in the retention diagnostic. All 296
+native tests pass. This supports a 512 MiB prototype admission budget; cache
+identity, eviction and scan integration remain to be implemented.
+
 ## Original input inventory
 
 [The parser-backed inventory](INPUT-INVENTORY.md) identifies 53 required

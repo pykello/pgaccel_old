@@ -157,3 +157,19 @@ Also investigate a compact/searchable comments representation: o_comment is
 7.589 GiB and appears only in Q13. A small-dimension cache cannot remove that
 query's dominant first-use input cost. Keep index verification, decompression,
 and original query execution inside the appropriate measured boundary.
+
+## Cache admission measured
+
+[COLUMN-ADMISSION.md](COLUMN-ADMISSION.md) now provides owned native-block
+charging and a simultaneous-retention measurement of all 17 candidates.
+Their block charges total 479.175 MiB, with 32 KiB of retained pointers and
+485.645 MiB total cgroup peak. All 296 native tests pass. The charge is not
+RSS or a provenance proof; the loader must supply unmodified owned blocks,
+and cache metadata and active query references require separate accounting.
+
+Use 512 MiB as the prototype cache admission budget, then implement versioned
+snapshot identity and entry ownership/eviction before supplying cache hits to
+scans. Decline unsupported auxiliary ownership. Verify eviction while a query
+still holds references and test snapshot changes; measure real transitions
+before claiming the combined cache/query process remains within 8 GiB.
+The cache is not yet active in query execution.
