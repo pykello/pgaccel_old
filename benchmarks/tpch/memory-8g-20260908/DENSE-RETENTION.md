@@ -32,3 +32,19 @@ not replace the earlier complete all-query milestone.
 Evidence: [control](native-direct-dense-retain-control-q1-sf100.json),
 [candidate](native-direct-dense-retain-q1-sf100.json),
 [SF1 gate](auto-projection-sf1-dense-retain-gate.json).
+
+
+## Transition check
+
+The [Q1 → Q21 → Q1 run](native-transitions-dense-retain-sf100.json) passes all
+27 answers in one database under 8 GiB with zero swap. Peak total memory is
+6.907 GiB, with zero sampled file charge and no memory-limit events.
+
+| Step | Query | First call s | Warm median ms |
+|---|---|---:|---:|
+| 1 | Q1 | 12.459 | 432.812 |
+| 2 | Q21 | 16.640 | 613.062 |
+| 3 | Q1 | 12.969 | 420.150 |
+
+These results verify this transition sequence only. They do not replace the
+complete 22-query report or establish the unfinished changing-query target.
