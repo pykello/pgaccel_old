@@ -90,13 +90,13 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
             }
             auto consume=[&]<bool Gather>(int begin) {
                 switch (raw->bytesPerValue) {
-                case 1:DecodeNumbers<int8_t,Gather>(raw,begin,n,keys,avx,selected);break;
-                case 2:DecodeNumbers<int16_t,Gather>(raw,begin,n,keys,avx,selected);break;
-                case 4:DecodeNumbers<int32_t,Gather>(raw,begin,n,keys,avx,selected);break;
-                case 8:DecodeNumbers<int64_t,Gather>(raw,begin,n,keys,avx,selected);break;
+                case 1:DecodeNumbers<int8_t,Gather,true>(raw,begin,n,keys,avx,selected);break;
+                case 2:DecodeNumbers<int16_t,Gather,true>(raw,begin,n,keys,avx,selected);break;
+                case 4:DecodeNumbers<int32_t,Gather,true>(raw,begin,n,keys,avx,selected);break;
+                case 8:DecodeNumbers<int64_t,Gather,true>(raw,begin,n,keys,avx,selected);break;
                 default:throw NotDense{};
                 }
-                program.evaluate<Gather>(begin,n,buffers,avx,selected);const auto values=buffers+root*Block;
+                program.evaluate<Gather,true>(begin,n,buffers,avx,selected);const auto values=buffers+root*Block;
                 for (int i=0;i<n;++i) {
                     if (stripe.groups.empty() || stripe.groups.back().key!=keys[i]) {
                         if (!stripe.groups.empty() && stripe.groups.back().key>keys[i]) throw NotDense{};

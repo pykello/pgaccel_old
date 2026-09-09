@@ -1,6 +1,23 @@
 #include "test_table.hpp"
+#include "executor_arithmetic_program.hpp"
 #include <gtest/gtest.h>
 using namespace pgaccel;
+TEST(ArithmeticGather, SignedExtremesOffsetsRepeatedIndicesAndTails) {
+    for(int width:{4,8}) {
+        std::vector<int64_t> values;
+        for(int i=0;i<65;++i)values.push_back(i%2?(width==4?INT32_MAX:INT64_MAX):(width==4?INT32_MIN:INT64_MIN));
+        auto data=test::Raw(values,width);auto raw=static_cast<const RawColumnDataBase *>(data.get());
+        uint32_t selected[25];for(int i=0;i<25;++i)selected[i]=(i*11)%7;
+        for(bool avx:{false,true})for(int n:{0,1,7,8,9,15,16,25}) {
+            std::array<int64_t,27> output;output.fill(17);
+            if(width==4)DecodeNumbers<int32_t,true,true>(raw,3,n,output.data()+1,avx,selected);
+            else DecodeNumbers<int64_t,true,true>(raw,3,n,output.data()+1,avx,selected);
+            EXPECT_EQ(output.front(),17);
+            for(int i=0;i<n;++i)EXPECT_EQ(output[i+1],values[3+selected[i]]);
+            for(int i=n+1;i<27;++i)EXPECT_EQ(output[i],17);
+        }
+    }
+}
 TEST(DenseArithmetic, DecimalExpressionsAcrossStripesAndSelections) {
     auto decimal=std::make_shared<DecimalType>(); decimal->scale=2;
     std::vector<std::vector<ColumnDataP>> groups;

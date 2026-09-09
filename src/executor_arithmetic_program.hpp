@@ -13,11 +13,22 @@ struct Operation {
     const RawColumnDataBase *column = nullptr;
     Wide low = 0, high = 0;
 };
-template<class T,bool Gather=false>
+template<class T,bool Gather=false,bool VectorGather=false>
 void DecodeNumbers(const RawColumnDataBase *column,int begin,int n,int64_t *out,bool avx,const uint32_t *selection=nullptr) {
     const auto source=reinterpret_cast<const T *>(column->values)+begin;
     if constexpr(Gather) {
-        for(int i=0;i<n;++i) out[i]=source[selection[i]];
+        int i=0;
+        if constexpr(VectorGather && (sizeof(T)==4 || sizeof(T)==8)) {
+            if(avx)for(;i+8<=n;i+=8) {
+                auto indices=_mm256_loadu_si256(reinterpret_cast<const __m256i *>(selection+i));
+                __m512i values;
+                if constexpr(sizeof(T)==4)
+                    values=_mm512_cvtepi32_epi64(_mm256_i32gather_epi32(source,indices,4));
+                else values=_mm512_i32gather_epi64(indices,source,8);
+                _mm512_storeu_si512(out+i,values);
+            }
+        }
+        for(;i<n;++i) out[i]=source[selection[i]];
         return;
     }
     int j=0;
@@ -94,12 +105,12 @@ struct Program {
         if (ops.size()==32) throw NotDense{};
         ops.push_back(op); return ops.size()-1;
     }
-    template<bool Gather=false>
+    template<bool Gather=false,bool VectorGather=false>
     void evaluate(int begin, int n, int64_t *buffers, bool avx,const uint32_t *selection=nullptr) const {
         for (size_t i=0;i<ops.size();++i) {
             const auto &p=ops[i]; auto out=buffers+i*Block;
             if (p.column) {
-#define READ_WIDTH(T) DecodeNumbers<T,Gather>(p.column,begin,n,out,avx,selection)
+#define READ_WIDTH(T) DecodeNumbers<T,Gather,VectorGather>(p.column,begin,n,out,avx,selection)
                 switch(p.column->bytesPerValue) {
                 case 1: READ_WIDTH(int8_t); break;
                 case 2: READ_WIDTH(int16_t); break;
