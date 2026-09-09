@@ -1,5 +1,7 @@
 # SF100 under 8 GiB: direct-I/O working-set experiments
 
+Work stopped at the user's request. [Final findings and handoff](STOP-FINDINGS-20260909.md).
+
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
 ## Latest: cache comparison completed
