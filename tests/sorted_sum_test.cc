@@ -76,3 +76,24 @@ TEST(SortedSum, RejectsCompletedInteriorGroupsBeforeRetainingTheirState) {
     auto result=ExecuteSortedSum(bounded,true,false);ASSERT_TRUE(result);ASSERT_TRUE(result->ok())<<result->status().Message();
     EXPECT_TRUE((*result)->values.empty());EXPECT_LT((*result)->peakMemoryBytes,128*1024);
 }
+
+TEST(SortedSum, VariableLengthRunsAcrossBlocksAndStripes) {
+    std::vector<int64_t> keys,values;
+    int64_t key=-5;
+    for(int length:{1,2,3,4,15,16,17,255,257,260}) {
+        for(int i=0;i<length;++i) {keys.push_back(key);values.push_back(i%7-3);}
+        ++key;
+    }
+    auto registry=test::Table({{test::Raw(keys),test::Raw(values)},
+        {test::Raw({key-1,key-1,key}),test::Raw({-8,9,0})}},
+        {{"k",std::make_shared<Int64Type>()},{"v",std::make_shared<Int64Type>()}});
+    for(const std::string where:{""," WHERE v>=0"})
+        for(const std::string having:{""," HAVING sum(v)>0"," HAVING sum(v)<=0"}) {
+            auto q=ParseSelect("SELECT k,sum(v) FROM t"+where+" GROUP BY k"+having+" ORDER BY k",registry);
+            ASSERT_TRUE(q.ok());auto expected=ExecuteModern(*q,false,false);ASSERT_TRUE(expected.ok());
+            for(bool avx:{false,true}) for(bool parallel:{false,true}) {
+                auto actual=ExecuteSortedSum(*q,avx,parallel);ASSERT_TRUE(actual);ASSERT_TRUE(actual->ok());
+                EXPECT_EQ((*actual)->values,expected->values);
+            }
+        }
+}

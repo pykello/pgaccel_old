@@ -101,18 +101,30 @@ SortedSumScan ScanSortedSums(const ColumnarTable &table,const ColumnRef &key,con
                 default:throw NotDense{};
                 }
                 program.evaluate<Gather,true>(begin,n,buffers,avx,selected);const auto values=buffers+root*Block;
-                for (int i=0;i<n;++i) {
-                    if (stripe.groups.empty() || stripe.groups.back().key!=keys[i]) {
-                        if (!stripe.groups.empty() && stripe.groups.back().key>keys[i]) throw NotDense{};
+                auto append=[&](int64_t key,int64_t sum) {
+                    if (stripe.groups.empty() || stripe.groups.back().key!=key) {
+                        if (!stripe.groups.empty() && stripe.groups.back().key>key) throw NotDense{};
                         // A completed interior group cannot cross a stripe
                         // boundary. Keep the first and current last group
                         // until the wide boundary merge is complete.
                         if constexpr (!std::is_same_v<Keep,KeepSortedSums>)
                             if (stripe.groups.size()>1 && !stripeKeep(stripe.groups.back().key,stripe.groups.back().sum))
                                 stripe.groups.pop_back();
-                        stripe.groups.push_back({keys[i],values[i]});
-                    } else stripe.groups.back().sum+=values[i];
-                    stripe.sum+=values[i];
+                        stripe.groups.push_back({key,sum});
+                    } else stripe.groups.back().sum+=sum;
+                    stripe.sum+=sum;
+                };
+                if constexpr (Gather) {
+                    for(int i=0;i<n;++i) append(keys[i],values[i]);
+                } else {
+                    // Contiguous scans often have runs of equal keys. Reduce
+                    // each run before updating retained group storage. The
+                    // existing stripe bounds prove these partial sums fit.
+                    for(int i=0;i<n;) {
+                        int64_t key=keys[i],sum=values[i++];
+                        while(i<n && keys[i]==key) sum+=values[i++];
+                        append(key,sum);
+                    }
                 }
                 stripe.count+=n;n=0;
             };
