@@ -78,4 +78,17 @@ with tempfile.TemporaryDirectory() as directory:
         pass
     else:
         raise AssertionError('Closed direct database accepted query')
+    with native.Database(directory, direct=True, cache_bytes=1 << 20) as db:
+        query = 'SELECT label FROM fixture ORDER BY id'
+        first = db.execute(query)
+        assert first['cache_misses'] == 2 and first['cache_hits'] == 0
+        assert 0 < first['cache_bytes'] <= 1 << 20
+        filtered = db.execute("SELECT COUNT(*) FROM fixture WHERE label LIKE '%clair'")
+        assert filtered['rows'] == [['2']]
+        assert filtered['cache_hits'] > 0
+        restored = db.execute(query)
+        assert restored['rows'] == [[label] for label in labels]
+        assert restored['cache_hits'] == 2 and restored['cache_misses'] == 0
+        assert restored['direct_load_bytes'] < first['direct_load_bytes']
+        assert db.execute(query)['cache_hits'] == 0  # prepared input reuse
 print('Native Python integration checks passed')

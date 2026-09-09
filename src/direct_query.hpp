@@ -23,7 +23,7 @@ struct PreparedDirectQuery {
 // total memory limit; query.memoryBudgetBytes alone does not bound loaded data.
 inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directory,
                                                      const std::string &sql, bool useAvx = true,
-                                                     bool parallel = false) {
+                                                     bool parallel = false, NativeBlockCache *cache = nullptr) {
     try {
         TableRegistry schemas;
         std::map<const ColumnarTable *,std::filesystem::path> paths;
@@ -179,10 +179,11 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx,parallel);
             };
             auto table=filters.empty() && memberships.empty() && !transform
-                ? LoadDirectTable(name,paths.at(schema.get()).string(),fields->second,&io)
-                : ColumnarTable::LoadDirectSelected(name,paths.at(schema.get()).string(),fields->second,select,&io,transform,parallel);
+                ? LoadDirectTable(name,paths.at(schema.get()).string(),fields->second,&io,cache)
+                : ColumnarTable::LoadDirectSelected(name,paths.at(schema.get()).string(),fields->second,select,&io,transform,parallel,cache);
             if(!table.ok())return table.status();
             result.loadIO.bytesRead+=io.bytesRead;result.loadIO.readCalls+=io.readCalls;
+            result.loadIO.cacheHits+=io.cacheHits;result.loadIO.cacheMisses+=io.cacheMisses;
             result.loadIO.rows+=io.rows;result.loadIO.groups+=io.groups;
             result.loadIO.ioBufferBytes=std::max(result.loadIO.ioBufferBytes,io.ioBufferBytes);
             result.tables.emplace(name,std::move(table).ValueUnsafe());

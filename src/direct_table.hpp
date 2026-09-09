@@ -8,8 +8,14 @@ namespace pgaccel {
 // buffers. Payload reads bypass the file cache; this is not an eviction cache.
 inline Result<ColumnarTableP> LoadDirectTable(const std::string &name,
     const std::string &path, const std::set<std::string> &fields,
-    DirectScanStats *io = nullptr) {
+    DirectScanStats *io = nullptr, NativeBlockCache *cache = nullptr) {
     if (fields.empty()) return Status::Invalid("Direct resident load needs explicit columns");
+    if(cache)return ColumnarTable::LoadDirectSelected(name,path,fields,
+        [](const auto &,const RowGroup &batch)->Result<std::vector<uint16_t>> {
+            std::vector<uint16_t> rows(batch.size);
+            for(size_t i=0;i<rows.size();++i)rows[i]=uint16_t(i);
+            return rows;
+        },io,{},false,cache);
     try {
         DirectInput data(path);
         std::ifstream metadata(path + ".metadata");
