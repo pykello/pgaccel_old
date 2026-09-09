@@ -1,0 +1,184 @@
+{
+  "query": 3,
+  "query_memory_mib": 768,
+  "command": [
+    "systemd-run",
+    "--user",
+    "--unit=pgaccel-native-direct-3-1788922987762114940",
+    "--property=MemoryAccounting=yes",
+    "--property=MemoryMax=8G",
+    "--property=MemorySwapMax=0",
+    "--wait",
+    "--pipe",
+    "/home/hadi/projects/tpch-work/venv/bin/python",
+    "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/run_native_direct.py",
+    "--worker",
+    "/home/hadi/projects/tpch-work/checkpoints/direct-memory-20260908/pgaccel_native-chain-domain.cpython-312-x86_64-linux-gnu.so",
+    "3",
+    "768"
+  ],
+  "returncode": 0,
+  "stderr": "Running as unit: pgaccel-native-direct-3-1788922987762114940.service; invocation ID: 19b53dc9c86a4e31960034bb99c28b86\nFinished with result: success\nMain processes terminated with: code=exited/status=0\nService runtime: 14.331s\nCPU time consumed: 23.559s\nMemory peak: 356.0K\nMemory swap peak: 0B\n",
+  "module_sha256": "6c84c537605d3d576ff4d6c4ff3ba8029aad04b3b0a64a574a2c2fa067a7f012",
+  "oracle": "/home/hadi/projects/docs/tpch/simd-remaining-20260906/duckdb-final-all1-sf100.jsonl",
+  "baseline_client_ms": 430.6044785043923,
+  "note": "Same native Python API; nine trials, warm median excludes first preparation. Each query runs in a fresh capped process.",
+  "measurements": {
+    "trials": [
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 403.372852,
+        "prepare_ms": 10927.810837,
+        "direct_load_bytes": 8522825728,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 11331.296195974573,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 335.972686,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 336.117324011866,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 341.500585,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 341.6383229778148,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 343.277173,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 343.4404580038972,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 345.231861,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 345.3764410223812,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 343.113043,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 343.2726240134798,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 342.439974,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 342.5957899889909,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 341.651055,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 341.7935170000419,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      },
+      {
+        "columns": [
+          "l_orderkey ",
+          "revenue",
+          "o_orderdate ",
+          "o_shippriority "
+        ],
+        "execution_ms": 341.718487,
+        "prepare_ms": 0.0,
+        "direct_load_bytes": 0,
+        "peak_memory_bytes": 499354356,
+        "spill_bytes": 0,
+        "client_ms": 341.86263295123354,
+        "row_count": 10,
+        "rows_sha256": "c8ebe2c213a316440320fa3c2d7d34370606daeb4fd5133cce7f506f6c09f5c9"
+      }
+    ],
+    "cgroup_peak_bytes": 2561691648,
+    "memory_max": 8589934592,
+    "swap_max": 0
+  },
+  "correct": true,
+  "median_client_ms": 342.2292114701122,
+  "first_client_ms": 11331.296195974573,
+  "memory_verified": true,
+  "reuse_verified": true,
+  "raw_file": "/home/hadi/projects/docs/tpch/memory-8g-20260908/raw/native-direct-chain-domain-q3-sf100.json",
+  "raw_sha256": "e978fe1822971c33822a37e4858f70ab6f0a2274c74d1b47f63b52fee1df3c43"
+}
