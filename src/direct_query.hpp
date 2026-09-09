@@ -6,6 +6,7 @@
 #include "predicate_columns.hpp"
 #include "date_predicate_columns.hpp"
 #include "compact_column.hpp"
+#include "direct_join_membership.hpp"
 #include <filesystem>
 #include <cstring>
 #include <numeric>
@@ -42,7 +43,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
             parsed->scalarQueries.empty() && parsed->membershipQueries.empty() &&
             parsed->materializedSources.empty();
         // Preserve dimension key sequences used by the current join kernels.
-        // For multiple tables, compact only the sole SUM-input table. Sparse
+        // For multiple tables, compact only one SUM-input table. Sparse
         // dimension materialization needs a different row-directory contract.
         std::set<int> measures;
         auto measure = [&](auto &&self, const std::shared_ptr<Expression> &e)->void {
@@ -57,19 +58,35 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         for (const auto &a:parsed->aggregateClauses)
             if (a.type==AggregateClause::AGGREGATE_SUM) measure(measure,a.expression);
         if (parsed->tables.size()==1) measures={0};
-        const ColumnarTable *compactTable = measures.size()==1 && *measures.begin()>=0 &&
-            size_t(*measures.begin())<parsed->tables.size() ? parsed->tables[*measures.begin()] : nullptr;
+        // Use snapshot stripe counts to choose the largest aggregate input.
+        // Only that table loses rows; dimension key sequences remain intact.
+        const ColumnarTable *compactTable=nullptr;int largest=-1;
+        for(int index:measures)if(index>=0 && size_t(index)<parsed->tables.size()) {
+            auto table=parsed->tables[index];int groups=table->SourceRowGroupCount();
+            if(groups>largest){largest=groups;compactTable=table;}
+        }
         // Other dimensions can have several aliases without sharing the
         // candidate's rows. Only aliases of the compacted table prevent this
         // scope-local selection from being applied to its physical storage.
         if (std::count(parsed->tables.begin(),parsed->tables.end(),compactTable)!=1) push=false;
         PreparedDirectQuery result;
-        for(const auto &[name,schema]:schemas) {
+        std::vector<std::string> loadOrder;
+        for(const auto &[name,schema]:schemas)if(needed.count(schema.get()))loadOrder.push_back(name);
+        if(push)std::stable_sort(loadOrder.begin(),loadOrder.end(),[&](const auto &a,const auto &b) {
+            return (schemas.at(a).get()==compactTable)<(schemas.at(b).get()==compactTable);
+        });
+        for(const auto &name:loadOrder) {
+            const auto &schema=schemas.at(name);
             auto fields=needed.find(schema.get());if(fields==needed.end())continue;
             DirectScanStats io;
             std::vector<FilterClause> filters;
             if (push && schema.get()==compactTable) for (const auto &filter:parsed->filterClauses)
                 if (parsed->tables[filter.columnRef.tableIdx]==schema.get()) filters.push_back(filter);
+            std::vector<DirectJoinMembership> memberships;
+            if(push && schema.get()==compactTable) {
+                int fact=std::find(parsed->tables.begin(),parsed->tables.end(),compactTable)-parsed->tables.begin();
+                memberships=PrepareDirectMemberships(*parsed,fact,result.tables,useAvx);
+            }
             FilterNodeP node;
             auto selectRows = [&](const auto &columns, const RowGroup &batch)->Result<std::vector<uint16_t>> {
                 if(filters.empty()) {
@@ -108,8 +125,10 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                     auto encoded=DatePredicateDictionaries(columns,batch,dates->second);
                     if(!encoded.ok())return encoded.status();dateColumns=std::move(encoded).ValueUnsafe();
                 }
-                auto rows=selectRows(columns,batch);if(!rows.ok())return rows.status();
-                if(dates!=datePredicates.end())selectedRows=*rows;
+                auto selection=selectRows(columns,batch);if(!selection.ok())return selection.status();
+                auto rows=std::move(selection).ValueUnsafe();
+                IntersectDirectMemberships(memberships,columns,batch,rows);
+                if(dates!=datePredicates.end())selectedRows=rows;
                 return rows;
             };
             auto predicates=predicateColumns.find(schema.get());
@@ -124,7 +143,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 auto found=predicates->second.find(column.name);
                 return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx);
             };
-            auto table=filters.empty() && !transform
+            auto table=filters.empty() && memberships.empty() && !transform
                 ? LoadDirectTable(name,paths.at(schema.get()).string(),fields->second,&io)
                 : ColumnarTable::LoadDirectSelected(name,paths.at(schema.get()).string(),fields->second,select,&io,transform);
             if(!table.ok())return table.status();
