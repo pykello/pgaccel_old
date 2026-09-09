@@ -98,12 +98,18 @@ integration and all 22 SF1 answers pass. The post-allocation profile measures
 7.897 seconds decoding 149 million labels and 6.406 seconds in predicate
 transformation; it predates the later stream-guard change.
 
-Next inspect `PredicateDictionary`: it constructs a filter node per stripe,
-then evaluates a row bitmap and extracts representatives. Separate node
-construction, literal matching and row-code remapping costs. Consider reusing
-an immutable predicate evaluator across stripes before adding a separate
-streamed predicate decoder. Preserve literal matching, escaping, UTF-8 and
-negation semantics and the existing proof that original spellings are unused.
+The [predicate phase profile](PREDICATE-PREPARATION.md) now separates this:
+filter construction is 56 ms, matching 5884 ms and remapping 440 ms across
+2289 stripes. Caching construction cannot address most of the cost. Hoisting
+size/type metadata lookups was tested and reverted: Q13 improves only 0.7%
+while Q9 becomes 0.5% slower in the recorded samples.
+
+Next separate literal-byte matching from row-code bitmap application. For a
+parallel matching experiment, retain immutable predicate state, assign whole
+output words to workers, and keep string decoding on the caller. Do not repeat
+the rejected concurrent column-loading design. Preserve literal matching,
+escaping, UTF-8 and negation semantics, and the existing proof that original
+spellings are unused. Record the full costs rather than timing only matching.
 
 Q13 still prepares predicate-only strings on every changed statement.
 `PredicateOnlyColumns` proves when every use observes the same predicate,

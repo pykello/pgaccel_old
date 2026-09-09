@@ -32,6 +32,13 @@ The earlier [chain-domain sweep](TRANSITION-CHAINS.md),
 [run-reduction sweep](TRANSITION-RUNS.md) remain separate evidence. No faster
 individual measurement replaces a slower value in a complete sweep.
 
+## Matching profile and rejected follow-up
+
+[Predicate profiling](PREDICATE-PREPARATION.md) attributes 5.884 seconds to
+matching, versus 56 ms constructing filters and 440 ms remapping codes.
+Moving repeated metadata lookups outside the loop produced no useful timing
+gain and was reverted. Its patch and all measurements are preserved.
+
 ## Latest follow-up: reduce dictionary stream setup
 
 [One stream guard per dictionary](STRING-PREPARATION.md) reduces Q13 first-call
