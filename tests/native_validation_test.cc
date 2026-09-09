@@ -73,3 +73,28 @@ TEST(NativeValidation, RawBoundsAllWidthsAndVectorTails) {
         if (count == 1) { ++column.maxValue; EXPECT_FALSE(load().ok()); }
     }
 }
+
+TEST(NativeValidation, DictionaryCoverageAtCodeWidthBoundaries) {
+    DateType logical;
+    for(int count:{0,1,2,255,256,65536}) {
+        std::vector<DateType::c_type> labels;
+        for(int i=0;i<count;++i)labels.push_back(i);
+        auto input=test::Dict<DateType>(labels);
+        auto *dictionary=static_cast<DictColumnData<DateType>*>(input.get());
+        auto load=[&] {
+            std::stringstream stream;EXPECT_TRUE(dictionary->Save(stream).ok());
+            return ColumnDataBase::Load(stream,&logical);
+        };
+        ASSERT_TRUE(load().ok());
+        if(count>1) {
+            if(dictionary->bytesPerValue()==1)dictionary->values[count-1]=0;
+            else reinterpret_cast<uint16_t*>(dictionary->values)[count-1]=0;
+            EXPECT_FALSE(load().ok()); // A declared entry has no code.
+        }
+        if(count>0 && count<65536) {
+            if(dictionary->bytesPerValue()==1)dictionary->values[0]=count;
+            else reinterpret_cast<uint16_t*>(dictionary->values)[0]=count;
+            EXPECT_FALSE(load().ok()); // First invalid representable code.
+        }
+    }
+}

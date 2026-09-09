@@ -75,13 +75,15 @@ LoadDictColumnData(std::istream &in, bool aligned)
     if (aligned && !SkipNativePadding(in)) return Status::Invalid("Invalid native padding");
 
     if (!in) return Status::Invalid("Truncated column data");
-    std::vector<bool> used(dictSize,false);
+    // Byte stores avoid a dependent read/modify/write of a packed bit for
+    // every code. This scratch array is bounded by one stripe dictionary.
+    std::vector<uint8_t> used(dictSize,0);
     for (int i = 0; i < result->size; ++i) {
         int code = bytesPerValue == 1 ? result->values[i] : ((uint16_t*)result->values)[i];
         if (code >= dictSize) return Status::Invalid("Dictionary code out of bounds");
-        used[code] = true;
+        used[code] = 1;
     }
-    if (std::find(used.begin(),used.end(),false) != used.end())
+    if (std::find(used.begin(),used.end(),uint8_t(0)) != used.end())
         return Status::Invalid("Native dictionary contains unused values");
     ColumnDataP resultCasted = std::move(result);
     return resultCasted;
