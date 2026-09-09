@@ -12,8 +12,11 @@ seconds. Warm benchmark success does not prove the same latency when changing
 queries or a general-purpose 8 GiB working set. That remains the next work,
 with any later implementation checked against the preserved warm baseline.
 
-For preparation latency, also investigate retaining original stripe buffers
-when a necessary filter discards very few rows. This belongs in the query
+[Dense retention](DENSE-RETENTION.md) now retains original stripe buffers
+when a necessary filter discards very few rows. Q1 first-call time improves
+from 20.505 to 12.444 seconds, with a warm-time increase to 407.976 ms.
+Validate transition memory, then profile the remaining native loading and
+validation costs before choosing another preparation optimization. This belongs in the query
 preparer, where original predicates still run, not in the public selected-load
 API whose contract requires exact selection. Measure the extra residency and
 warm scan cost; do not assume a density threshold alone guarantees 8 GiB.

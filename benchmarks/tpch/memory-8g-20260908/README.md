@@ -34,6 +34,13 @@ preparation. It passes all 286 native tests, all 22 SF1 answers and Python integ
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
+## Preparation follow-up: retain dense stripes
+
+[Dense retention](DENSE-RETENTION.md) reduces Q1 first-call time from 20.505
+to 12.444 seconds. Warm time rises from 358.502 to 407.976 ms, still below
+the saved baseline, with 6.904 GiB peak. All 287 tests and SF1 checks pass.
+This follow-up is separate from the completed all-query warm milestone.
+
 ## Q11 preparation: shared scalar domain proof
 
 [Shared-domain preparation](SHARED-DOMAIN-PREPARATION.md) now proves when
