@@ -67,6 +67,8 @@ public:
 
     bool IsSchemaOnly() const { return schema_only_; }
 
+    int SourceRowGroupCount() const { return schema_only_ ? source_groups_ : row_groups_.size(); }
+
     int RowGroupCount() const {
         return row_groups_.size();
     }
@@ -136,6 +138,7 @@ private:
     std::vector<RowGroup> row_groups_;
     std::string name_;
     bool schema_only_ = false;
+    int source_groups_ = 0;
     std::vector<std::shared_ptr<const GlobalDictionary>> dictionaries_;
 };
 

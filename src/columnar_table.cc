@@ -242,6 +242,7 @@ ColumnarTable::LoadImpl(const std::string &tableName,
 
     if (schemaOnly) {
         result->schema_only_ = true;
+        result->source_groups_ = column_groups[0];
         for (size_t c = 0; c < column_descs.size(); ++c) {
             dataStream.seekg(column_positions[c]);
             if (!dataStream) return Status::Invalid("Invalid native schema column offset");

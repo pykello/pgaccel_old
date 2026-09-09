@@ -10,7 +10,7 @@ TEST(QueryColumns, ScopedDependenciesAndDirectRebinding) {
     auto t=test::Table({{test::Raw({1,2,3}),test::Raw({2,4,8}),test::Raw({7,7,7})}},
         {{"k",std::make_shared<Int64Type>()},{"v",std::make_shared<Int64Type>()},{"unused",std::make_shared<Int64Type>()}});
     std::string path=std::string(directory)+"/t.pgaccel";ASSERT_TRUE(t.at("t")->Save(path).ok());
-    auto schema=ColumnarTable::LoadSchema("t",path);ASSERT_TRUE(schema.ok());EXPECT_TRUE((*schema)->IsSchemaOnly());
+    auto schema=ColumnarTable::LoadSchema("t",path);ASSERT_TRUE(schema.ok());EXPECT_TRUE((*schema)->IsSchemaOnly());EXPECT_EQ((*schema)->SourceRowGroupCount(),1);EXPECT_EQ((*schema)->RowGroupCount(),0);
     TableRegistry schemas;schemas.emplace("t",std::move(schema).ValueUnsafe());
     auto count=ParseSelect("SELECT count(*) FROM t",schemas);ASSERT_TRUE(count.ok());EXPECT_FALSE(ExecuteQuery(*count,true,true).ok());
     for(const std::string sql:{
