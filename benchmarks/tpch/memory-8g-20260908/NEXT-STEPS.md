@@ -6,7 +6,11 @@ Q17 and Q18 exceed theirs: 277.730 versus 272.281 ms, and 768.500 versus
 733.755 ms. Preserve the complete run instead of replacing these values with
 faster earlier samples. Their previous narrow margins were insufficient.
 
-Next, profile Q17 and Q18's timed execution phases on the current module.
+[Phase profiling](Q17-Q18-PROFILE.md) now identifies Q17 fact probing and
+Q18 sorted aggregation as dominant. A budgeted two-level membership bitmap
+reduces Q17 from 275.683 to 209.781 ms in paired SF100 runs, with all answers
+correct. Next, optimize Q18's sorted scan, then validate both retained changes
+in one complete workload.
 For Q17, investigate whether the filtered part-key domain can safely restrict
 both outer and correlated lineitem uses. Every alias and correlation must
 require the same domain; a single unfiltered use must prevent physical-table

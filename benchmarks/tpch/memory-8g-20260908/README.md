@@ -31,6 +31,15 @@ fixed-width compaction, and adaptive HAVING pruning. It passes all 282 native te
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
+## Q17 follow-up: two-level bitmap probing
+
+[Q17 and Q18 profiling](Q17-Q18-PROFILE.md) identifies their dominant scans.
+A budgeted summary of nonempty membership words reduces Q17 warm time from
+275.683 to 209.781 ms in paired SF100 runs. Both pass nine answers under
+8 GiB; all 283 tests, 22 SF1 answers and Python integration pass. This
+follow-up is not yet included in the complete comparison above. Q18 remains
+the next execution target.
+
 ## Q11 follow-up: bounded HAVING pruning
 
 [Adaptive HAVING pruning](HAVING-PRUNING-PLAN.md) reduces Q11 query-state peak
