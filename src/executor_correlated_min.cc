@@ -177,7 +177,19 @@ std::optional<Result<QueryOutput>> ExecuteCorrelatedMin(const QueryDesc &q,bool 
             }
             return sets;
         };
-        auto outerDomains=domains(outerFilters),innerDomains=domains(innerFilters);
+        // The parent and scalar may filter the dimension chain identically.
+        // Share that proven domain, while keeping fact predicates independent.
+        bool sameDomains=true;
+        for(int table:plan.chain) {
+            const auto &a=plan.outerFilters[table],&b=plan.innerFilters[table];
+            if(a.size()!=b.size()) {sameDomains=false;break;}
+            for(size_t i=0;i<a.size();++i)
+                if(a[i].columnRef!=b[i].columnRef || a[i].op!=b[i].op ||
+                   a[i].value!=b[i].value || a[i].values!=b[i].values) sameDomains=false;
+        }
+        auto outerDomains=domains(outerFilters);
+        auto separateInner=sameDomains?std::pmr::vector<MembershipSet>(&budget):domains(innerFilters);
+        const auto &innerDomains=sameDomains?outerDomains:separateInner;
         auto &facts=*q.tables[plan.fact];int workers=parallel?std::min(8,std::max(1,facts.RowGroupCount())):1;
         struct Partial {
             std::pmr::vector<MinState> states;
