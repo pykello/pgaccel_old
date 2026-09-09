@@ -1,3 +1,4 @@
+#include "native_column_charge.hpp"
 #include "test_table.hpp"
 #include <gtest/gtest.h>
 using namespace pgaccel;
@@ -141,4 +142,26 @@ TEST(NativeValidation, DictionaryStringReadErrorsPreserveStreamState) {
         EXPECT_ANY_THROW(ColumnDataBase::Load(broken,&logical));
         EXPECT_TRUE(broken.bad());
     }
+}
+
+TEST(NativeValidation, AdmissionChargeIncludesCapacityAndRejectsViews) {
+    Int64Type integer;StringType text;
+    auto raw=test::Raw({1,2,3},1);
+    auto charge=NativeColumnCharge(*raw,integer);ASSERT_TRUE(charge);
+    EXPECT_GE(*charge,512+sizeof(RawColumnData<Int64Type>));
+    EXPECT_FALSE(NativeColumnCharge(*raw,integer,*charge-1));
+    EXPECT_EQ(NativeColumnCharge(*raw,integer,*charge),charge);
+    EXPECT_FALSE(NativeColumnCharge(*raw,text));
+    uint32_t id=0;raw->globalIds={&id,1};
+    EXPECT_FALSE(NativeColumnCharge(*raw,integer));raw->globalIds={};
+    auto strings=test::Dict<StringType>({"short",std::string(40,'z')});
+    auto *dict=static_cast<DictColumnData<StringType>*>(strings.get());
+    auto before=NativeColumnCharge(*strings,text);ASSERT_TRUE(before);
+    dict->dict[1].reserve(4096);
+    auto after=NativeColumnCharge(*strings,text);ASSERT_TRUE(after);
+    EXPECT_GE(*after-*before,4096-40);
+    dict->dict.reserve(128);
+    EXPECT_GT(*NativeColumnCharge(*strings,text),*after);
+    EXPECT_FALSE(NativeColumnCharge(*strings,text,0));
+    strings->globalRowOffset=10;EXPECT_FALSE(NativeColumnCharge(*strings,text));
 }
