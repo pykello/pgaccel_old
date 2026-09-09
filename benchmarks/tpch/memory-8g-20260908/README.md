@@ -30,6 +30,14 @@ fixed-width compaction. It passes all 281 native tests, all 22 SF1 answers and P
 [Next steps](NEXT-STEPS.md) cover remaining execution margins, preparation,
 cross-query residency and measured asynchronous-I/O experiments.
 
+## Q11 follow-up: bounded HAVING pruning
+
+[Adaptive HAVING pruning](HAVING-PRUNING-PLAN.md) reduces Q11 query-state peak
+from 49.4 to 1.68 MiB by proving that completed groups cannot pass the final
+threshold. The paired SF100 warm result improves modestly from 28.571 to
+28.181 ms. All 282 tests, 22 SF1 answers and Python integration pass. This
+follow-up is not yet included in the complete comparison above.
+
 ## Preparation profiling and parallel compaction
 
 [PREPARATION-PROFILE.md](PREPARATION-PROFILE.md) measures direct-read wall time

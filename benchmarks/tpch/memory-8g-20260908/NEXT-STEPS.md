@@ -20,8 +20,9 @@ and Q22 now have substantial margin in the complete workload.
    first-call time from 35.907 to 30.708 seconds in a sequential control and
    candidate comparison. Further loading and transformation costs remain.
    Q11's grouped fact scan remains the measured warm bottleneck. The
-   [adaptive HAVING proposal](HAVING-PRUNING-PLAN.md) specifies proofs and
-   tests for reducing retained groups; it is not implemented yet. Preserve the
+   [adaptive HAVING implementation](HAVING-PRUNING-PLAN.md) reduces Q11
+   query-state peak from 49.4 to 1.68 MiB, with paired warm times of 28.571
+   and 28.181 ms. These individual results still need full-workload validation. Preserve the
    eight-worker limit and do not select favorable repeats or relax thresholds.
 
 2. **Revalidate the complete workload after retained changes.** Use one frozen
