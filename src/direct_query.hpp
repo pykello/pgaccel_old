@@ -176,7 +176,7 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
                 }
                 if(predicates==predicateColumns.end())return ColumnDataP(data);
                 auto found=predicates->second.find(column.name);
-                return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx);
+                return found==predicates->second.end()?Result<ColumnDataP>(ColumnDataP(data)):PredicateDictionary(data,found->second,useAvx,parallel);
             };
             auto table=filters.empty() && memberships.empty() && !transform
                 ? LoadDirectTable(name,paths.at(schema.get()).string(),fields->second,&io)

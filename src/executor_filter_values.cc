@@ -1,4 +1,5 @@
 #include "executor_state.hpp"
+#include "executor_tasks.hpp"
 #include <re2/re2.h>
 #include <array>
 #include <immintrin.h>
@@ -12,6 +13,7 @@ class ValuePredicate : public FilterNodeImpl {
   std::string needle;
   std::vector<std::string> sequence;
   bool substring = false, prefix = false, negate = false, avx;
+  bool parallelLabels=false;
   StringSignature required;
   bool compactIntegers=false;int64_t compactFirst=0;uint64_t compactBits=0;
   std::unordered_set<Cell, Hash> members;
@@ -117,6 +119,25 @@ class ValuePredicate : public FilterNodeImpl {
           }
         }
         for (; i < size; ++i) if (signatures[i].mayContain(required)) exact(i);
+      } else if (parallelLabels && !sequence.empty() && dict->dictSize()>=8192) {
+        const int size=dict->dictSize(),words=(size+31)/32;
+        const auto type=f.columnRef.Type()->type_num();
+        // Whole words belong to one task. Round task boundaries to cache
+        // lines and join all readers before applying the row-code bitmap.
+        const int wordsPerTask=((words+7)/8+15)/16*16;
+        RunTasks(8,[&](int task) {
+          int end=std::min(words,(task+1)*wordsPerTask);
+          for(int word=task*wordsPerTask;word<end;++word) {
+            uint32_t selected=0;
+            for(int i=word*32;i<std::min(size,(word+1)*32);++i) {
+              bool yes=!signatures.empty() && !signatures[i].mayContain(required)
+                  ? negate : matches(Label(dict,i,type));
+              if(yes)selected|=uint32_t(1)<<(i%32);
+            }
+            labels[word]=selected;
+          }
+          return 0;
+        });
       } else {
         for (int i = 0; i < dict->dictSize(); ++i) {
           bool yes = !signatures.empty() && !signatures[i].mayContain(required)
@@ -217,7 +238,7 @@ class ValuePredicate : public FilterNodeImpl {
   }
 
 public:
-  explicit ValuePredicate(const FilterClause &clause, bool useAvx) : f(clause), avx(useAvx) {
+  explicit ValuePredicate(const FilterClause &clause, bool useAvx, bool parallel=false) : f(clause), avx(useAvx), parallelLabels(parallel) {
     negate = f.op == FilterClause::FILTER_NOT_LIKE ||
              f.op == FilterClause::FILTER_NOT_IN;
     if (f.op == FilterClause::FILTER_LIKE ||
@@ -304,5 +325,8 @@ public:
 } // namespace
 FilterNodeP CreateValuePredicate(const FilterClause &f, bool avx) {
   return std::make_unique<ValuePredicate>(f, avx);
+}
+FilterNodeP CreateParallelValuePredicate(const FilterClause &f, bool avx) {
+  return std::make_unique<ValuePredicate>(f,avx,true);
 }
 } // namespace pgaccel

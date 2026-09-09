@@ -52,13 +52,15 @@ inline PredicateColumnMap PredicateOnlyColumns(const QueryDesc &root) {
         if(!u.value && u.predicate)result[table].emplace(name,*u.predicate);
     return result;
 }
+FilterNodeP CreateParallelValuePredicate(const FilterClause &,bool avx);
 inline Result<ColumnDataP> PredicateDictionary(const ColumnDataP &source,
-                                             FilterClause filter,bool avx) {
+                                             FilterClause filter,bool avx,bool parallel=false) {
     if(source->type!=ColumnDataBase::DICT_COLUMN_DATA || filter.columnRef.Type()->type_num()!=STRING_TYPE)
         return Status::Invalid("Predicate dictionary needs native string data");
     const auto &input=static_cast<const DictColumnData<StringType>&>(*source);
     filter.columnRef.tableIdx=0;filter.columnRef.columnIdx=0;
-    auto node=CreateFilterNode({filter},avx);
+    auto node=parallel && filter.op>=FilterClause::FILTER_LIKE && filter.op<=FilterClause::FILTER_NOT_IN
+        ? CreateParallelValuePredicate(filter,avx) : CreateFilterNode({filter},avx);
     RowGroup batch;batch.columns={source};batch.size=source->size;
     uint8_t bitmap[RowGroupSize/8]{};node->ExecuteSet(batch,bitmap);
     auto output=std::make_shared<DictColumnData<StringType>>();

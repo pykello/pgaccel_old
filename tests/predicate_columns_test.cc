@@ -51,3 +51,32 @@ TEST(PredicateColumns, RepresentativeCodesPreserveEveryPredicateBit) {
         EXPECT_EQ(static_cast<const DictColumnDataBase*>(input.get())->dictSize(),300);
     }
 }
+
+TEST(PredicateColumns, ParallelLabelsPreserveBitsAtWordAndTaskBoundaries) {
+    for(int count:{0,63,64,65,8191,8192,8193,65536}) {
+        std::vector<std::string> labels;
+        for(int i=0;i<count;++i) {
+            std::string suffix=i%3==0 ? "special requests" : i%3==1 ? "special_é requests" : "ordinary";
+            labels.push_back(std::to_string(100000+i)+" "+suffix);
+        }
+        auto input=test::Dict<StringType>(labels);
+        auto tables=test::Table({{input}},{{"s",std::make_shared<StringType>()}});
+        for(auto sql:{"SELECT count(*) FROM t WHERE s LIKE '%special%requests%'",
+                      "SELECT count(*) FROM t WHERE s NOT LIKE '%special%requests%'",
+                      "SELECT count(*) FROM t WHERE s LIKE '%é%'",
+                      "SELECT count(*) FROM t WHERE s NOT IN ('100000 special requests')"}) {
+            auto parsed=ParseSelect(sql,tables);ASSERT_TRUE(parsed.ok());ASSERT_EQ(parsed->filterClauses.size(),1);
+            auto filter=parsed->filterClauses[0];
+            RowGroup before;before.columns={input};before.size=count;
+            for(bool avx:{false,true}) {
+                auto node=CreateFilterNode({filter},avx);
+                uint8_t expected[RowGroupSize/8]{};int selected=node->ExecuteSet(before,expected);
+                auto compact=PredicateDictionary(input,filter,avx,true);ASSERT_TRUE(compact.ok());
+                RowGroup after;after.columns={*compact};after.size=count;
+                uint8_t actual[RowGroupSize/8]{};
+                EXPECT_EQ(node->ExecuteSet(after,actual),selected);
+                EXPECT_EQ(std::memcmp(expected,actual,(count+7)/8),0) << count << ':' << sql;
+            }
+        }
+    }
+}
