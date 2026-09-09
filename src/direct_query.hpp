@@ -8,6 +8,7 @@
 #include "compact_column.hpp"
 #include "direct_join_membership.hpp"
 #include "direct_literal_filters.hpp"
+#include "direct_scope_filters.hpp"
 #include <filesystem>
 #include <cstring>
 #include <numeric>
@@ -39,8 +40,9 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
         auto needed=RequiredQueryColumns(*parsed);
         auto predicateColumns=PredicateOnlyColumns(*parsed);
         auto datePredicates=DatePredicateOnlyColumns(*parsed);
-        // A physical table may serve several aliases/scopes. Until selections
-        // are owned per scope, only push filters in an ordinary inner query.
+        auto scopeFilters=DirectSingleTableFilters(*parsed);
+        // Join-membership pruning is scope-local. Separate single-table
+        // filters above must be necessary across every physical-table use.
         bool push = parsed->leftJoins.empty() && parsed->existenceJoins.empty() &&
             parsed->scalarQueries.empty() && parsed->membershipQueries.empty() &&
             parsed->materializedSources.empty();
@@ -81,9 +83,13 @@ inline Result<PreparedDirectQuery> PrepareDirectQuery(const std::string &directo
             const auto &schema=schemas.at(name);
             auto fields=needed.find(schema.get());if(fields==needed.end())continue;
             DirectScanStats io;
-            std::vector<FilterClause> filters;
+            std::vector<FilterClause> filters=scopeFilters[schema.get()];
             if (push && schema.get()==compactTable) for (const auto &filter:preparation.filterClauses)
-                if (parsed->tables[filter.columnRef.tableIdx]==schema.get()) filters.push_back(filter);
+                if (parsed->tables[filter.columnRef.tableIdx]==schema.get() &&
+                    std::none_of(filters.begin(),filters.end(),[&](const auto &f){
+                        return f.columnRef.Name()==filter.columnRef.Name() && f.op==filter.op &&
+                            f.value==filter.value && f.values==filter.values;
+                    })) filters.push_back(filter);
             std::vector<DirectJoinMembership> memberships;
             if(push && schema.get()==compactTable) {
                 int fact=std::find(parsed->tables.begin(),parsed->tables.end(),compactTable)-parsed->tables.begin();

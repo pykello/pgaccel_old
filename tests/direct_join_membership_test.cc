@@ -50,3 +50,26 @@ TEST(DirectJoinMembership, CommonDisjunctFiltersAreNecessaryInEveryBranch) {
     auto optional=ParseSelect("SELECT sum(k) FROM t WHERE (s='yes' AND k=1) OR k=2",tables);
     ASSERT_TRUE(optional.ok());EXPECT_TRUE(DirectPreparationFilters(*optional).filterClauses.empty());
 }
+
+TEST(DirectScopeFilters, IntersectsRequirementsAcrossEveryPhysicalUse) {
+    char directory[]="/tmp/pgaccel-direct-scopes-XXXXXX";ASSERT_NE(mkdtemp(directory),nullptr);
+    struct Cleanup{const char *p;~Cleanup(){std::filesystem::remove_all(p);}}cleanup{directory};
+    auto tables=test::Table({{test::Raw({1,2,3,4}),test::Raw({5,7,11,13})}},
+        {{"k",std::make_shared<Int64Type>()},{"v",std::make_shared<Int64Type>()}});
+    ASSERT_TRUE(tables.at("t")->Save(std::string(directory)+"/t.pgaccel").ok());
+    auto check=[&](const std::string &sql,uint64_t expectedRows) {
+        auto original=ParseSelect(sql,tables);ASSERT_TRUE(original.ok())<<original.status().Message();
+        auto prepared=PrepareDirectQuery(directory,sql);ASSERT_TRUE(prepared.ok())<<prepared.status().Message();
+        auto expected=ExecuteQuery(*original,true,true);ASSERT_TRUE(expected.ok())<<expected.status().Message();
+        auto actual=ExecuteQuery(prepared->query,true,true);ASSERT_TRUE(actual.ok())<<actual.status().Message();
+        EXPECT_EQ(actual->values,expected->values);
+        uint64_t rows=0;auto &table=*prepared->tables.at("t");
+        for(int g=0;g<table.RowGroupCount();++g)rows+=table.GetRowGroup(g).size;
+        EXPECT_EQ(rows,expectedRows);
+    };
+    check("SELECT sum(v) FROM t WHERE k>=3 AND v>(SELECT avg(v) FROM t WHERE k>=3)",2);
+    check("SELECT sum(v) FROM t WHERE k>=3 AND v>(SELECT avg(v) FROM t)",4);
+    check("SELECT sum(v) FROM t WHERE k>=3 AND v>(SELECT avg(v) FROM t WHERE k<=2)",4);
+    check("SELECT sum(a.v) FROM t a,t b WHERE a.k=b.k AND a.k>=3",4);
+    check("WITH x AS (SELECT k,v FROM t WHERE k>=3) SELECT sum(v) FROM x WHERE v>(SELECT avg(v) FROM x)",2);
+}
