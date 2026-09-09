@@ -10,9 +10,10 @@ and Q22 now have substantial margin in the complete workload.
    20 seconds and its total pread wall time at 2.9 seconds. Bounded parallel
    column copies reduce first-call time modestly to 25.615 seconds, with
    6.869 GiB peak in the isolated run. Keep selectors and transformations
-   serial because callbacks may share mutable state. Next, investigate why
-   compaction still costs so much: copying selected values, recomputing
-   bounds, dictionary pruning and allocation need separate measurements.
+   serial because callbacks may share mutable state. The subsequent [per-column profile](COMPACTION-PROFILE.md) identifies
+   dictionary compaction as dominant. Resolving virtual code-width lookups
+   once reduces Q1 first-call time to 18.298 seconds. Numeric gathering,
+   bounds recomputation, dictionary pruning and allocation still need work.
    The repeated selection validation is another candidate, with source bounds
    checks preserved. Q13 has only 0.164 seconds of compaction; investigate its
    native dictionary loading and 5.254-second transformation separately. Direct construction in final dictionary slots now reduces Q13

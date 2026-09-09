@@ -26,3 +26,30 @@ The instrumented Q1 passes all nine typed SF100 answers under an enforced
 8 GiB total cap with zero swap. [Evidence](native-direct-compact-profile-q1-sf100.json)
 records the frozen module hash, first and warm timings, live memory peak and
 raw answer location. Its timings do not replace the uninstrumented sweep.
+
+## Retained: resolve input and output code widths once
+
+`a773a5a` caches input width before discovering retained codes, and output
+width after building the pruned dictionary. Both copy passes use those fixed
+widths. Dictionary ordering and code mapping are unchanged, including the
+transition from two-byte input codes to one-byte output codes. Existing tests
+cover that transition, invalid selections, dates and large parallel stripes.
+All 281 tests, 22 SF1 answers and Python integration pass.
+
+| Query | First call s | Warm median ms | Peak total GiB |
+|---|---:|---:|---:|
+| Q1 | 18.298 | 391.606 | 6.887 |
+| Q12 | 10.158 | 191.784 | 1.287 |
+
+Both queries pass all nine typed SF100 answers under 8 GiB with zero swap.
+Q1 first preparation is about 29% faster than the preceding uninstrumented
+25.824-second run. Its warm median is slower than that run's 360.103 ms;
+retain this observation instead of replacing it with a favorable repeat.
+It remains below the original saved 440.185 ms. Q12 also stays below its saved
+341.982 ms. This is a preparation change, not a demonstrated warm-kernel gain.
+
+Evidence: [Q1](native-direct-compact-width-q1-sf100.json),
+[Q12](native-direct-compact-width-q12-sf100.json),
+[SF1 gate](auto-projection-sf1-compact-width-gate.json).
+The full workload report still uses the earlier frozen module. After remaining
+work, validate all 22 queries and transitions in a single final capped run.
