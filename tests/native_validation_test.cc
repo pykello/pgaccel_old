@@ -1,3 +1,4 @@
+#include "native_block_cache.hpp"
 #include "native_column_charge.hpp"
 #include "test_table.hpp"
 #include <gtest/gtest.h>
@@ -164,4 +165,28 @@ TEST(NativeValidation, AdmissionChargeIncludesCapacityAndRejectsViews) {
     EXPECT_GT(*NativeColumnCharge(*strings,text),*after);
     EXPECT_FALSE(NativeColumnCharge(*strings,text,0));
     strings->globalRowOffset=10;EXPECT_FALSE(NativeColumnCharge(*strings,text));
+}
+
+TEST(NativeValidation, CacheChargesLruEvictionAndPinnedReferences) {
+    Int64Type logical;
+    auto a=test::Raw({1}),b=test::Raw({2}),c=test::Raw({3});
+    auto charge=NativeBlockCache::Charge(*a,logical);ASSERT_TRUE(charge);
+    NativeBlockCache cache(2 * *charge);
+    NativeSnapshotIdentity identity{{1,2},{3,4,5,6,7,8,9}};
+    NativeBlockCache::Key ka{identity,24,0,INT64_TYPE},kb{identity,24,1,INT64_TYPE},kc{identity,24,2,INT64_TYPE};
+    EXPECT_TRUE(cache.Insert(ka,a,logical));EXPECT_TRUE(cache.Insert(kb,b,logical));
+    auto pinned=cache.Find(ka);ASSERT_TRUE(pinned);
+    EXPECT_TRUE(cache.Insert(kc,c,logical));EXPECT_FALSE(cache.Find(kb));
+    EXPECT_EQ(cache.Bytes(),2 * *charge);EXPECT_EQ(cache.Size(),2);
+    auto replacement=test::Raw({99});EXPECT_TRUE(cache.Insert(ka,replacement,logical));
+    EXPECT_EQ(cache.Find(ka).get(),a.get());
+    a.reset();cache.SetLimit(0);EXPECT_EQ(cache.Bytes(),0);EXPECT_EQ(cache.Size(),0);
+    EXPECT_EQ(static_cast<const RawColumnDataBase*>(pinned.get())->values[0],1);
+    EXPECT_FALSE(cache.Insert(kc,c,logical));
+    cache.SetLimit(*charge);EXPECT_TRUE(cache.Insert(kc,c,logical));
+    auto changed=kc;changed.snapshot->uuid[0]++;EXPECT_FALSE(cache.Find(changed));
+    changed=kc;changed.snapshot->file[3]++;EXPECT_FALSE(cache.Find(changed));
+    changed=kc;changed.snapshot.reset();EXPECT_FALSE(cache.Insert(changed,c,logical));
+    EXPECT_FALSE(cache.Find(changed));
+    cache.Clear();EXPECT_EQ(cache.Bytes(),0);EXPECT_EQ(cache.Size(),0);
 }
