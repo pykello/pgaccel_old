@@ -2,7 +2,25 @@
 
 The target is the previous complete TPC-H SF100 performance with an 8 GiB total memory limit and no payload page-cache dependency. **The target is not achieved.** This checkpoint establishes direct input, streaming buffers, and the benefit and limits of projected residency.
 
-## Latest: full sweep and corrected Q19 follow-up
+## Latest: nested date filters reduce Q15 and Q20 residency
+
+`4cac40f` intersects necessary literal filters across every physical-table use.
+A single-table scan inside a CTE or subquery can discard failing rows only if
+all other uses require the same filter. Unfiltered aliases or multi-table uses
+disable this rule. The original query, including correlation and aggregation,
+still runs on the retained rows.
+
+| Query | Previous pgaccel ms | Warm client ms | First call s | Peak cgroup GiB |
+|---|---:|---:|---:|---:|
+| Q15 | 146.978 | 66.276 | 12.305 | 0.479 |
+| Q20 | 211.185 | 135.243 | 20.539 | 2.002 |
+
+Both queries pass all nine SF100 answers in fresh 8 GiB zero-swap processes.
+The change passes 275 native tests, all 22 SF1 answers and Python integration.
+Eight latest warm medians still exceed their saved pgaccel baseline. The full
+objective remains open; first-call preparation is not a warm scan benchmark.
+
+## Full sweep, follow-ups and representative transitions
 
 [TRANSITIONS.md](TRANSITIONS.md) adds a five-step test in one long-lived database.
 All 45 answers pass before and after returning unused allocator pages on SQL
@@ -19,8 +37,9 @@ original SQL still checks the complete predicate. All 274 native tests, all 22
 SF1 answers and Python integration pass after this fix.
 
 These results do not constitute an all-query success on one final build.
-Ten warm medians exceed the recorded pgaccel baseline; first preparation remains
-substantial and query transitions are a separate outstanding measurement.
+The updated table includes the separately identified Q15 and Q20 follow-ups.
+First preparation remains substantial and a full query-transition sweep is
+a separate outstanding measurement.
 The report preserves the failed run and distinguishes Q19's follow-up build.
 
 ## Earlier checkpoint: inner-join membership brings Q5, Q8 and Q9 under the cap

@@ -24,19 +24,22 @@ def read(path):
     return result
 fixed=[read(root/f'native-direct-full-membership-q{n}-sf100.json') for n in range(1,23)]
 assert len({r['module_sha256'] for r in fixed})==1
-followup=read(root/'native-direct-common-filter-q19-sf100.json');assert followup['correct']
-latest=[followup if r['query']==19 else r for r in fixed]
+followups=[read(root/'native-direct-common-filter-q19-sf100.json'),
+    *[read(root/f'native-direct-scope-filter-q{n}-sf100.json') for n in [15,20]]]
+assert all(r['correct'] for r in followups)
+replacements={r['query']:r for r in followups}
+latest=[replacements.get(r['query'],r) for r in fixed]
 assert all(r['correct'] for r in latest)
-summary=dict(note='Fixed-build sweep retained, including its Q19 failure. Q19 has a separately identified corrected-build follow-up. Nine native Python calls per successful query, each in a fresh 8 GiB zero-swap cgroup. Warm median excludes first preparation. Peers are saved measurements, not reruns; this is not a query-transition test.',
+summary=dict(note='Fixed-build sweep retained, including its Q19 failure. Q15, Q19 and Q20 have separately identified follow-up builds. Nine native Python calls per successful query, each in a fresh 8 GiB zero-swap cgroup. Warm median excludes first preparation. Peers are saved measurements, not reruns; this is not a query-transition test.',
     baseline=str(baseline_path),baseline_sha256=hashlib.sha256(baseline_path.read_bytes()).hexdigest(),
-    fixed_build=fixed,followups=[followup],latest=latest,previous=engines)
+    fixed_build=fixed,followups=followups,latest=latest,previous=engines)
 (root/'full-membership-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
-lines=['# SF100 direct-memory sweep and Q19 follow-up','',summary['note'],'',
-       'The fixed build passed 21 queries and was OOM-killed on Q19. Its follow-up uses a newer preparation rule for literals shared by every OR branch. All 198 successful trials pass the typed oracle and verify live memory limits. The 768 MiB query allowance stays inside the 8 GiB total cap.','',
+lines=['# SF100 direct-memory sweep and follow-ups','',summary['note'],'',
+       'The fixed build passed 21 queries and was OOM-killed on Q19. Q19’s follow-up uses a newer preparation rule for literals shared by every OR branch; Q15 and Q20 use necessary single-table filters across nested scopes. All 216 successful trials in the sweep and follow-ups pass the typed oracle and verify live memory limits. The 768 MiB query allowance stays inside the 8 GiB total cap.','',
        '| Query | Previous pgaccel ms | Direct warm ms | ClickHouse ms (saved) | DuckDB ms (saved) | Peak cgroup GiB | First call s |',
        '|---|---:|---:|---:|---:|---:|---:|']
 for r in latest:
-    n=r['query'];label=f'Q{n}'+(' (follow-up)' if n==19 else '')
+    n=r['query'];label=f'Q{n}'+(' (follow-up)' if n in replacements else '')
     lines.append(f"| {label} | {engines['pgaccel-native'][n]['median_client_ms']:.3f} | {r['warm_client_ms']:.3f} | {engines['clickhouse'][n]['median_client_ms']:.3f} | {engines['duckdb'][n]['median_client_ms']:.3f} | {r['peak_cgroup_bytes']/2**30:.3f} | {r['first_client_ms']/1000:.3f} |")
 slower=[r['query'] for r in latest if r['warm_client_ms']>engines['pgaccel-native'][r['query']]['median_client_ms']]
 lines+=['',f'Warm medians above the previous pgaccel measurement: {", ".join("Q"+str(n) for n in slower)}. No new tolerance threshold is being used to declare completion.',

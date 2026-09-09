@@ -1,8 +1,8 @@
-# SF100 direct-memory sweep and Q19 follow-up
+# SF100 direct-memory sweep and follow-ups
 
-Fixed-build sweep retained, including its Q19 failure. Q19 has a separately identified corrected-build follow-up. Nine native Python calls per successful query, each in a fresh 8 GiB zero-swap cgroup. Warm median excludes first preparation. Peers are saved measurements, not reruns; this is not a query-transition test.
+Fixed-build sweep retained, including its Q19 failure. Q15, Q19 and Q20 have separately identified follow-up builds. Nine native Python calls per successful query, each in a fresh 8 GiB zero-swap cgroup. Warm median excludes first preparation. Peers are saved measurements, not reruns; this is not a query-transition test.
 
-The fixed build passed 21 queries and was OOM-killed on Q19. Its follow-up uses a newer preparation rule for literals shared by every OR branch. All 198 successful trials pass the typed oracle and verify live memory limits. The 768 MiB query allowance stays inside the 8 GiB total cap.
+The fixed build passed 21 queries and was OOM-killed on Q19. Q19’s follow-up uses a newer preparation rule for literals shared by every OR branch; Q15 and Q20 use necessary single-table filters across nested scopes. All 216 successful trials in the sweep and follow-ups pass the typed oracle and verify live memory limits. The 768 MiB query allowance stays inside the 8 GiB total cap.
 
 | Query | Previous pgaccel ms | Direct warm ms | ClickHouse ms (saved) | DuckDB ms (saved) | Peak cgroup GiB | First call s |
 |---|---:|---:|---:|---:|---:|---:|
@@ -20,17 +20,17 @@ The fixed build passed 21 queries and was OOM-killed on Q19. Its follow-up uses 
 | Q12 | 341.982 | 345.702 | 3434.824 | 1494.902 | 7.458 | 18.032 |
 | Q13 | 1093.312 | 547.113 | 4769.721 | 5595.847 | 1.852 | 37.595 |
 | Q14 | 132.674 | 117.373 | 2248.999 | 1124.596 | 0.209 | 11.555 |
-| Q15 | 146.978 | 151.154 | 4184.006 | 829.427 | 6.533 | 14.595 |
+| Q15 (follow-up) | 146.978 | 66.276 | 4184.006 | 829.427 | 0.479 | 12.305 |
 | Q16 | 213.195 | 223.997 | 1378.175 | 1001.576 | 1.117 | 2.203 |
 | Q17 | 272.281 | 272.799 | 4134.933 | 2563.513 | 5.762 | 12.774 |
 | Q18 | 733.755 | 748.478 | 8271.662 | 4802.045 | 6.463 | 14.895 |
 | Q19 (follow-up) | 217.095 | 96.720 | 4909.323 | 2547.487 | 2.057 | 17.272 |
-| Q20 | 211.185 | 237.202 | 3173.749 | 1371.021 | 7.887 | 21.623 |
+| Q20 (follow-up) | 211.185 | 135.243 | 3173.749 | 1371.021 | 2.002 | 20.539 |
 | Q21 | 682.195 | 690.349 | 13533.714 | 6558.207 | 6.844 | 19.733 |
 | Q22 | 375.958 | 382.358 | 1147.882 | 1177.929 | 1.191 | 3.290 |
 
-Warm medians above the previous pgaccel measurement: Q2, Q11, Q12, Q15, Q16, Q17, Q18, Q20, Q21, Q22. No new tolerance threshold is being used to declare completion.
+Warm medians above the previous pgaccel measurement: Q2, Q11, Q12, Q16, Q17, Q18, Q21, Q22. No new tolerance threshold is being used to declare completion.
 
-Sum of latest warm medians: 8213.768 ms, previously 10577.516 ms. This arithmetic sum combines the identified builds and is not a measured workload-transition runtime.
+Sum of latest warm medians: 8026.931 ms, previously 10577.516 ms. This arithmetic sum combines the identified builds and is not a measured workload-transition runtime.
 
 The full objective remains unproven. First calls include substantial query-specific preparation, cache transitions and admission are unfinished, and regressions need investigation. Saved peer RSS values are retained in the JSON but exclude file cache and are not interchangeable with cgroup peaks.

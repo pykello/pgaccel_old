@@ -1,5 +1,5 @@
 {
-  "note": "Fixed-build sweep retained, including its Q19 failure. Q19 has a separately identified corrected-build follow-up. Nine native Python calls per successful query, each in a fresh 8 GiB zero-swap cgroup. Warm median excludes first preparation. Peers are saved measurements, not reruns; this is not a query-transition test.",
+  "note": "Fixed-build sweep retained, including its Q19 failure. Q15, Q19 and Q20 have separately identified follow-up builds. Nine native Python calls per successful query, each in a fresh 8 GiB zero-swap cgroup. Warm median excludes first preparation. Peers are saved measurements, not reruns; this is not a query-transition test.",
   "baseline": "/home/hadi/projects/pgaccel_old/benchmarks/tpch/simd-remaining-20260906/FINAL-ALL1.json",
   "baseline_sha256": "f9c439bc7cb03e4201527c8d73ac51482a22200ad896cd239b0f42ddd9e98f2a",
   "fixed_build": [
@@ -277,6 +277,30 @@
       "peak_query_bytes": 10130818,
       "correct": true,
       "memory_verified": true
+    },
+    {
+      "query": 15,
+      "module_sha256": "8f8c8cb6adf7378f56a551774c3a264a3a6e1919bee7100395c8ba0e8d8541c2",
+      "source": "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/native-direct-scope-filter-q15-sf100.json",
+      "returncode": 0,
+      "warm_client_ms": 66.27602799562737,
+      "first_client_ms": 12305.239428009372,
+      "peak_cgroup_bytes": 514686976,
+      "peak_query_bytes": 81125064,
+      "correct": true,
+      "memory_verified": true
+    },
+    {
+      "query": 20,
+      "module_sha256": "8f8c8cb6adf7378f56a551774c3a264a3a6e1919bee7100395c8ba0e8d8541c2",
+      "source": "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/native-direct-scope-filter-q20-sf100.json",
+      "returncode": 0,
+      "warm_client_ms": 135.24269795743749,
+      "first_client_ms": 20539.05083902646,
+      "peak_cgroup_bytes": 2149322752,
+      "peak_query_bytes": 18090320,
+      "correct": true,
+      "memory_verified": true
     }
   ],
   "latest": [
@@ -450,12 +474,12 @@
     },
     {
       "query": 15,
-      "module_sha256": "902fc219216220b2367cd8d1f5a1fc4789a52cca60a201510ef332407624c13f",
-      "source": "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/native-direct-full-membership-q15-sf100.json",
+      "module_sha256": "8f8c8cb6adf7378f56a551774c3a264a3a6e1919bee7100395c8ba0e8d8541c2",
+      "source": "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/native-direct-scope-filter-q15-sf100.json",
       "returncode": 0,
-      "warm_client_ms": 151.15377100300975,
-      "first_client_ms": 14594.569565961137,
-      "peak_cgroup_bytes": 7015084032,
+      "warm_client_ms": 66.27602799562737,
+      "first_client_ms": 12305.239428009372,
+      "peak_cgroup_bytes": 514686976,
       "peak_query_bytes": 81125064,
       "correct": true,
       "memory_verified": true
@@ -510,12 +534,12 @@
     },
     {
       "query": 20,
-      "module_sha256": "902fc219216220b2367cd8d1f5a1fc4789a52cca60a201510ef332407624c13f",
-      "source": "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/native-direct-full-membership-q20-sf100.json",
+      "module_sha256": "8f8c8cb6adf7378f56a551774c3a264a3a6e1919bee7100395c8ba0e8d8541c2",
+      "source": "/home/hadi/projects/pgaccel_old/benchmarks/tpch/memory-8g-20260908/native-direct-scope-filter-q20-sf100.json",
       "returncode": 0,
-      "warm_client_ms": 237.202175980201,
-      "first_client_ms": 21622.506083047483,
-      "peak_cgroup_bytes": 8468140032,
+      "warm_client_ms": 135.24269795743749,
+      "first_client_ms": 20539.05083902646,
+      "peak_cgroup_bytes": 2149322752,
       "peak_query_bytes": 18090320,
       "correct": true,
       "memory_verified": true
