@@ -118,3 +118,27 @@ TEST(NativeValidation, ReusedStringSlotsStillValidateDictionary) {
     dictionary->values[1]=0;EXPECT_FALSE(load().ok());
     dictionary->values[1]=2;EXPECT_FALSE(load().ok());
 }
+
+TEST(NativeValidation, DictionaryStringReadErrorsPreserveStreamState) {
+    StringType logical;
+    auto column=test::Dict<StringType>({"abcdefgh"});
+    std::stringstream saved;ASSERT_TRUE(column->Save(saved).ok());
+    auto bytes=saved.str();
+    for(bool exceptions:{false,true}) {
+        std::istringstream truncated(bytes.substr(0,12));
+        if(exceptions)truncated.exceptions(std::ios::failbit|std::ios::badbit);
+        EXPECT_ANY_THROW(ColumnDataBase::Load(truncated,&logical));
+        EXPECT_TRUE(truncated.fail());EXPECT_TRUE(truncated.eof());
+        struct BrokenBuffer:std::stringbuf {
+            explicit BrokenBuffer(const std::string &bytes):std::stringbuf(bytes){}
+            std::streamsize xsgetn(char *out,std::streamsize n) override {
+                if(gptr()-eback()>=12)throw std::runtime_error("injected read failure");
+                return std::stringbuf::xsgetn(out,n);
+            }
+        } buffer(bytes);
+        std::istream broken(&buffer);
+        if(exceptions)broken.exceptions(std::ios::badbit);
+        EXPECT_ANY_THROW(ColumnDataBase::Load(broken,&logical));
+        EXPECT_TRUE(broken.bad());
+    }
+}

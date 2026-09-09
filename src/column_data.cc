@@ -35,14 +35,33 @@ template<>
 void
 ReadValues<StringType>(std::istream &in, int count, std::string *out)
 {
-    for (int i = 0; i < count; i++)
-    {
+    // One binary dictionary read needs one stream guard, rather than two
+    // sentries per label. Keep short-read and exception state handling.
+    std::istream::sentry guard(in,true);
+    if (!guard) throw std::invalid_argument("Truncated native string dictionary");
+    auto *buffer=in.rdbuf();
+    auto readExact=[&](char *destination,std::streamsize size) {
+        std::streamsize got;
+        try { got=buffer->sgetn(destination,size); }
+        catch (...) {
+            auto error=std::current_exception();
+            try { in.setstate(std::ios::badbit); } catch (...) {}
+            if (in.exceptions() & std::ios::badbit) std::rethrow_exception(error);
+            return false;
+        }
+        if (got!=size) {
+            in.setstate(std::ios::eofbit|std::ios::failbit);
+            return false;
+        }
+        return true;
+    };
+    for (int i = 0; i < count; i++) {
         int size = 0;
-        in.read((char *) &size, sizeof(size));
-        if (!in || size < 0 || size > (64 << 20)) throw std::invalid_argument("Invalid native string length");
+        if (!readExact(reinterpret_cast<char*>(&size),sizeof(size)) || size<0 || size>(64<<20))
+            throw std::invalid_argument("Invalid native string length");
         out[i].resize(size);
-        in.read(out[i].data(),size);
-        if (!in) throw std::invalid_argument("Truncated native string");
+        if (!readExact(out[i].data(),size))
+            throw std::invalid_argument("Truncated native string");
     }
 }
 
