@@ -1,4 +1,4 @@
-# Recovering Q2 and Q11 warm performance under 8 GiB
+# Recovering warm performance under 8 GiB
 
 These are individual SF100 follow-ups, each with nine typed-oracle-checked
 answers in a fresh 8 GiB zero-swap cgroup. Warm medians exclude first
@@ -73,3 +73,22 @@ Evidence: [Q2 before](native-direct-buffer8-q2-sf100.json),
 [small reservation](native-direct-sorted-reserve-q11-sf100.json),
 [selected-count reservation](native-direct-sorted-reserve4k-q11-sf100.json),
 [narrow-key SIMD](native-direct-narrow-member-q11-sf100.json).
+
+## Q22: avoid substring construction for a proved ASCII prefix test
+
+The complete narrow-membership sweep recorded 377.226 ms for Q22, versus
+375.958 ms in the original baseline. A subsequent change in
+`src/executor_prefix_antijoin.cc` eliminates generic substring construction
+for every phone dictionary label. The plan already proves a leading
+two-character slice and ASCII two-byte literals. A match therefore requires
+two leading ASCII bytes, which directly address the existing lookup table.
+Valid UTF-8 suffixes remain supported, and the whole string is still validated
+before that shortcut; an invalid suffix cannot be hidden by an ASCII prefix.
+
+The [follow-up](native-direct-prefix-bytes-q22-sf100.json) passes nine SF100
+answers at 219.790 ms warm, with a 2.225-second first call under 8 GiB.
+All 277 native tests, all 22 SF1 answers and Python integration pass. Existing
+tests cover short strings, non-ASCII leading characters and UTF-8 suffixes;
+the added test verifies rejection of an invalid suffix. Keep this change for
+its substantial execution-time margin. It does not replace Q22's measurement
+in the preceding complete sweep.

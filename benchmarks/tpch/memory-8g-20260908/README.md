@@ -4,20 +4,26 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 
 ## Latest: all 22 queries pass in one 8 GiB database
 
-Subsequent [8 MiB direct-read follow-ups](LARGER-READS.md) reduce preparation
-time on Q6, Q12 and Q14, with all 27 answers under the cap. The complete sweep
-below used the preceding 1 MiB reader; keep those build boundaries distinct.
+[TRANSITION-NARROW.md](TRANSITION-NARROW.md) is the latest complete comparison
+against saved pgaccel, ClickHouse and DuckDB times. It includes the
+[8 MiB direct reads](LARGER-READS.md) and [warm-execution changes](WARM-RECOVERY.md).
 The reader remains synchronous `O_DIRECT`; `io_uring` has not been added.
 
-[TRANSITION-SWEEP.md](TRANSITION-SWEEP.md) is the latest complete comparison
-against saved pgaccel, ClickHouse and DuckDB times. One frozen build executed
-Q1 through Q22 in one long-lived database, nine calls each. All 198 answers
-pass; cumulative memory peak is 7.680 GiB, with zero sampled file-cache charge,
-zero swap and no memory-limit events. Q2, Q11 and Q14 still exceed their saved
-pgaccel warm medians. First calls take 2.3–40.3 seconds and include SQL-specific
+One frozen build executed Q1 through Q22 in one long-lived database, nine
+calls each. All 198 answers pass; cumulative memory peak is 7.681 GiB, with
+zero sampled file-cache charge, zero swap and no memory-limit events. Q1, Q11,
+Q12 and Q22 still exceed their saved pgaccel warm medians. First calls take
+1.5–38.4 seconds and include SQL-specific
 preparation; this is not equivalent to scanning arbitrary queries from NVMe at
 the old fully resident latency. Internal admission for arbitrary workloads is
 also unfinished. The full goal remains open.
+
+The earlier [1 MiB reader sweep](TRANSITION-SWEEP.md) remains separate.
+No faster individual measurement replaces a slower value in either full sweep.
+The subsequent [Q22 prefix follow-up](WARM-RECOVERY.md) passes at 219.790 ms
+warm; it has not yet been incorporated into a new complete sweep.
+[Next steps](NEXT-STEPS.md) cover remaining execution margins, full validation,
+cross-query residency and measured asynchronous-I/O experiments.
 
 ## Nested date filters reduce Q15 and Q20 residency
 
