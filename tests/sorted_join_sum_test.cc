@@ -61,3 +61,35 @@ TEST(SortedJoinSum, DifferentInputsDuplicateDimensionsAndUnsortedKeysFallback) {
         }
     }
 }
+TEST(SortedJoinSum, GrowingBoundNonemptyResultsAndSpanningGroups) {
+    for (bool wide:{false,true}) {
+        auto registry=JoinedSums();
+        std::vector<std::vector<ColumnDataP>> stripes;
+        // Key zero spans three stripes, then interior groups provide pruning
+        // opportunities after completed stripe totals become available.
+        for (int g=0;g<20;++g) {
+            std::vector<int64_t> keys,values;
+            for (int i=0;i<33;++i) {
+                keys.push_back(g<3?0:1+(g-3)*16+i/2);
+                values.push_back(wide?INT64_MAX/128:(i%3?7:0));
+            }
+            stripes.push_back({test::Raw(keys),test::Raw(std::vector<int64_t>(33,10)),
+                test::Raw(values),test::Raw(std::vector<int64_t>(33,1))});
+        }
+        auto decimal=std::make_shared<DecimalType>();decimal->scale=2;
+        auto facts=test::Table(std::move(stripes),
+            {{"g",std::make_shared<Int64Type>()},{"sk",std::make_shared<Int64Type>()},
+             {"x",decimal},{"y",std::make_shared<Int64Type>()}});
+        registry["f"]=std::move(facts.at("t"));
+        for(const std::string factor:{"0.0","0.0001","0.01","0.1","0.15","0.1500000001","1.0","-0.1"})
+            for(const std::string op:{">",">=","<","="}) {
+                auto q=ParseSelect(JoinedSql("keep",op,factor),registry);ASSERT_TRUE(q.ok());
+                auto expected=ExecuteRelational(*q,false,false);ASSERT_TRUE(expected.ok());
+                for(bool parallel:{false,true}) for(bool avx:{false,true}) {
+                    auto actual=ExecuteSortedJoinSum(*q,avx,parallel);ASSERT_TRUE(actual);
+                    ASSERT_TRUE(actual->ok())<<actual->status().Message();
+                    EXPECT_EQ((*actual)->values,expected->values)<<factor<<op;
+                }
+            }
+    }
+}

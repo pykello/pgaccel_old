@@ -1,3 +1,4 @@
+#include <atomic>
 #include "executor_sorted_sum.hpp"
 #include "executor_literal_filter.hpp"
 #include "executor_sequence_join.hpp"
@@ -24,6 +25,33 @@ bool TotalFormula(const Expression &e,int sum,int depth=0) {
     return (e.kind==Expression::ADD || e.kind==Expression::SUBTRACT || e.kind==Expression::MULTIPLY || e.kind==Expression::DIVIDE) &&
         e.left && e.right && TotalFormula(*e.left,sum,depth+1) && TotalFormula(*e.right,sum,depth+1);
 }
+// Completed nonnegative stripes give a conservative scalar lower bound.
+// Snapshot once per stripe; stale observations merely retain more groups.
+struct GrowingSumBound {
+    std::atomic<int64_t> &completed;
+    const Expression *formula;
+    int childSum;
+    FilterClause::Op comparison;
+    int boundScale,rowScale;
+    auto begin() const {
+        Wide total=completed.load(std::memory_order_relaxed);
+        Wide bound=formula?EvaluateWith(*formula,[&](const ColumnRef &column) {
+            if(column.tableIdx!=-1 || column.columnIdx!=childSum) throw NotDense{};
+            return Cell{total};
+        }).number:total;
+        ScaledBound cutoff(comparison,bound,boundScale,rowScale);
+        return [cutoff](int64_t,int64_t sum) {return cutoff.matches(sum);};
+    }
+    void complete(int64_t sum) const {
+        int64_t previous=completed.load(std::memory_order_relaxed);
+        for (;;) {
+            // Saturation remains a lower bound on the exact wide final sum.
+            int64_t next=sum>INT64_MAX-previous?INT64_MAX:previous+sum;
+            if(completed.compare_exchange_weak(previous,next,std::memory_order_relaxed)) break;
+        }
+    }
+};
+
 }
 std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &q,bool avx,bool parallel) {
     if (q.tables.size()!=3 || !q.grouped || q.groupExpressions.size()!=1 || !q.groupExpressions[0]->column ||
@@ -116,12 +144,37 @@ std::optional<Result<QueryOutput>> ExecuteSortedJoinSum(const QueryDesc &q,bool 
         };
         auto tail=domain(1,nullptr);auto bridge=domain(0,&tail);
         if (bridge.bits.empty() && bridge.values.empty()) { QueryResults result(q,budget);return result.finish(); }
-        auto scan=ScanSortedSums(*q.tables[fact],groupKey,*q.aggregateClauses[sum].expression,
-            [&](const RowGroup &rg,uint8_t *bitmap) {
-                if (filters[fact]) { if (!filters[fact]->ExecuteSet(rg,bitmap)) return false; }
-                else memset(bitmap,0xff,(rg.size+7)/8);
-                bridge.intersect(rg,foreign[0],false,avx,bitmap);return true;
-            },budget,avx,parallel);
+        auto filterFact=[&](const RowGroup &rg,uint8_t *bitmap) {
+            if (filters[fact]) { if (!filters[fact]->ExecuteSet(rg,bitmap)) return false; }
+            else memset(bitmap,0xff,(rg.size+7)/8);
+            bridge.intersect(rg,foreign[0],false,avx,bitmap);return true;
+        };
+        bool growing=having.op==FilterClause::FILTER_GT || having.op==FilterClause::FILTER_GTE;
+        const Expression *formula=childSum==0?nullptr:child.aggregateClauses[0].expression.get();
+        if(growing && formula) {
+            const Expression *literal=nullptr,*total=nullptr;
+            if(formula->kind==Expression::MULTIPLY) {
+                literal=formula->right.get();total=formula->left.get();
+                if(literal->kind!=Expression::CONSTANT) std::swap(literal,total);
+            }
+            growing=literal && literal->kind==Expression::CONSTANT && total->kind==Expression::COLUMN &&
+                total->column && total->column->tableIdx==-1 && total->column->columnIdx==childSum &&
+                ParseDecimal(Scale(literal->type.get()),literal->literal)>=0;
+        }
+        // Prove every stripe nonnegative before publishing any subtotal.
+        // Negative or unsupported formulas retain the original scanner.
+        if(growing) for(int g=0;g<q.tables[fact]->RowGroupCount();++g) {
+            const auto &rg=q.tables[fact]->GetRowGroup(g);if(!rg.size) continue;
+            Program proof;int root=proof.compile(*q.aggregateClauses[sum].expression,rg);
+            if(proof.ops[root].low<0) {growing=false;break;}
+        }
+        std::atomic<int64_t> completed{0};
+        auto scan=growing
+            ? ScanSortedSums(*q.tables[fact],groupKey,*q.aggregateClauses[sum].expression,
+                filterFact,budget,avx,parallel,GrowingSumBound{completed,formula,childSum,having.op,
+                    Scale(scalar.resultType.get()),Scale(q.aggregateClauses[sum].expression->type.get())})
+            : ScanSortedSums(*q.tables[fact],groupKey,*q.aggregateClauses[sum].expression,
+                filterFact,budget,avx,parallel);
         QueryDesc effective=q;auto &bound=effective.having[0];bound.bound.reset();bound.nullBound=!scan.count;
         if (scan.count) {
             bound.value=childSum==0?scan.sum:EvaluateWith(*child.aggregateClauses[0].expression,
