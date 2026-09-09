@@ -1,0 +1,52 @@
+diff --git a/src/executor_arithmetic_program.hpp b/src/executor_arithmetic_program.hpp
+index 0d88fb0..e06229d 100644
+--- a/src/executor_arithmetic_program.hpp
++++ b/src/executor_arithmetic_program.hpp
+@@ -17,7 +17,18 @@ template<class T,bool Gather=false>
+ void DecodeNumbers(const RawColumnDataBase *column,int begin,int n,int64_t *out,bool avx,const uint32_t *selection=nullptr) {
+     const auto source=reinterpret_cast<const T *>(column->values)+begin;
+     if constexpr(Gather) {
+-        for(int i=0;i<n;++i) out[i]=source[selection[i]];
++        int i=0;
++        if constexpr(sizeof(T)==4 || sizeof(T)==8) {
++            if(avx)for(;i+8<=n;i+=8) {
++                auto indices=_mm256_loadu_si256(reinterpret_cast<const __m256i *>(selection+i));
++                __m512i values;
++                if constexpr(sizeof(T)==4)
++                    values=_mm512_cvtepi32_epi64(_mm256_i32gather_epi32(source,indices,4));
++                else values=_mm512_i32gather_epi64(indices,source,8);
++                _mm512_storeu_si512(out+i,values);
++            }
++        }
++        for(;i<n;++i) out[i]=source[selection[i]];
+         return;
+     }
+     int j=0;
+diff --git a/tests/dense_arithmetic_test.cc b/tests/dense_arithmetic_test.cc
+index 201099a..6ec94e3 100644
+--- a/tests/dense_arithmetic_test.cc
++++ b/tests/dense_arithmetic_test.cc
+@@ -1,6 +1,23 @@
+ #include "test_table.hpp"
++#include "executor_arithmetic_program.hpp"
+ #include <gtest/gtest.h>
+ using namespace pgaccel;
++TEST(ArithmeticGather, SignedExtremesOffsetsRepeatedIndicesAndTails) {
++    for(int width:{4,8}) {
++        std::vector<int64_t> values;
++        for(int i=0;i<65;++i)values.push_back(i%2?(width==4?INT32_MAX:INT64_MAX):(width==4?INT32_MIN:INT64_MIN));
++        auto data=test::Raw(values,width);auto raw=static_cast<const RawColumnDataBase *>(data.get());
++        uint32_t selected[25];for(int i=0;i<25;++i)selected[i]=(i*11)%7;
++        for(bool avx:{false,true})for(int n:{0,1,7,8,9,15,16,25}) {
++            std::array<int64_t,27> output;output.fill(17);
++            if(width==4)DecodeNumbers<int32_t,true>(raw,3,n,output.data()+1,avx,selected);
++            else DecodeNumbers<int64_t,true>(raw,3,n,output.data()+1,avx,selected);
++            EXPECT_EQ(output.front(),17);
++            for(int i=0;i<n;++i)EXPECT_EQ(output[i+1],values[3+selected[i]]);
++            for(int i=n+1;i<27;++i)EXPECT_EQ(output[i],17);
++        }
++    }
++}
+ TEST(DenseArithmetic, DecimalExpressionsAcrossStripesAndSelections) {
+     auto decimal=std::make_shared<DecimalType>(); decimal->scale=2;
+     std::vector<std::vector<ColumnDataP>> groups;
