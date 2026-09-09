@@ -56,12 +56,11 @@ LoadDictColumnData(std::istream &in, bool aligned)
     result->valueType = std::make_unique<AccelTy>();
     in.read((char *) &dictSize, sizeof(dictSize));
     if (!in || dictSize < 0 || dictSize > RowGroupSize) return Status::Invalid("Invalid dictionary size");
-    for (int i = 0; i < dictSize; i++)
-    {
-        typename AccelTy::c_type value;
-        ReadValues<AccelTy>(in, 1, &value);
-        result->dict.push_back(value);
-    }
+    // The validated count fixes storage before decoding. Construct strings
+    // directly in their final slots, avoiding temporary heap allocations and
+    // copies; numeric dictionaries can be read as one contiguous block.
+    result->dict.resize(dictSize);
+    ReadValues<AccelTy>(in, dictSize, result->dict.data());
 
     in.read((char *) &result->size, sizeof(result->size));
     if (!in || result->size < 0 || result->size > RowGroupSize || (result->size && !dictSize))
