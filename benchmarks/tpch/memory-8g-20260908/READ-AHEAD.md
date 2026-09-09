@@ -52,3 +52,18 @@ io_uring is necessary, eliminate preparation, or replace the complete
 [all-query warm comparison](TRANSITION-CHAINS.md). A later backend can reduce
 thread-launch overhead while preserving the same bounded buffer contract.
 First-call latency and cross-query reuse remain part of the open 8 GiB goal.
+
+## Transition check
+
+The [Q1 → Q21 → Q1 run](native-transitions-read-ahead-sf100.json) passes all
+27 typed answers in one database. Total peak is **6.971 GiB**, with zero
+sampled file charge and no memory-limit events under 8 GiB and zero swap.
+
+| Step | Query | First call s | Warm median ms |
+|---|---|---:|---:|
+| 1 | Q1 | 8.790 | 425.263 |
+| 2 | Q21 | 12.805 | 620.792 |
+| 3 | Q1 | 9.068 | 419.002 |
+
+Changing SQL still frees and reconstructs statement-specific input. These
+timings include that work and do not establish resident-data latency.

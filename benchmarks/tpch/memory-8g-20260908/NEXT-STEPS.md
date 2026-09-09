@@ -63,14 +63,15 @@ does not isolate I/O from allocator and scheduling effects.
    together beyond the total limit, and include cleanup in client latency.
 
 4. **Measure asynchronous I/O against the improved synchronous reader.**
-   Larger 8 MiB transfers already improve cold preparation. Determine remaining
-   read-wait time separately from decoding, validation and compaction. A
-   bounded prefetch or `io_uring` experiment must account for all submitted
-   buffers, read amplification, completion errors and early-stop cleanup.
-   Keep `O_DIRECT`; a synchronous fallback must not become a buffered payload
-   fallback. Retain an asynchronous implementation only if complete end-to-end
-   measurements justify its complexity and memory. No new dependency is
-   currently required or installed for this step.
+   [Bounded read-ahead](READ-AHEAD.md) now improves Q1 first-call latency
+   from 11.465 to 8.626 seconds and Q13 from 29.776 to 28.727 seconds.
+   It keeps serial decoding and uses two 8 MiB buffers per stream, one
+   pending background pread, with charged memory and joined cleanup.
+   The Q1 → Q21 → Q1 transition check passes all 27 answers below 8 GiB.
+   The complete post-change sweep remains to be run. Measure remaining
+   wait before replacing thread-per-read overhead with a persistent worker
+   or io_uring. Keep O_DIRECT, count speculative bytes and charge every
+   in-flight buffer; no payload page-cache fallback is permitted.
 
 The same-performance goal remains open. The full report distinguishes warm
 reuse from changing-query execution; arbitrary-workload admission and spill

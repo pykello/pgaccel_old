@@ -7,7 +7,8 @@ The target is the previous complete TPC-H SF100 performance with an 8 GiB total 
 [TRANSITION-CHAINS.md](TRANSITION-CHAINS.md) is the latest complete comparison
 against saved pgaccel, ClickHouse and DuckDB times. It includes the
 [8 MiB direct reads](LARGER-READS.md) and [warm-execution changes](WARM-RECOVERY.md).
-The reader remains synchronous `O_DIRECT`; `io_uring` has not been added.
+That sweep used synchronous `O_DIRECT`. The later [read-ahead change](READ-AHEAD.md)
+overlaps bounded direct reads; `io_uring` has not been added.
 
 One frozen build executed Q1 through Q22 in one long-lived database, nine
 calls each. All 198 answers pass; cumulative memory peak is **7.060 GiB**, with
@@ -49,6 +50,14 @@ The candidate peaks at 6.904 and 1.866 GiB respectively. All 288 native
 tests, Python integration, 22 SF1 answers and the SF100 checks pass.
 Warm medians and controls are preserved in the report; this does not
 replace the complete warm sweep or establish changing-query latency.
+
+## Latest preparation follow-up: bounded read-ahead
+
+[Serial decoding with direct read-ahead](READ-AHEAD.md) reduces Q1 first-call
+time from 11.465 to 8.626 seconds and Q13 from 29.776 to 28.727 seconds.
+All 289 native tests and all 22 SF1 answers pass. A Q1 → Q21 → Q1 transition
+check passes all 27 answers at 6.971 GiB peak with zero sampled file charge.
+The reader owns two 8 MiB buffers per stream, with one background pread.
 
 ## Rejected follow-up: concurrent column loading
 
