@@ -5,17 +5,21 @@ The [latest complete sweep](TRANSITION-DENSE.md) passes all 198 answers at
 30.496 ms. Its faster individual results remain separate evidence. Q1, Q12
 and Q22 now have substantial margin in the complete workload.
 
-1. **Improve preparation and preserve execution margin.** First preparation
-   remains seconds, despite warm execution gains. Measure read wait,
-   filtering and compaction separately before adding asynchronous I/O.
-   The selected loader checks row order once, then compaction checks it again
-   for every column; consider a validated selection interface that preserves
-   bounds checks for each source. Independent column compaction may run in
-   parallel, but selection and transformation callbacks capture mutable state
-   and cannot simply be dispatched concurrently. Bound any pipeline's buffers
-   and preserve the eight-worker comparison. Q11's grouped fact scan remains
-   the measured warm bottleneck; do not rerun to select a favorable sample or
-   silently relax the threshold.
+1. **Improve preparation and preserve execution margin.** The
+   [phase profile](PREPARATION-PROFILE.md) measures Q1 compaction at about
+   20 seconds and its total pread wall time at 2.9 seconds. Bounded parallel
+   column copies reduce first-call time modestly to 25.615 seconds, with
+   6.869 GiB peak in the isolated run. Keep selectors and transformations
+   serial because callbacks may share mutable state. Next, investigate why
+   compaction still costs so much: copying selected values, recomputing
+   bounds, dictionary pruning and allocation need separate measurements.
+   The repeated selection validation is another candidate, with source bounds
+   checks preserved. Q13 has only 0.164 seconds of compaction; investigate its
+   native dictionary loading and 5.254-second transformation separately. Its
+   loader currently copies each temporary string into a growing dictionary;
+   direct construction in reserved storage is a concrete allocation candidate.
+   Q11's grouped fact scan remains the measured warm bottleneck. Preserve the
+   eight-worker limit and do not select favorable repeats or relax thresholds.
 
 2. **Revalidate the complete workload after retained changes.** Use one frozen
    module, Q1 through Q22 in one Database, nine calls each, an enforced 8 GiB
