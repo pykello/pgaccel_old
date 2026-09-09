@@ -1,0 +1,19 @@
+--- a/src/executor_sorted_sum.hpp
++++ b/src/executor_sorted_sum.hpp
+@@ -73,6 +73,16 @@
+             if (op.low*rg.size<INT64_MIN || op.high*rg.size>INT64_MAX) throw NotDense{};
+             const auto raw=static_cast<const RawColumnDataBase *>(rg.columns[key.columnIdx].get());
+             auto &stripe=result.stripes[f];int n=0;
++            // Avoid repeated tiny allocations when retaining complete groups.
++            // Keep the combined initial reservation below 1/32 of the query
++            // allowance; selective HAVING paths keep their existing growth.
++            if constexpr (std::is_same_v<Keep,KeepSortedSums>) {
++                constexpr size_t initial=256;
++                if(result.frames.size()<=budget.limit/(32*initial*sizeof(SortedSumGroup))) {
++                    auto domain=Wide(result.frames[f].high)-result.frames[f].low+1;
++                    stripe.groups.reserve(size_t(std::min<Wide>(std::min<size_t>(initial,rg.size),domain)));
++                }
++            }
+             auto consume=[&]<bool Gather>(int begin) {
+                 switch (raw->bytesPerValue) {
+                 case 1:DecodeNumbers<int8_t,Gather>(raw,begin,n,keys,avx,selected);break;
